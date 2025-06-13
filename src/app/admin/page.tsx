@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Calendar } from "@/components/ui/calendar";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Added ScrollArea import
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Activity, Zap, Newspaper, Bell, ListChecks, ExternalLink, Users, Briefcase, Settings,
   ClipboardList, PlusCircle, UserCircle, Circle, BarChart2, MessageSquare, Flag, Eye, Pin, Workflow, AlertCircle, Clock, LogIn, LogOut, CheckCircle as CheckCircleIcon, AlertTriangle, Rocket, MoreHorizontal, Trash2, Edit3, Filter, MessageCircle as MessageCircleChatIcon, BrainCircuit, CalendarDays as CalendarDaysIcon, Settings2, Info, ChevronDown, BookOpen
@@ -37,7 +37,21 @@ const sampleTasks = [
   { id: 't4', title: "Schedule follow-up calls with new leads", status: "To Do", assignedTo: "David L.", priority: "Low" },
   { id: 't5', title: "Design social media graphics for campaign", status: "Doing", assignedTo: "Sarah K.", priority: "High" },
   { id: 't6', title: "Finalize Q2 financial summary", status: "To Do", assignedTo: "Admin", priority: "Urgent" },
+  { id: 't7', title: "Research new CRM tools", status: "To Do", assignedTo: "John B.", priority: "Low" },
+  { id: 't8', title: "Onboard Client 'Gamma Corp'", status: "Doing", assignedTo: "Alice M.", priority: "Urgent" },
 ];
+
+const taskStatuses = ['To Do', 'Doing', 'Done'];
+
+const groupedTasks = sampleTasks.reduce((acc, task) => {
+  const statusKey = task.status as keyof typeof acc;
+  if (!acc[statusKey]) {
+    acc[statusKey] = [];
+  }
+  acc[statusKey].push(task);
+  return acc;
+}, {} as Record<string, typeof sampleTasks>);
+
 
 const sampleVAs = [
   { id: 'va1', name: "Jane Doe", avatarFallback: "JD", online: true, completionRate: 92, satisfaction: 4.8, currentTask: "Social Media Posts for Client X" },
@@ -95,9 +109,9 @@ const AdminDashboardPage: FC = () => {
           </CardHeader>
           <CardContent>
             <ScrollArea className="max-h-72">
-              <ul className="space-y-3">
+              <ul className="space-y-3 pr-3">
                 {sampleActivityFeed.map(item => (
-                  <li key={item.id} className="flex items-center justify-between text-sm pr-3">
+                  <li key={item.id} className="flex items-center justify-between text-sm">
                     <span className="text-foreground/90">{item.text}</span>
                     <span className="text-muted-foreground">{item.time}</span>
                   </li>
@@ -113,46 +127,59 @@ const AdminDashboardPage: FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><ClipboardList className="mr-2 h-5 w-5 text-accent" />Quick Task Manager</CardTitle>
-            <CardDescription>Overview of current tasks. Full Kanban board coming soon!</CardDescription>
+            <CardDescription>Overview of current tasks.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="max-h-80">
-              <div className="space-y-3 pr-3">
-                {sampleTasks.map(task => (
-                  <div key={task.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-md hover:bg-secondary/50 transition-colors">
-                    <div>
-                      <p className="font-medium text-primary">{task.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Assigned to: {task.assignedTo} - Priority: <span className={cn(task.priority === "High" && "text-destructive font-semibold", task.priority === "Urgent" && "text-destructive font-bold", task.priority === "Medium" && "text-yellow-600 font-medium")}>{task.priority}</span>
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={
-                        task.status === "To Do" ? "outline" : task.status === "Doing" ? "secondary" : "default"
-                      }>
-                        {task.status}
-                      </Badge>
-                      <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                  <MoreHorizontal className="h-4 w-4" />
+            <div className="flex space-x-4 overflow-x-auto pb-2">
+              {taskStatuses.map(status => (
+                <div key={status} className="flex-shrink-0 w-72 bg-muted/70 p-3 rounded-lg shadow-sm">
+                  <h3 className="font-semibold text-primary mb-3 px-1 flex justify-between items-center">
+                    <span>{status}</span>
+                    <Badge variant="secondary" className="text-xs">{(groupedTasks[status] || []).length}</Badge>
+                  </h3>
+                  <ScrollArea className="max-h-[26rem]"> {/* Increased max height for task columns */}
+                    <div className="space-y-2 pr-2">
+                      {(groupedTasks[status] || []).map(task => (
+                        <Card key={task.id} className="p-3 bg-card shadow-sm hover:shadow-md transition-shadow relative">
+                          <p className="font-medium text-sm text-foreground mb-1 pr-8">{task.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Assigned to: {task.assignedTo}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Priority: <span className={cn(
+                              task.priority === "High" && "text-destructive font-semibold",
+                              task.priority === "Urgent" && "text-destructive font-bold",
+                              task.priority === "Medium" && "text-yellow-600 font-medium",
+                              task.priority === "Low" && "text-green-600"
+                            )}>{task.priority}</span>
+                          </p>
+                           <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Task Actions</span>
                               </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                              <DropdownMenuItem disabled>Mark as Done</DropdownMenuItem>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
                               <DropdownMenuItem disabled>Edit Task</DropdownMenuItem>
-                              <DropdownMenuItem disabled>Reassign</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" disabled>Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                      </DropdownMenu>
+                              <DropdownMenuItem disabled>Change Status</DropdownMenuItem>
+                              <DropdownMenuItem disabled>Assign/Reassign</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" disabled>Delete Task</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </Card>
+                      ))}
+                      {(groupedTasks[status] || []).length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-4">No tasks here.</p>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+                  </ScrollArea>
+                </div>
+              ))}
+            </div>
           </CardContent>
           <CardFooter className="flex justify-between items-center">
-            <Button variant="outline" size="sm" disabled>View All Tasks</Button>
+            <Button variant="outline" size="sm" disabled>View Full Kanban Board</Button>
             <Dialog>
                 <DialogTrigger asChild>
                     <Button size="sm" disabled><PlusCircle className="mr-2 h-4 w-4"/>New Task</Button>
@@ -164,6 +191,7 @@ const AdminDashboardPage: FC = () => {
                     <div className="grid gap-4 py-4">
                         <Input placeholder="Task Title" />
                         <Textarea placeholder="Task Description" />
+                        {/* Add more fields like assignee, priority, status */}
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
@@ -336,7 +364,7 @@ const AdminDashboardPage: FC = () => {
                                   <Badge variant={
                                     item.type === "Overdue" ? "destructive" :
                                     item.type === "System" ? "secondary" :
-                                    item.type === "Client" ? "outline" : // Added a variant for Client
+                                    item.type === "Client" ? "outline" : 
                                     "outline"
                                   } className="text-xs ml-2 shrink-0">{item.type}</Badge>
                               </div>
