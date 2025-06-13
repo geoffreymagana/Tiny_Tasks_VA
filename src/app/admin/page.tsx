@@ -16,14 +16,14 @@ import {
   ClipboardList, PlusCircle, UserCircle, Circle, BarChart2, MessageSquare, Flag, Eye, Pin, Workflow, AlertCircle, Clock, LogIn, LogOut, CheckCircle as CheckCircleIcon, AlertTriangle, Rocket, MoreHorizontal, Trash2, Edit3
 } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/lib/utils'; // Added missing import
+import { cn } from '@/lib/utils';
 
 // Sample data (replace with actual data fetching later)
 const sampleActivityFeed = [
-  { id: '1', icon: <LogIn className="text-green-500" />, text: "Client 'Acme Corp' logged in.", time: "2m ago" },
-  { id: '2', icon: <CheckCircleIcon className="text-blue-500" />, text: "VA 'Jane D.' completed task 'Social Media Schedule'.", time: "15m ago" },
-  { id: '3', icon: <AlertTriangle className="text-yellow-500" />, text: "Task 'Client Onboarding - Beta Inc.' deadline approaching.", time: "1h ago" },
-  { id: '4', icon: <Rocket className="text-purple-500" />, text: "New VA 'Mike R.' onboarding completed.", time: "3h ago" },
+  { id: '1', text: "Client 'Acme Corp' logged in.", time: "2m ago" },
+  { id: '2', text: "VA 'Jane D.' completed task 'Social Media Schedule'.", time: "15m ago" },
+  { id: '3', text: "Task 'Client Onboarding - Beta Inc.' deadline approaching.", time: "1h ago" },
+  { id: '4', text: "New VA 'Mike R.' onboarding completed.", time: "3h ago" },
 ];
 
 const sampleTasks = [
@@ -75,8 +75,8 @@ const AdminDashboardPage: FC = () => {
               {sampleActivityFeed.map(item => (
                 <li key={item.id} className="flex items-center justify-between text-sm">
                   <div className="flex items-center">
-                    <span className="mr-3 h-5 w-5">{item.icon}</span>
-                    <span className="text-foreground/90">{item.text}</span>
+                    {/* Icon removed here */}
+                    <span className="text-foreground/90 ml-3">{item.text}</span>
                   </div>
                   <span className="text-muted-foreground">{item.time}</span>
                 </li>
@@ -318,5 +318,3 @@ const AdminDashboardPage: FC = () => {
 };
 
 export default AdminDashboardPage;
-
-    
