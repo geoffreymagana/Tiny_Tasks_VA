@@ -10,11 +10,11 @@ import { TestimonialCard } from '@/components/ui/testimonial-card';
 import { ContactForm } from '@/components/ui/contact-form';
 import { Button } from '@/components/ui/button';
 import { 
-  Zap, Users2, Rocket, Palette,
-  Briefcase, Mail, Plane, FileText as FileTextLucide, // Renamed to avoid conflict with React.FileText
+  Zap, Users2, Rocket, Palette as PaletteIconLucide, // Renamed Palette to avoid conflict
+  Briefcase, Mail, Plane, FileText as FileTextLucide, 
   Share2, BarChartBig, PenSquare, Megaphone,
-  Image as ImageIconLucide, Presentation, Palette as PaletteIcon, BotMessageSquare, Lightbulb,
-  CalendarDays, Users, Phone, Video, MessageSquare as MessageCircleIcon, FileTextIcon, ListChecks, CheckSquare, MonitorSmartphone, Slack, Trello
+  Image as ImageIconLucide, Presentation, BotMessageSquare, Lightbulb,
+  CalendarDays, Users, Phone, Video, MessageSquare as MessageCircleIcon, FileTextIcon, ListChecks, CheckSquare, MonitorSmartphone, Slack, Trello, ThumbsUp, TrendingUp, Brush, LayoutGrid, Crop, ShoppingCart
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -71,20 +71,20 @@ const services = [
       { icon: <BarChartBig size={18}/>, text: "Analytics & Reporting" },
       { icon: <Megaphone size={18}/>, text: "Ad Campaign Support" },
     ],
-    learnMoreLink: "/#services", 
+    learnMoreLink: "/services/social-media-management", 
     imageDescriptionForHint: "Dynamic composition of social media icons (Instagram, Facebook, Twitter, LinkedIn) with stylized charts and engagement symbols, representing growth and active online presence management.",
   },
   {
-    mainIcon: <Palette size={32} />,
+    mainIcon: <PaletteIconLucide size={32} />,
     title: "Graphic Design Support",
     description: "Creative design solutions to enhance your brand's visual identity and marketing materials.",
     serviceItems: [
       { icon: <ImageIconLucide size={18}/>, text: "Social Media Graphics" },
       { icon: <Presentation size={18}/>, text: "Presentation Design" },
       { icon: <FileTextIcon size={18}/>, text: "Marketing Material Layouts" },
-      { icon: <PaletteIcon size={18}/>, text: "Basic Brand Asset Creation" },
+      { icon: <PaletteIconLucide size={18}/>, text: "Basic Brand Asset Creation" },
     ],
-    learnMoreLink: "/#services",
+    learnMoreLink: "/services/graphic-design-support",
     imageDescriptionForHint: "Modern flat design illustration of graphic design tools (pen tool, color palette, shapes) creating a visually appealing brand logo or marketing material.",
   },
 ];
@@ -96,12 +96,12 @@ const features = [
     description: "Our VAs handle time-consuming tasks, allowing you to focus on core business activities and strategic growth.",
   },
   {
-    icon: <Users2 size={28} />, // Changed from PackageCheck for better VA theme alignment
+    icon: <Users2 size={28} />, 
     title: "Access Specialized Skills",
     description: "Tap into a wide range of expertise, from administrative support to social media and design, without hiring full-time.",
   },
   {
-    icon: <Rocket size={28} />, // Changed from Users2, as Users2 is now above
+    icon: <Rocket size={28} />, 
     title: "Flexible & Scalable Support",
     description: "Adjust your VA services as your business needs change, ensuring you always have the right level of support.",
   },
@@ -151,7 +151,7 @@ const toolsData = {
       name: "Social Media",
       icon: <Share2 size={24} className="text-accent" />,
       tools: [
-        { name: "Canva", icon: <PaletteIcon size={18} /> },
+        { name: "Canva", icon: <PaletteIconLucide size={18} /> },
         { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> },
       ],
     },
