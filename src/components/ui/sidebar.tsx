@@ -193,7 +193,7 @@ export const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar-DEFAULT p-0 text-sidebar-foreground [&>button]:text-sidebar-foreground"
+            className="w-[--sidebar-width] bg-card p-0 text-sidebar-foreground [&>button]:text-sidebar-foreground"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
