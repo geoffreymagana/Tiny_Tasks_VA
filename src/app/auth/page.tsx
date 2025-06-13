@@ -70,6 +70,21 @@ const AuthPage: FC = () => {
     // If user exists, their role and other data are preserved.
   };
 
+  const redirectToDashboard = async (userId: string) => {
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists() && userDocSnap.data()?.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
+    } catch (error) {
+      console.error("Error fetching user role for redirection:", error);
+      router.push('/'); // Fallback to homepage
+    }
+  };
+
 
   const onSignInSubmit: SubmitHandler<SignInFormValues> = async (data) => {
     setIsLoading(true);
@@ -77,7 +92,7 @@ const AuthPage: FC = () => {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
       await handleUserSetup(userCredential.user);
       toast({ title: 'Success', description: 'Signed in successfully.' });
-      router.push('/'); // Redirect to homepage or dashboard
+      await redirectToDashboard(userCredential.user.uid);
     } catch (error: any) {
       console.error('Sign in error:', error);
       toast({
@@ -98,11 +113,8 @@ const AuthPage: FC = () => {
         await updateProfile(userCredential.user, { displayName: data.displayName });
       }
       await handleUserSetup(userCredential.user, data.displayName);
-      toast({ title: 'Success', description: 'Account created successfully. Please sign in.' });
-       // Firebase automatically signs in the user after creation.
-       // router.push('/'); // Or redirect to a "please verify email" page if implemented
-       // For now, keep them on auth page, or redirect to home
-      router.push('/');
+      toast({ title: 'Success', description: 'Account created successfully. You are now signed in.' });
+      await redirectToDashboard(userCredential.user.uid);
     } catch (error: any) {
       console.error('Sign up error:', error);
       toast({
@@ -122,7 +134,7 @@ const AuthPage: FC = () => {
       const result = await signInWithPopup(auth, provider);
       await handleUserSetup(result.user);
       toast({ title: 'Success', description: 'Signed in with Google successfully.' });
-      router.push('/'); // Redirect to homepage or dashboard
+      await redirectToDashboard(result.user.uid);
     } catch (error: any) {
       console.error('Google sign in error:', error);
       toast({
@@ -235,3 +247,5 @@ const AuthPage: FC = () => {
 };
 
 export default AuthPage;
+
+    
