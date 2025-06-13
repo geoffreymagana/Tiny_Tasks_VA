@@ -1,32 +1,33 @@
 
 "use client";
 import type { FC, ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation'; 
+import { useRouter, usePathname } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { LottieLoader } from '@/components/ui/lottie-loader';
-import { 
-  LogOut, Zap, LayoutDashboard, Users, Briefcase, FileText as FileTextIconLucide, 
+import {
+  LogOut, Zap, LayoutDashboard, Users, Briefcase, FileText as FileTextIconLucide,
   Receipt, MessageSquareText, UsersRound, Sparkles, User, Settings2, Newspaper, FolderKanban
 } from 'lucide-react';
-import { 
-  SidebarProvider, Sidebar, SidebarHeader, SidebarContent, 
-  SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, 
-  SidebarTrigger, SidebarInset, SidebarRail 
+import {
+  SidebarProvider, Sidebar, SidebarHeader, SidebarContent,
+  SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
+  SidebarTrigger, SidebarInset, SidebarRail
 } from '@/components/ui/sidebar';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
 const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
-  const authState = useAdminAuth(); 
-  const router = useRouter(); 
-  const currentPath = usePathname(); 
+  const authState = useAdminAuth();
+  const router = useRouter();
+  const currentPath = usePathname();
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -62,7 +63,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
       </div>
     );
   }
-  
+
   if (!authState.isAdmin) {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background p-6">
@@ -76,9 +77,9 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
       </div>
     );
   }
-  
+
   const isActivePath = (href: string) => {
-    if (href === "/admin" || href === "/admin/") { 
+    if (href === "/admin" || href === "/admin/") {
       return currentPath === "/admin" || currentPath === "/admin/";
     }
     return currentPath === href || currentPath.startsWith(href + '/');
@@ -110,19 +111,19 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 
     switch (authState.userData.role) {
       case 'admin':
-        backgroundColor = '#ef3da6';
+        backgroundColor = '#ef3da6'; // Pink for Admin
         roleText = 'Admin Portal';
         break;
       case 'client':
-        backgroundColor = '#f58d11';
+        backgroundColor = '#f58d11'; // Orange for Client
         roleText = 'Client Portal';
         break;
       case 'staff':
-        backgroundColor = '#00274d';
+        backgroundColor = '#00274d'; // Primary Dark Blue for Staff
         roleText = 'Staff Portal';
         break;
       default:
-        return null; 
+        return null;
     }
 
     return (
@@ -151,7 +152,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
             {navItems.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <SidebarMenuButton asChild isActive={isActivePath(item.href)} tooltip={item.tooltip}>
-                  <Link href={item.href}> 
+                  <Link href={item.href}>
                     {item.icon}
                     <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
                   </Link>
@@ -181,14 +182,17 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="flex flex-col flex-1 min-h-0 bg-secondary/20">
+      <SidebarInset className={cn(
+          "flex flex-col flex-1 min-h-0 bg-secondary/20",
+          "transition-all duration-200 ease-linear" // Added transition for smoother reflow
+        )}>
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-background">
           <div className="md:hidden">
             <SidebarTrigger />
           </div>
           {getRolePill()}
         </div>
-        
+
         <main className="flex-1 overflow-hidden container mx-auto">
           {children}
         </main>
@@ -199,4 +203,3 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 };
 
 export default AdminLayout;
-    
