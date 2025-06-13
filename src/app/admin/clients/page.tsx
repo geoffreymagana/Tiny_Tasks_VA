@@ -20,18 +20,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import { getAllClientsAction, deleteClientAction, type Client, type ClientOperationResult } from './actions';
+import { getAllClientsAction, deleteClientAction, toggleUserAccountDisabledStatusAction, type Client, type ClientOperationResult } from './actions';
 import { LottieLoader } from '@/components/ui/lottie-loader';
-import { PlusCircle, Users, Edit3, Trash2, Briefcase, Info } from 'lucide-react';
+import { PlusCircle, Users, Edit3, Trash2, Briefcase, UserX, UserCheck, ShieldAlert, Badge } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 const ClientHubPage: FC = () => {
   const { toast } = useToast();
   const { user: firebaseUser } = useAdminAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
-  const [isDeletingClient, setIsDeletingClient] = useState(false);
-  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false); // General processing state for delete/toggle
+  const [clientToProcess, setClientToProcess] = useState<Client | null>(null);
+  const [dialogActionType, setDialogActionType] = useState<'delete' | 'toggleStatus' | null>(null);
+
 
   const fetchClients = useCallback(async () => {
     setIsLoadingClients(true);
@@ -50,31 +53,8 @@ const ClientHubPage: FC = () => {
     fetchClients();
   }, [fetchClients]);
 
-  const handleDeleteClient = async (clientId: string) => {
-    if (!firebaseUser?.uid) {
-      toast({ title: 'Authentication Error', description: 'Admin not authenticated.', variant: 'destructive' });
-      return;
-    }
-    if (!clientToDelete || clientToDelete.id !== clientId || clientToDelete.source === 'users') {
-        toast({ title: 'Operation Not Allowed', description: 'This client cannot be deleted from here.', variant: 'destructive' });
-        setClientToDelete(null);
-        return;
-    }
-
-    setIsDeletingClient(true);
-    const result: ClientOperationResult = await deleteClientAction(clientId, firebaseUser.uid);
-    if (result.success) {
-      toast({ title: 'Success', description: result.message });
-      setClients(prevClients => prevClients.filter(client => client.id !== clientId));
-    } else {
-      toast({ title: 'Error', description: result.message, variant: 'destructive' });
-    }
-    setIsDeletingClient(false);
-    setClientToDelete(null);
-  };
-
-  const openDeleteDialog = (client: Client) => {
-    if (client.source === 'users') {
+  const openDialog = (client: Client, actionType: 'delete' | 'toggleStatus') => {
+    if (actionType === 'delete' && client.source === 'users') {
         toast({
             title: "Deletion Not Allowed",
             description: "Clients synced from user accounts cannot be deleted here. Manage user accounts separately.",
@@ -83,8 +63,66 @@ const ClientHubPage: FC = () => {
         });
         return;
     }
-    setClientToDelete(client);
+    setClientToProcess(client);
+    setDialogActionType(actionType);
   };
+
+  const handleDialogAction = async () => {
+    if (!clientToProcess || !firebaseUser?.uid || !dialogActionType) {
+      toast({ title: 'Error', description: 'Action cannot be performed.', variant: 'destructive'});
+      setClientToProcess(null);
+      setDialogActionType(null);
+      return;
+    }
+    setIsProcessing(true);
+    let result: ClientOperationResult | null = null;
+
+    if (dialogActionType === 'delete' && clientToProcess.source === 'clients') {
+      result = await deleteClientAction(clientToProcess.id, firebaseUser.uid);
+    } else if (dialogActionType === 'toggleStatus' && clientToProcess.source === 'users') {
+      result = await toggleUserAccountDisabledStatusAction(clientToProcess.id, firebaseUser.uid);
+    } else {
+       toast({ title: 'Operation Not Allowed', description: 'This operation is not permitted for this client type.', variant: 'destructive' });
+       setIsProcessing(false);
+       setClientToProcess(null);
+       setDialogActionType(null);
+       return;
+    }
+
+    if (result?.success) {
+      toast({ title: 'Success', description: result.message });
+      fetchClients(); // Refresh client list
+    } else {
+      toast({ title: 'Error', description: result?.message || "An unknown error occurred.", variant: 'destructive' });
+    }
+    setIsProcessing(false);
+    setClientToProcess(null);
+    setDialogActionType(null);
+  };
+
+  const getDialogDetails = () => {
+    if (!clientToProcess || !dialogActionType) return { title: '', description: '', actionText: '' };
+    if (dialogActionType === 'delete') {
+      return {
+        title: 'Are you absolutely sure?',
+        description: `This action cannot be undone. This will permanently delete the client "${clientToProcess.name}" from the manually added list.`,
+        actionText: 'Delete',
+        actionVariant: "destructive" as "destructive" | "default" | "outline" | "secondary" | "ghost" | "link" | null | undefined,
+      };
+    }
+    if (dialogActionType === 'toggleStatus') {
+      const action = clientToProcess.isDisabled ? "Enable" : "Disable";
+      return {
+        title: `Confirm Account Status Change`,
+        description: `Are you sure you want to ${action.toLowerCase()} the account for "${clientToProcess.name}"? This will affect their ability to access services.`,
+        actionText: action,
+        actionVariant: clientToProcess.isDisabled ? "default" : "destructive" as "destructive" | "default" | "outline" | "secondary" | "ghost" | "link" | null | undefined,
+      };
+    }
+    return { title: '', description: '', actionText: '' };
+  };
+
+  const { title: dialogTitle, description: dialogDescription, actionText: dialogActionText, actionVariant: dialogActionVariant } = getDialogDetails();
 
   return (
     <TooltipProvider>
@@ -118,13 +156,20 @@ const ClientHubPage: FC = () => {
                   <TableHead>Company</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Source</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Projects (soon)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {clients.map((client) => (
-                  <TableRow key={client.id} className={client.source === 'users' ? 'bg-secondary/30' : ''}>
+                  <TableRow 
+                    key={client.id} 
+                    className={cn(
+                        client.source === 'users' ? 'bg-secondary/30' : '',
+                        client.isDisabled && 'opacity-60 bg-muted/50'
+                    )}
+                  >
                     <TableCell className="font-medium">{client.name}</TableCell>
                     <TableCell>{client.email}</TableCell>
                     <TableCell>{client.company || '-'}</TableCell>
@@ -133,6 +178,11 @@ const ClientHubPage: FC = () => {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${client.source === 'clients' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
                             {client.source === 'clients' ? 'Manual' : 'User Account'}
                         </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${client.isDisabled ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {client.isDisabled ? 'Disabled' : 'Active'}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <Button variant="outline" size="sm" disabled>
@@ -146,7 +196,7 @@ const ClientHubPage: FC = () => {
                             <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                asChild={client.source === 'clients'} // asChild only if it's a Link
+                                asChild={client.source === 'clients'}
                                 disabled={client.source === 'users'}
                             >
                                 {client.source === 'clients' ? (
@@ -154,7 +204,7 @@ const ClientHubPage: FC = () => {
                                         <Edit3 className="h-4 w-4" />
                                     </Link>
                                 ) : (
-                                    <Edit3 className="h-4 w-4" /> // Just the icon if disabled
+                                    <Edit3 className="h-4 w-4" /> 
                                 )}
                             </Button>
                           </span>
@@ -164,42 +214,42 @@ const ClientHubPage: FC = () => {
                         </TooltipContent>
                       </Tooltip>
                       
-                      <AlertDialog open={!!clientToDelete && clientToDelete.id === client.id} onOpenChange={(isOpen) => !isOpen && setClientToDelete(null)}>
+                      {client.source === 'users' && (
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <span>
-                                    <AlertDialogTrigger asChild disabled={client.source === 'users'}>
-                                        <Button variant="ghost" size="icon" title="Delete Client" onClick={() => openDeleteDialog(client)} disabled={client.source === 'users'}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                </span>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    title={client.isDisabled ? "Enable Account" : "Disable Account"} 
+                                    onClick={() => openDialog(client, 'toggleStatus')}
+                                >
+                                    {client.isDisabled ? <UserCheck className="h-4 w-4 text-green-600" /> : <UserX className="h-4 w-4 text-orange-600" />}
+                                </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>{client.source === 'clients' ? 'Delete Client' : 'Synced users cannot be deleted here'}</p>
+                                <p>{client.isDisabled ? "Enable User Account" : "Disable User Account"}</p>
                             </TooltipContent>
                         </Tooltip>
-                        {client.source === 'clients' && clientToDelete?.id === client.id && ( // Ensure content is only for the correct dialog
-                            <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the client &quot;{client.name}&quot; from the manually added list.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setClientToDelete(null)} disabled={isDeletingClient}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                onClick={() => handleDeleteClient(client.id)}
-                                disabled={isDeletingClient}
-                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                                >
-                                {isDeletingClient ? <LottieLoader className="mr-2" size={16} /> : 'Delete'}
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                            </AlertDialogContent>
-                        )}
-                      </AlertDialog>
+                      )}
+
+                      <Tooltip>
+                          <TooltipTrigger asChild>
+                              <span>
+                                  <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      title="Delete Client" 
+                                      onClick={() => openDialog(client, 'delete')} 
+                                      disabled={client.source === 'users'}
+                                  >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                              </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                              <p>{client.source === 'clients' ? 'Delete Client' : 'Synced users cannot be deleted here'}</p>
+                          </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -208,6 +258,35 @@ const ClientHubPage: FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {clientToProcess && dialogActionType && (
+        <AlertDialog open={!!clientToProcess} onOpenChange={(isOpen) => {if (!isOpen) {setClientToProcess(null); setDialogActionType(null);}}}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center">
+                   <ShieldAlert className={cn("mr-2 h-5 w-5", dialogActionVariant === "destructive" ? "text-destructive" : "text-primary" )}/> 
+                   {dialogTitle}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                    {dialogDescription}
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => {setClientToProcess(null); setDialogActionType(null);}} disabled={isProcessing}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDialogAction}
+                    disabled={isProcessing}
+                    className={cn(
+                        dialogActionVariant === 'destructive' && 'bg-destructive hover:bg-destructive/90 text-destructive-foreground',
+                        dialogActionVariant === 'default' && 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                    )}
+                >
+                {isProcessing ? <LottieLoader className="mr-2" size={16} /> : dialogActionText}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
     </TooltipProvider>
   );
@@ -215,3 +294,4 @@ const ClientHubPage: FC = () => {
 
 export default ClientHubPage;
 
+    

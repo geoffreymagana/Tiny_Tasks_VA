@@ -20,6 +20,7 @@ export interface Client extends ClientFormData {
   createdAt: string | null; 
   updatedAt: string | null; 
   source: 'clients' | 'users'; // To identify the origin of the client data
+  isDisabled?: boolean; // New field for user account status
 }
 
 export interface ClientOperationResult {
@@ -60,8 +61,6 @@ export async function addClientAction(
   if (!(await isEmailUniqueInClientsCollection(clientData.email))) {
     return { success: false, message: 'This email address is already in use by another client in the dedicated clients list.' };
   }
-  // Note: This doesn't check against the 'users' collection here, as adding is specific to the 'clients' collection.
-  // A more comprehensive check could be added if necessary.
 
   try {
     const newClient = {
@@ -82,24 +81,22 @@ const convertDbTimestamp = (timestamp: any): string | null => {
     if (timestamp instanceof Timestamp) {
       return timestamp.toDate().toISOString();
     }
-    // Handle cases where timestamp might already be an ISO string or a Firestore ServerTimestamp placeholder object
     if (typeof timestamp === 'string' && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp)) {
       return timestamp;
     }
     if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
        return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate().toISOString();
     }
-    // Fallback for unexpected formats, trying to create a date if it's a recognizable date string, otherwise null
     try {
-        if (timestamp && typeof timestamp.toDate === 'function') { // Handle Firestore ServerTimestamp placeholder before written
-            return new Date().toISOString(); // Placeholder for current time, will be updated by server
+        if (timestamp && typeof timestamp.toDate === 'function') { 
+            return new Date().toISOString(); 
         }
         const d = new Date(timestamp);
         if (!isNaN(d.getTime())) return d.toISOString();
     } catch (e) {
         // ignore
     }
-    console.warn("Unsupported timestamp format encountered:", timestamp);
+    console.warn("Unsupported timestamp format encountered in convertDbTimestamp:", timestamp);
     return null; 
 };
 
@@ -110,7 +107,7 @@ export async function getAllClientsAction(): Promise<Client[]> {
   try {
     // 1. Fetch from 'clients' collection
     const clientsRef = collection(db, 'clients');
-    const clientsQuery = query(clientsRef); // Removed orderBy for now, will sort merged list later
+    const clientsQuery = query(clientsRef);
     const clientsSnapshot = await getDocs(clientsQuery);
     
     clientsSnapshot.forEach(doc => {
@@ -124,9 +121,10 @@ export async function getAllClientsAction(): Promise<Client[]> {
         createdAt: convertDbTimestamp(data.createdAt),
         updatedAt: convertDbTimestamp(data.updatedAt),
         source: 'clients',
+        isDisabled: data.isDisabled || false, // Assuming 'clients' can also be disabled, though less common
       };
       if (clientRecord.email) {
-        allClientsMap.set(clientRecord.email, clientRecord); // Add or overwrite if email conflict (clients specific info)
+        allClientsMap.set(clientRecord.email, clientRecord);
       }
     });
 
@@ -142,32 +140,28 @@ export async function getAllClientsAction(): Promise<Client[]> {
       const existingClientRecord = userEmail ? allClientsMap.get(userEmail) : undefined;
 
       if (existingClientRecord && existingClientRecord.source === 'clients') {
-        // User exists in 'users' and was also manually added to 'clients'.
-        // Update the existing record from 'clients' to indicate it's also a 'user' (for future reference)
-        // and ensure user data (like name, email, createdAt from user record) takes precedence if more up-to-date.
-        // For simplicity, we can just mark it or decide a priority. Let's make 'users' data primary for core fields.
         existingClientRecord.name = data.displayName || data.email?.split('@')[0] || existingClientRecord.name;
         existingClientRecord.createdAt = convertDbTimestamp(data.createdAt) || existingClientRecord.createdAt;
         existingClientRecord.updatedAt = convertDbTimestamp(data.updatedAt) || convertDbTimestamp(data.createdAt) || existingClientRecord.updatedAt;
+        existingClientRecord.isDisabled = data.isDisabled === undefined ? false : data.isDisabled; // Prioritize user's isDisabled status
         // Keep company/phone from 'clients' record if they exist
       } else if (userEmail && !existingClientRecord) {
-        // New client from 'users' collection not in 'clients' map yet
         allClientsMap.set(userEmail, {
           id: doc.id, // User UID
           name: data.displayName || data.email?.split('@')[0] || 'N/A',
           email: userEmail,
-          company: '', // Not typically in 'users' collection
-          phone: '',   // Not typically in 'users' collection
+          company: '', 
+          phone: '',   
           createdAt: convertDbTimestamp(data.createdAt),
           updatedAt: convertDbTimestamp(data.updatedAt) || convertDbTimestamp(data.createdAt),
           source: 'users',
+          isDisabled: data.isDisabled === undefined ? false : data.isDisabled,
         });
       }
     });
 
     let combinedClients = Array.from(allClientsMap.values());
 
-    // Sort by createdAt descending (most recent first)
     combinedClients.sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -182,14 +176,13 @@ export async function getAllClientsAction(): Promise<Client[]> {
   }
 }
 
-// getClientAction, updateClientAction, deleteClientAction primarily operate on the 'clients' collection.
-// The ID passed to them will be from the `clients` collection if edit/delete is initiated from UI.
 export async function getClientAction(clientId: string): Promise<Client | null> {
   try {
-    const clientDocRef = doc(db, 'clients', clientId); // Assumes ID is for 'clients' collection
+    const clientDocRef = doc(db, 'clients', clientId); 
     const clientDocSnap = await getDoc(clientDocRef);
 
     if (!clientDocSnap.exists()) {
+      // Could also check users collection if ID might be a UID, but for now assuming it's for 'clients'
       return null;
     }
     const data = clientDocSnap.data();
@@ -201,7 +194,8 @@ export async function getClientAction(clientId: string): Promise<Client | null> 
       phone: data.phone || '',
       createdAt: convertDbTimestamp(data.createdAt),
       updatedAt: convertDbTimestamp(data.updatedAt),
-      source: 'clients', // This specific action fetches from 'clients'
+      source: 'clients', 
+      isDisabled: data.isDisabled || false,
     };
   } catch (error) {
     console.error("Error fetching client:", error);
@@ -218,7 +212,6 @@ export async function updateClientAction(
     return { success: false, message: 'User does not have admin privileges.' };
   }
 
-  // This operation is intended for records in the 'clients' collection
   const clientRef = doc(db, 'clients', clientId);
   const clientSnap = await getDoc(clientRef);
   if (!clientSnap.exists()) {
@@ -243,14 +236,13 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(
-  clientId: string, // Assumes ID is for 'clients' collection
+  clientId: string, 
   adminId: string
 ): Promise<ClientOperationResult> {
   if (!(await verifyAdmin(adminId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
   try {
-    // This operation is intended for records in the 'clients' collection
     const clientRef = doc(db, 'clients', clientId);
     const clientSnap = await getDoc(clientRef);
     if (!clientSnap.exists()) {
@@ -263,3 +255,40 @@ export async function deleteClientAction(
     return { success: false, message: error.message || 'Failed to delete client.' };
   }
 }
+
+
+export async function toggleUserAccountDisabledStatusAction(
+  userId: string, // This will be the UID from Firebase Auth / users collection
+  adminId: string
+): Promise<ClientOperationResult> {
+  if (!(await verifyAdmin(adminId))) {
+    return { success: false, message: 'User does not have admin privileges to change account status.' };
+  }
+
+  const userDocRef = doc(db, 'users', userId);
+  try {
+    const userDocSnap = await getDoc(userDocRef);
+    if (!userDocSnap.exists()) {
+      return { success: false, message: 'User account not found.' };
+    }
+
+    const userData = userDocSnap.data();
+    const currentDisabledStatus = userData.isDisabled === undefined ? false : userData.isDisabled;
+    const newDisabledStatus = !currentDisabledStatus;
+
+    await updateDoc(userDocRef, {
+      isDisabled: newDisabledStatus,
+      updatedAt: serverTimestamp(),
+    });
+
+    return { 
+      success: true, 
+      message: `User account has been ${newDisabledStatus ? 'disabled' : 'enabled'} successfully.` 
+    };
+  } catch (error: any) {
+    console.error('Error toggling user account status:', error);
+    return { success: false, message: error.message || 'Failed to toggle user account status.' };
+  }
+}
+
+    

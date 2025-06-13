@@ -66,10 +66,30 @@ const AuthPage: FC = () => {
           photoURL: user.photoURL,
           role: 'client', 
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          isDisabled: false, // Initialize isDisabled to false
         });
         console.log('User document created in Firestore for UID:', user.uid);
       } else {
-        console.log('User document already exists for UID:', user.uid);
+        // If user document exists, ensure 'isDisabled' field is present or update other fields like 'updatedAt'
+        const existingData = userSnap.data();
+        const updates:any = { updatedAt: serverTimestamp() };
+        if (existingData.isDisabled === undefined) {
+          updates.isDisabled = false;
+        }
+        // Optionally update displayName or photoURL if they changed from Google sign-in
+        if (displayName && displayName !== existingData.displayName) {
+            updates.displayName = displayName;
+        }
+        if (user.photoURL && user.photoURL !== existingData.photoURL) {
+            updates.photoURL = user.photoURL;
+        }
+        if(Object.keys(updates).length > 1) { // more than just updatedAt
+            await setDoc(userRef, updates, { merge: true });
+            console.log('User document updated in Firestore for UID:', user.uid);
+        } else {
+            console.log('User document already exists for UID:', user.uid, 'and isDisabled status is set.');
+        }
       }
     } catch (error) {
       console.error('Error in handleUserSetup (Firestore operation):', error);
@@ -82,16 +102,35 @@ const AuthPage: FC = () => {
     }
   };
 
-  const redirectToDashboard = async (userId: string): Promise<{ success: boolean; isAdminRedirect: boolean }> => {
+  const redirectToDashboard = async (userId: string): Promise<{ success: boolean; isAdminRedirect: boolean; isAccountDisabled: boolean }> => {
     try {
       const userDocRef = doc(db, 'users', userId);
       const userDocSnap = await getDoc(userDocRef);
-      if (userDocSnap.exists() && userDocSnap.data()?.role === 'admin') {
-        router.push('/admin');
-        return { success: true, isAdminRedirect: true };
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData.isDisabled) {
+          await auth.signOut(); // Sign out the disabled user
+          toast({
+            title: 'Account Disabled',
+            description: 'Your account has been disabled. Please contact support.',
+            variant: 'destructive',
+            duration: 7000,
+          });
+          router.push('/auth'); // Keep them on auth page or redirect to a specific "disabled" page
+          return { success: false, isAdminRedirect: false, isAccountDisabled: true };
+        }
+        if (userData.role === 'admin') {
+          router.push('/admin');
+          return { success: true, isAdminRedirect: true, isAccountDisabled: false };
+        } else {
+          router.push('/');
+          return { success: true, isAdminRedirect: false, isAccountDisabled: false };
+        }
       } else {
+         // This case should ideally not happen if handleUserSetup runs correctly
+        toast({ title: 'User Data Not Found', description: 'Could not retrieve user details. Please try again.', variant: 'destructive' });
         router.push('/');
-        return { success: true, isAdminRedirect: false };
+        return { success: false, isAdminRedirect: false, isAccountDisabled: false };
       }
     } catch (error) {
       console.error("Error fetching user role for redirection (Firestore operation):", error);
@@ -101,7 +140,7 @@ const AuthPage: FC = () => {
         variant: 'destructive',
       });
       router.push('/'); 
-      return { success: false, isAdminRedirect: false };
+      return { success: false, isAdminRedirect: false, isAccountDisabled: false };
     }
   };
 
@@ -143,9 +182,11 @@ const AuthPage: FC = () => {
       if (data.displayName && userCredential.user) {
         await updateProfile(userCredential.user, { displayName: data.displayName });
       }
-      await handleUserSetup(userCredential.user, data.displayName || userCredential.user.displayName);
+      // Pass the updated user object or at least displayName to handleUserSetup
+      const userToSetup = auth.currentUser || userCredential.user;
+      await handleUserSetup(userToSetup, data.displayName || userToSetup.displayName);
       
-      const redirectStatus = await redirectToDashboard(userCredential.user.uid);
+      const redirectStatus = await redirectToDashboard(userToSetup.uid);
        if (redirectStatus.success) {
         toast({ title: 'Account Created', description: 'Sign up successful. Redirecting...' });
       }
@@ -304,3 +345,5 @@ const AuthPage: FC = () => {
 };
 
 export default AuthPage;
+
+    
