@@ -2,25 +2,31 @@
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { GenerateImageSectionsOutput } from '@/ai/flows/generate-image-sections';
+// Removed GenerateImageSectionsOutput import as it's replaced by AiImageInfo
+
+export interface AiImageInfo {
+  imageDataURI: string | null;
+  description: string | null; // For alt text and data-ai-hint
+  imageType: string | null; // Optional: To display 'AI Suggested Image Type' if needed
+}
 
 interface AiImageSectionProps {
   title: string;
   text: string;
-  aiImage: GenerateImageSectionsOutput | null;
+  imageInfo: AiImageInfo | null;
   imagePlacement?: 'left' | 'right';
-  children?: React.ReactNode; 
+  children?: React.ReactNode;
   className?: string;
   titleClassName?: string;
   textClassName?: string;
   imageContainerClassName?: string;
-  contentContainerClassName?: string; // New prop for content alignment
+  contentContainerClassName?: string;
 }
 
 export function AiImageSection({
   title,
   text,
-  aiImage,
+  imageInfo,
   imagePlacement = 'right',
   children,
   className,
@@ -32,8 +38,9 @@ export function AiImageSection({
   const imageWidth = 500;
   const imageHeight = 350;
 
-  const imageKeywords = aiImage?.imageDescription 
-    ? aiImage.imageDescription.split(' ').slice(0, 2).join(' ') 
+  const imageAlt = imageInfo?.description || title || 'AI generated image';
+  const imageHintKeywords = imageInfo?.description
+    ? imageInfo.description.split(' ').slice(0, 2).join(' ')
     : 'abstract design';
 
   const contentOrder = imagePlacement === 'left' ? 'md:order-last' : '';
@@ -65,32 +72,37 @@ export function AiImageSection({
               imageOrder,
               imageContainerClassName
             )}>
-            {aiImage ? (
+            {imageInfo?.imageDataURI ? (
               <Card className="overflow-hidden shadow-2xl rounded-xl w-full max-w-lg transform hover:scale-105 transition-transform duration-300">
-                <CardContent className="p-0">
+                <CardContent className="p-4"> {/* Added padding here */}
                   <Image
-                    src={`https://placehold.co/${imageWidth}x${imageHeight}.png`}
-                    alt={aiImage.imageDescription}
+                    src={imageInfo.imageDataURI}
+                    alt={imageAlt}
                     width={imageWidth}
                     height={imageHeight}
-                    className="object-cover w-full h-auto aspect-[500/350]"
-                    data-ai-hint={imageKeywords}
-                    priority={imagePlacement === 'right' && title.toLowerCase().includes('hero')} 
+                    className="object-cover w-full h-auto aspect-[500/350] rounded-md" // Added rounded-md if desired within padding
+                    data-ai-hint={imageHintKeywords}
+                    priority={imagePlacement === 'right' && title.toLowerCase().includes('hero')}
                   />
-                  <div className="p-4 bg-muted/50">
-                    <p className="text-xs text-muted-foreground italic">
-                      AI Suggested Image Type: {aiImage.imageType}
+                  {imageInfo.imageType && (
+                    <p className="mt-2 text-xs text-muted-foreground italic text-center">
+                      Suggested type: {imageInfo.imageType}
                     </p>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             ) : (
-              <div 
-                className={`w-full max-w-lg bg-muted rounded-xl shadow-lg flex items-center justify-center`}
-                style={{aspectRatio: `${imageWidth}/${imageHeight}`, minHeight: `auto`}} // Use aspect ratio
+              <Card 
+                className={`w-full max-w-lg bg-card rounded-xl shadow-lg flex items-center justify-center p-4`} // Added p-4 for consistency
+                style={{aspectRatio: `${imageWidth}/${imageHeight}`, minHeight: `auto`}}
               >
-                <p className="text-muted-foreground">Image loading...</p>
-              </div>
+                <div className="text-center">
+                  <p className="text-muted-foreground">{imageInfo?.description ? `Generating image for: "${imageInfo.description.substring(0,50)}..."` : 'Image loading...'}</p>
+                  {imageInfo?.description && !imageInfo.imageDataURI && (
+                     <p className="text-xs text-muted-foreground italic mt-1">Image generation might take a moment or has failed.</p>
+                  )}
+                </div>
+              </Card>
             )}
           </div>
         </div>

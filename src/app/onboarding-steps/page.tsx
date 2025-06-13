@@ -4,17 +4,41 @@ import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle, UserPlus, Zap, MessageSquareHeart } from 'lucide-react';
-import { AiImageSection } from '@/components/ui/ai-image-section';
-import { generateImageSections, GenerateImageSectionsOutput } from '@/ai/flows/generate-image-sections';
+import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section'; // Updated import
+import { generateImageSections } from '@/ai/flows/generate-image-sections';
+import { generateDescribedImage } from '@/ai/flows/generate-described-image-flow'; // New import
 
 export default async function OnboardingStepsPage() {
   const pageContentText = "Step 1: Discovery Call. We start with a friendly chat to learn about your business, challenges, and the specific tasks you'd like to delegate. This helps us understand your goals and how our virtual assistants can best support you. Step 2: Assistant Matching. Based on your requirements, we meticulously match you with a virtual assistant whose skills and experience align perfectly with your needs. Step 3: Integration & Kick-off. We facilitate a smooth integration of your new VA into your existing workflows and tools. Step 4: Ongoing Support & Feedback. Our commitment doesn't end once you're onboarded. We provide ongoing support and regularly check in.";
   
-  let onboardingImage: GenerateImageSectionsOutput | null = null;
+  let onboardingImageInfo: AiImageInfo | null = null;
+  const aiPromptForDescription = `Visual representation of a smooth and collaborative onboarding process for virtual assistant services, emphasizing clarity and partnership. ${pageContentText}`;
+
   try {
-    onboardingImage = await generateImageSections({ sectionText: `Visual representation of a smooth and collaborative onboarding process for virtual assistant services, emphasizing clarity and partnership. ${pageContentText}` });
+    const descriptionResult = await generateImageSections({ sectionText: aiPromptForDescription });
+    let description: string | null = null;
+    let imageType: string | null = null;
+    let imageDataURI: string | null = null;
+
+    if (descriptionResult?.imageDescription) {
+      description = descriptionResult.imageDescription;
+      imageType = descriptionResult.imageType;
+      
+      const imageGenResult = await generateDescribedImage({ imageDescription: description });
+      if (imageGenResult?.imageDataURI) {
+        imageDataURI = imageGenResult.imageDataURI;
+      } else {
+        console.warn(`Actual image generation failed for onboarding page. Description was: "${description}"`);
+      }
+    } else {
+      console.warn(`No image description generated for onboarding page. Using prompt substring as fallback description.`);
+      description = aiPromptForDescription.substring(0,100);
+    }
+    onboardingImageInfo = { imageDataURI, description, imageType };
+
   } catch (err) {
-    console.error("Failed to generate image for onboarding page:", err);
+    console.error("Failed to generate image info for onboarding page:", err);
+    onboardingImageInfo = { imageDataURI: null, description: aiPromptForDescription.substring(0,100), imageType: null };
   }
 
   return (
@@ -32,12 +56,12 @@ export default async function OnboardingStepsPage() {
           Our Seamless Onboarding Process
         </h1>
 
-        {onboardingImage && (
+        {onboardingImageInfo && (
           <div className="mb-12 md:mb-16 max-w-3xl mx-auto">
             <AiImageSection
               title=""
               text="We guide you every step of the way to ensure a successful partnership with your virtual assistant."
-              aiImage={onboardingImage}
+              imageInfo={onboardingImageInfo}
               imagePlacement="right"
               className="py-0 !pt-0"
               titleClassName="hidden"

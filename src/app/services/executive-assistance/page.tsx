@@ -4,17 +4,41 @@ import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft, Briefcase, CalendarClock, Mail, Settings, Users, FileText, Plane, PresentationChart, CheckSquare } from 'lucide-react';
-import { AiImageSection } from '@/components/ui/ai-image-section';
-import { generateImageSections, GenerateImageSectionsOutput } from '@/ai/flows/generate-image-sections';
+import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section'; // Updated import
+import { generateImageSections } from '@/ai/flows/generate-image-sections';
+import { generateDescribedImage } from '@/ai/flows/generate-described-image-flow'; // New import
 
 export default async function ExecutiveAssistancePage() {
   const pageContentText = "Focus on your core business activities while our expert Executive Assistants handle your administrative, organizational, and technical tasks with precision and professionalism. We provide comprehensive support to streamline your workflow and boost your productivity. Our services include calendar management, email correspondence, travel arrangements, document preparation, meeting coordination, and much more, tailored to your specific needs.";
   
-  let executiveAssistanceImage: GenerateImageSectionsOutput | null = null;
+  let executiveAssistanceImageInfo: AiImageInfo | null = null;
+  const aiPromptForDescription = `Professional executive assistant organizing tasks and managing schedules efficiently in a modern office environment. Emphasize competence and reliability. ${pageContentText}`;
+
   try {
-    executiveAssistanceImage = await generateImageSections({ sectionText: `Professional executive assistant organizing tasks and managing schedules efficiently in a modern office environment. Emphasize competence and reliability. ${pageContentText}` });
+    const descriptionResult = await generateImageSections({ sectionText: aiPromptForDescription });
+    let description: string | null = null;
+    let imageType: string | null = null;
+    let imageDataURI: string | null = null;
+
+    if (descriptionResult?.imageDescription) {
+      description = descriptionResult.imageDescription;
+      imageType = descriptionResult.imageType;
+      
+      const imageGenResult = await generateDescribedImage({ imageDescription: description });
+      if (imageGenResult?.imageDataURI) {
+        imageDataURI = imageGenResult.imageDataURI;
+      } else {
+         console.warn(`Actual image generation failed for executive assistance page. Description was: "${description}"`);
+      }
+    } else {
+      console.warn(`No image description generated for executive assistance page. Using prompt substring as fallback description.`);
+      description = aiPromptForDescription.substring(0,100);
+    }
+    executiveAssistanceImageInfo = { imageDataURI, description, imageType };
+
   } catch (err) {
-    console.error("Failed to generate image for executive assistance page:", err);
+    console.error("Failed to generate image info for executive assistance page:", err);
+    executiveAssistanceImageInfo = { imageDataURI: null, description: aiPromptForDescription.substring(0,100), imageType: null };
   }
 
   const tasks = [
@@ -50,12 +74,12 @@ export default async function ExecutiveAssistancePage() {
             </p>
         </div>
 
-        {executiveAssistanceImage && (
+        {executiveAssistanceImageInfo && (
           <div className="mb-12 md:mb-16 max-w-4xl mx-auto">
             <AiImageSection
               title=""
               text=""
-              aiImage={executiveAssistanceImage}
+              imageInfo={executiveAssistanceImageInfo}
               imagePlacement="right"
               className="py-0 !pt-0"
               titleClassName="hidden" 

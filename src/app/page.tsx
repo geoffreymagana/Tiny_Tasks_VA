@@ -1,8 +1,9 @@
 
 import { generateImageSections, GenerateImageSectionsOutput } from '@/ai/flows/generate-image-sections';
+import { generateDescribedImage } from '@/ai/flows/generate-described-image-flow';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
-import { AiImageSection } from '@/components/ui/ai-image-section';
+import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section';
 import { ImprovedCopyDisplay } from '@/components/ui/improved-copy-display';
 import { FeatureCard } from '@/components/ui/feature-card';
 import { ServiceCard } from '@/components/ui/service-card';
@@ -26,7 +27,7 @@ interface SectionContent {
   imagePlacement?: 'left' | 'right';
   cta?: { text: string; href: string };
   icon?: React.ReactNode;
-  aiTextForImage?: string;
+  aiTextForImage: string; // This is the prompt for image *description* generation
 }
 
 const sectionsData: SectionContent[] = [
@@ -60,6 +61,7 @@ const services = [
       { icon: <FileText size={18}/>, text: "Document Preparation" },
     ],
     learnMoreLink: "/services/executive-assistance",
+    aiTextForImage: "Professional executive assistant organizing tasks on a digital interface, symbolizing efficiency and support in a modern office setting.",
   },
   {
     mainIcon: <Share2 size={32} />,
@@ -71,7 +73,8 @@ const services = [
       { icon: <BarChartBig size={18}/>, text: "Analytics & Reporting" },
       { icon: <Megaphone size={18}/>, text: "Ad Campaign Support" },
     ],
-    learnMoreLink: "/#services", // Placeholder, create /services/social-media later
+    learnMoreLink: "/#services", 
+    aiTextForImage: "Dynamic composition of social media icons (Instagram, Facebook, Twitter, LinkedIn) with stylized charts and engagement symbols, representing growth and active online presence management.",
   },
   {
     mainIcon: <Palette size={32} />,
@@ -83,7 +86,8 @@ const services = [
       { icon: <FileTextIcon size={18}/>, text: "Marketing Material Layouts" },
       { icon: <PaletteIcon size={18}/>, text: "Basic Brand Asset Creation" },
     ],
-    learnMoreLink: "/#services", // Placeholder, create /services/graphic-design later
+    learnMoreLink: "/#services",
+    aiTextForImage: "Modern flat design illustration of graphic design tools (pen tool, color palette, shapes) creating a visually appealing brand logo or marketing material.",
   },
 ];
 
@@ -213,46 +217,77 @@ const blogIntroData = {
   aiTextForImage: "An open notebook with a pen and a cup of coffee, with icons representing ideas and learning, symbolizing a blog or knowledge sharing.",
 };
 
-// Helper function to generate image sections and handle errors
-async function safeGenerateImage(sectionId: string, text: string): Promise<GenerateImageSectionsOutput | null> {
+// Helper function to generate image descriptions and then the image URI
+async function safeGenerateImageInfo(sectionId: string, aiTextForImagePrompt: string): Promise<AiImageInfo> {
+  let description: string | null = null;
+  let imageType: string | null = null;
+  let imageDataURI: string | null = null;
+
   try {
-    return await generateImageSections({ sectionText: text });
+    const descriptionResult = await generateImageSections({ sectionText: aiTextForImagePrompt });
+    if (descriptionResult?.imageDescription) {
+      description = descriptionResult.imageDescription;
+      imageType = descriptionResult.imageType;
+      
+      const imageGenResult = await generateDescribedImage({ imageDescription: description });
+      if (imageGenResult?.imageDataURI) {
+        imageDataURI = imageGenResult.imageDataURI;
+      } else {
+         console.warn(`Actual image generation failed for ${sectionId}. Description was: "${description}"`);
+      }
+    } else {
+      console.warn(`No image description generated for ${sectionId}. Using prompt substring as fallback description.`);
+      description = aiTextForImagePrompt.substring(0, 100); 
+    }
   } catch (err) {
-    console.error(`Failed to generate image for ${sectionId}:`, err);
-    return null;
+    console.error(`Error in safeGenerateImageInfo for ${sectionId}:`, err);
+    if (!description) { 
+        description = aiTextForImagePrompt.substring(0, 100); 
+    }
   }
+  return { imageDataURI, description, imageType };
 }
 
+
 export default async function HomePage() {
-  // Fetch images in smaller, sequential batches
-  const [heroImage, onboardingOverviewImage] = await Promise.all([
-    safeGenerateImage('hero', sectionsData.find(s => s.id === 'hero')?.aiTextForImage || sectionsData.find(s => s.id === 'hero')?.text || ''),
-    safeGenerateImage('onboarding-overview', sectionsData.find(s => s.id === 'onboarding-overview')?.aiTextForImage || sectionsData.find(s => s.id === 'onboarding-overview')?.text || ''),
+  const [
+    heroImageInfo, 
+    onboardingOverviewImageInfo,
+  ] = await Promise.all([
+    safeGenerateImageInfo('hero', sectionsData.find(s => s.id === 'hero')?.aiTextForImage || ''),
+    safeGenerateImageInfo('onboarding-overview', sectionsData.find(s => s.id === 'onboarding-overview')?.aiTextForImage || ''),
   ]);
 
-  const [featuresImage, servicesIntroImage] = await Promise.all([
-    safeGenerateImage('features', `Features overview showcasing streamlined processes, expert task management, and dedicated assistant partnerships for virtual assistants. ${features.map(f => `${f.title}: ${f.description}`).join(' ')}`),
-    safeGenerateImage('services-intro', `Overview of virtual assistant services including executive assistance, social media management, and graphic design, emphasizing comprehensive business support. ${services.map(s => `${s.title}: ${s.description} ${s.serviceItems.map(si => si.text).join(', ')}`).join('; ')}`),
+  const [
+    featuresImageInfo,
+    servicesIntroImageInfo,
+  ] = await Promise.all([
+    safeGenerateImageInfo('features', `Features overview showcasing streamlined processes, expert task management, and dedicated assistant partnerships for virtual assistants. ${features.map(f => `${f.title}: ${f.description}`).join(' ')}`),
+    safeGenerateImageInfo('services-intro', services[0]?.aiTextForImage || "Overview of virtual assistant services"), // Example, ideally map all service aiTexts
   ]);
   
-  const [improvedCopyImage, toolsImage] = await Promise.all([
-    safeGenerateImage('improved-copy', improvedCopyData.aiTextForImage),
-    safeGenerateImage('tools', toolsData.aiTextForImage),
+  const [
+    toolsImageInfo,
+    pricingImageInfo,
+  ] = await Promise.all([
+    safeGenerateImageInfo('tools', toolsData.aiTextForImage),
+    safeGenerateImageInfo('pricing', pricingData.aiTextForImage),
   ]);
 
-  const [pricingImage, testimonialsImage] = await Promise.all([
-    safeGenerateImage('pricing', pricingData.aiTextForImage),
-    safeGenerateImage('testimonials', testimonialsData.aiTextForImage),
-  ]);
-
-  const [blogIntroImage, ctaImage] = await Promise.all([
-    safeGenerateImage('blog-intro', blogIntroData.aiTextForImage),
-    safeGenerateImage('cta', ctaSectionData.aiTextForImage),
+  const [
+    testimonialsImageInfo,
+    blogIntroImageInfo,
+    ctaImageInfo,
+  ] = await Promise.all([
+    safeGenerateImageInfo('testimonials', testimonialsData.aiTextForImage),
+    safeGenerateImageInfo('blog-intro', blogIntroData.aiTextForImage),
+    safeGenerateImageInfo('cta', ctaSectionData.aiTextForImage),
   ]);
   
-  const sectionImages: Record<string, GenerateImageSectionsOutput | null> = {
-    hero: heroImage,
-    'onboarding-overview': onboardingOverviewImage,
+  const sectionImageInfos: Record<string, AiImageInfo | null> = {
+    hero: heroImageInfo,
+    'onboarding-overview': onboardingOverviewImageInfo,
+    // Note: improvedCopyImage was removed based on user request to remove its visual section
   };
 
   return (
@@ -264,7 +299,7 @@ export default async function HomePage() {
             key={section.id}
             title={section.title}
             text={section.text}
-            aiImage={sectionImages[section.id]}
+            imageInfo={sectionImageInfos[section.id]}
             imagePlacement={section.imagePlacement}
             className={section.id === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
             titleClassName={section.id === 'hero' ? 'text-5xl md:text-6xl lg:text-7xl' : ''}
@@ -279,7 +314,6 @@ export default async function HomePage() {
           </AiImageSection>
         ))}
 
-        {/* Features Section */}
         <section id="features" className="py-16 md:py-24 bg-secondary/50">
           <div className="container mx-auto text-center">
             <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
@@ -298,12 +332,12 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            {featuresImage && (
+            {featuresImageInfo && (
                <div className="mt-12 max-w-3xl mx-auto">
                  <AiImageSection
                     title="Visually Unified Experience"
                     text="Our AI helps select imagery that complements our features, ensuring a cohesive and engaging user experience across the platform when highlighting our VA capabilities."
-                    aiImage={featuresImage}
+                    imageInfo={featuresImageInfo}
                     imagePlacement="right" 
                     className="py-0"
                     titleClassName="text-3xl text-center md:text-left"
@@ -314,7 +348,6 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Services Section */}
         <section id="services" className="py-16 md:py-24">
           <div className="container mx-auto text-center">
             <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
@@ -323,12 +356,12 @@ export default async function HomePage() {
             <p className="text-lg text-foreground/80 mb-12 max-w-3xl mx-auto">
               Comprehensive VA solutions designed to streamline your business operations, manage your tasks effectively, and free up your valuable time so you can focus on strategic growth.
             </p>
-            {servicesIntroImage && (
+            {servicesIntroImageInfo && (
               <div className="mb-12 md:mb-16 max-w-4xl mx-auto">
                 <AiImageSection
                   title="Expert VA Support Tailored For You"
                   text="Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges."
-                  aiImage={servicesIntroImage}
+                  imageInfo={servicesIntroImageInfo}
                   imagePlacement="left" 
                   className="py-0 !pt-0 text-left"
                   titleClassName="text-3xl text-center md:text-left"
@@ -351,7 +384,6 @@ export default async function HomePage() {
           </div>
         </section>
         
-        {/* Improved Copy Display Section */}
         <section id="copy-comparison" className="py-16 md:py-24 bg-secondary/30">
             <div className="container mx-auto">
                 <div className="text-center mb-12">
@@ -368,10 +400,10 @@ export default async function HomePage() {
                     improvedTitle={improvedCopyData.improvedTitle}
                     improvedText={improvedCopyData.improvedText}
                 />
+                 {/* Visualizing Our VA Commitment section was here, removed as per user request */}
             </div>
         </section>
 
-        {/* Tools Section */}
         <section id="tools" className="py-16 md:py-24 bg-background">
           <div className="container mx-auto">
             <div className="text-center mb-12 md:mb-16">
@@ -401,12 +433,12 @@ export default async function HomePage() {
                 </div>
               ))}
             </div>
-             {toolsImage && (
+             {toolsImageInfo && (
               <div className="mt-12 max-w-3xl mx-auto">
                 <AiImageSection
                   title="Our Versatile Toolkit"
                   text="We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects."
-                  aiImage={toolsImage}
+                  imageInfo={toolsImageInfo}
                   imagePlacement="right"
                   className="py-0"
                   titleClassName="text-3xl text-center md:text-left"
@@ -417,7 +449,6 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Pricing Section */}
         <section id="pricing" className="py-16 md:py-24 bg-secondary/50">
           <div className="container mx-auto">
             <div className="text-center mb-12 md:mb-16">
@@ -441,12 +472,12 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            {pricingImage && (
+            {pricingImageInfo && (
               <div className="mt-16 max-w-4xl mx-auto">
                 <AiImageSection
                   title="Transparent VA Pricing"
                   text="Our AI-assisted visual design helps present our virtual assistant pricing plans clearly, ensuring you find the perfect fit for your business needs."
-                  aiImage={pricingImage}
+                  imageInfo={pricingImageInfo}
                   imagePlacement="left"
                   className="py-0"
                   titleClassName="text-3xl text-center md:text-left"
@@ -457,7 +488,6 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Testimonials Section */}
         <section id="testimonials" className="py-16 md:py-24 bg-background">
           <div className="container mx-auto">
             <div className="text-center mb-12 md:mb-16">
@@ -481,12 +511,12 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            {testimonialsImage && (
+            {testimonialsImageInfo && (
               <div className="mt-16 max-w-3xl mx-auto">
                 <AiImageSection
                   title="Client Success Stories"
                   text="Visually representing client satisfaction, our AI helps choose images that reflect the positive impact of our virtual assistant services."
-                  aiImage={testimonialsImage}
+                  imageInfo={testimonialsImageInfo}
                   imagePlacement="right"
                   className="py-0"
                   titleClassName="text-3xl text-center md:text-left"
@@ -497,7 +527,6 @@ export default async function HomePage() {
           </div>
         </section>
 
-         {/* Blog Intro Section */}
         <section id="blog-intro" className="py-16 md:py-24 bg-secondary/30">
           <div className="container mx-auto">
             <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -514,12 +543,12 @@ export default async function HomePage() {
                   </Link>
                 </Button>
               </div>
-              {blogIntroImage && (
+              {blogIntroImageInfo && (
                 <div className="mt-8 md:mt-0">
                   <AiImageSection
-                    title=""
+                    title="" 
                     text=""
-                    aiImage={blogIntroImage}
+                    imageInfo={blogIntroImageInfo}
                     imagePlacement="right" 
                     className="py-0 !shadow-none"
                     titleClassName="hidden"
@@ -532,7 +561,6 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Call to Action Section with Contact Form */}
         <section id="cta" className="py-20 md:py-28 bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
           <div className="container mx-auto">
             <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
@@ -545,12 +573,12 @@ export default async function HomePage() {
                     </p>
                     <ContactForm />
                 </div>
-                {ctaImage && (
+                {ctaImageInfo && (
                     <div className="hidden md:flex justify-center items-center">
                          <AiImageSection
                             title=""
                             text=""
-                            aiImage={ctaImage}
+                            imageInfo={ctaImageInfo}
                             imagePlacement="right"
                             className="py-0 !bg-transparent !shadow-none"
                             titleClassName="hidden"
@@ -568,5 +596,3 @@ export default async function HomePage() {
     </div>
   );
 }
-
-    
