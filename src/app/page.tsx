@@ -213,63 +213,52 @@ const blogIntroData = {
   aiTextForImage: "An open notebook with a pen and a cup of coffee, with icons representing ideas and learning, symbolizing a blog or knowledge sharing.",
 };
 
+// Helper function to generate image sections and handle errors
+async function safeGenerateImage(sectionId: string, text: string): Promise<GenerateImageSectionsOutput | null> {
+  try {
+    return await generateImageSections({ sectionText: text });
+  } catch (err) {
+    console.error(`Failed to generate image for ${sectionId}:`, err);
+    return null;
+  }
+}
 
 export default async function HomePage() {
-  const sectionImagePromises = sectionsData.map(section => 
-    generateImageSections({ sectionText: section.aiTextForImage || section.text })
-      .catch(err => { console.error(`Failed to generate image for ${section.id}:`, err); return null; })
-  );
-  
-  const featuresSectionText = features.map(f => `${f.title}: ${f.description}`).join(' ');
-  const featuresImagePromise = generateImageSections({ sectionText: `Features overview showcasing streamlined processes, expert task management, and dedicated assistant partnerships for virtual assistants. ${featuresSectionText}` })
-    .catch(err => { console.error(`Failed to generate image for features section:`, err); return null; });
-
-  const servicesSectionCombinedText = services.map(s => `${s.title}: ${s.description} ${s.serviceItems.map(si => si.text).join(', ')}`).join('; ');
-  const servicesIntroImagePromise = generateImageSections({ sectionText: `Overview of virtual assistant services including executive assistance, social media management, and graphic design, emphasizing comprehensive business support. ${servicesSectionCombinedText}` })
-    .catch(err => { console.error(`Failed to generate image for services intro:`, err); return null; });
-
-  const improvedCopyImagePromise = generateImageSections({ sectionText: improvedCopyData.aiTextForImage })
-    .catch(err => { console.error(`Failed to generate image for improved copy section:`, err); return null; });
-
-  const ctaImagePromise = generateImageSections({ sectionText: ctaSectionData.aiTextForImage })
-    .catch(err => { console.error(`Failed to generate image for CTA section:`, err); return null; });
-  
-  const toolsImagePromise = generateImageSections({ sectionText: toolsData.aiTextForImage })
-    .catch(err => { console.error(`Failed to generate image for tools section:`, err); return null; });
-
-  const pricingImagePromise = generateImageSections({ sectionText: pricingData.aiTextForImage })
-    .catch(err => { console.error(`Failed to generate image for pricing section:`, err); return null; });
-  
-  const testimonialsImagePromise = generateImageSections({ sectionText: testimonialsData.aiTextForImage })
-    .catch(err => { console.error(`Failed to generate image for testimonials section:`, err); return null; });
-
-  const blogIntroImagePromise = generateImageSections({ sectionText: blogIntroData.aiTextForImage })
-    .catch(err => { console.error(`Failed to generate image for blog intro section:`, err); return null; });
-
-
+  // Batch 1: Hero, Onboarding, Features
   const [
     heroImage,
     onboardingOverviewImage,
-    servicesIntroImage,
     featuresImage,
+  ] = await Promise.all([
+    safeGenerateImage('hero', sectionsData.find(s => s.id === 'hero')?.aiTextForImage || sectionsData.find(s => s.id === 'hero')?.text || ''),
+    safeGenerateImage('onboarding-overview', sectionsData.find(s => s.id === 'onboarding-overview')?.aiTextForImage || sectionsData.find(s => s.id === 'onboarding-overview')?.text || ''),
+    safeGenerateImage('features', `Features overview showcasing streamlined processes, expert task management, and dedicated assistant partnerships for virtual assistants. ${features.map(f => `${f.title}: ${f.description}`).join(' ')}`),
+  ]);
+
+  // Batch 2: Services Intro, Improved Copy, Tools
+  const [
+    servicesIntroImage,
     improvedCopyImage,
     toolsImage,
+  ] = await Promise.all([
+    safeGenerateImage('services-intro', `Overview of virtual assistant services including executive assistance, social media management, and graphic design, emphasizing comprehensive business support. ${services.map(s => `${s.title}: ${s.description} ${s.serviceItems.map(si => si.text).join(', ')}`).join('; ')}`),
+    safeGenerateImage('improved-copy', improvedCopyData.aiTextForImage),
+    safeGenerateImage('tools', toolsData.aiTextForImage),
+  ]);
+
+  // Batch 3: Pricing, Testimonials, Blog Intro, CTA
+  const [
     pricingImage,
     testimonialsImage,
     blogIntroImage,
-    ctaImage, // Keep ctaImage if it's used directly in AiImageSection for CTA
+    ctaImage,
   ] = await Promise.all([
-    ...sectionImagePromises, // hero and onboarding-overview
-    servicesIntroImagePromise,
-    featuresImagePromise,
-    improvedCopyImagePromise,
-    toolsImagePromise,
-    pricingImagePromise,
-    testimonialsImagePromise,
-    blogIntroImagePromise,
-    ctaImagePromise, // This will be used for the CTA section specifically
+    safeGenerateImage('pricing', pricingData.aiTextForImage),
+    safeGenerateImage('testimonials', testimonialsData.aiTextForImage),
+    safeGenerateImage('blog-intro', blogIntroData.aiTextForImage),
+    safeGenerateImage('cta', ctaSectionData.aiTextForImage),
   ]);
-
+  
   const sectionImages: Record<string, GenerateImageSectionsOutput | null> = {
     hero: heroImage,
     'onboarding-overview': onboardingOverviewImage,
