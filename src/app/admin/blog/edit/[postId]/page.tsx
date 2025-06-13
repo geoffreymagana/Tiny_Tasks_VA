@@ -26,7 +26,7 @@ import {
   type BlogOperationResult, 
   type UpdateBlogPostServerData,
   type BlogPost
-} from '../actions';
+} from '../../actions'; // Corrected import path
 import { generateBlogPost, type GenerateBlogPostInput } from '@/ai/flows/generate-blog-post-flow';
 import { improveBlogPostContent, type ImproveBlogPostContentInput } from '@/ai/flows/improve-blog-content-flow';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
@@ -338,3 +338,4 @@ const EditBlogPage: FC = () => {
 };
 
 export default EditBlogPage;
+
