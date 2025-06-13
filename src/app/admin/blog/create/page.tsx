@@ -18,9 +18,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { ArrowLeft, Sparkles, Bot, Loader2, CheckCircle, Wand2 } from 'lucide-react';
-import { saveBlogPostAction, type SaveBlogPostResult } from '../actions';
+import { saveBlogPostAction, type SaveBlogPostResult, type SaveBlogPostServerData } from '../actions';
 import { generateBlogPost, type GenerateBlogPostInput } from '@/ai/flows/generate-blog-post-flow';
 import { improveBlogPostContent, type ImproveBlogPostContentInput } from '@/ai/flows/improve-blog-content-flow';
+import { useAdminAuth } from '@/hooks/use-admin-auth';
 
 const blogPostSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters").max(150, "Title must be 150 characters or less"),
@@ -42,6 +43,7 @@ type AiGenerateFormValues = z.infer<typeof aiGenerateSchema>;
 
 const CreateBlogPage: FC = () => {
   const { toast } = useToast();
+  const { user: firebaseUser } = useAdminAuth(); // Get the authenticated user
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAiContent, setIsGeneratingAiContent] = useState(false);
   const [isImprovingAiContent, setIsImprovingAiContent] = useState(false);
@@ -65,7 +67,19 @@ const CreateBlogPage: FC = () => {
 
   const handleSavePost: SubmitHandler<BlogPostFormValues> = async (data) => {
     setIsSubmitting(true);
-    const result: SaveBlogPostResult = await saveBlogPostAction(data);
+
+    if (!firebaseUser || !firebaseUser.uid) {
+      toast({ title: 'Authentication Error', description: 'User not authenticated. Please log in again.', variant: 'destructive' });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const serverActionData: SaveBlogPostServerData = {
+      ...data, // Contains title, content, category, excerpt, status
+      authorId: firebaseUser.uid,
+    };
+
+    const result: SaveBlogPostResult = await saveBlogPostAction(serverActionData);
     if (result.success) {
       toast({ title: 'Success', description: result.message });
       form.reset();
@@ -275,7 +289,7 @@ const CreateBlogPage: FC = () => {
                 {form.formState.errors.status && <p className="text-sm text-destructive">{form.formState.errors.status.message}</p>}
               </div>
               
-              <Button type="submit" disabled={isSubmitting || isGeneratingAiContent || isImprovingAiContent} size="lg">
+              <Button type="submit" disabled={isSubmitting || isGeneratingAiContent || isImprovingAiContent || !firebaseUser} size="lg">
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                 {isSubmitting ? 'Saving...' : (form.getValues('status') === 'published' ? 'Publish Post' : 'Save Draft')}
               </Button>

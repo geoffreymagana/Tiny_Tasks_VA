@@ -28,6 +28,17 @@ export interface SaveBlogPostResult {
   slug?: string;
 }
 
+// Data structure expected by the server action from the client
+export interface SaveBlogPostServerData {
+  title: string;
+  content: string;
+  category: string;
+  excerpt: string;
+  status: 'draft' | 'published';
+  authorId: string; // Author's UID passed from client
+}
+
+
 async function isSlugUnique(slug: string): Promise<boolean> {
   const q = query(collection(db, 'blogPosts'), where('slug', '==', slug));
   const querySnapshot = await getDocs(q);
@@ -47,33 +58,46 @@ async function generateUniqueSlug(title: string): Promise<string> {
 
 
 export async function saveBlogPostAction(
-  data: Omit<BlogPost, 'id' | 'slug' | 'authorId' | 'createdAt' | 'updatedAt' | 'publishedAt'> & { currentSlug?: string }
+  serverData: SaveBlogPostServerData
 ): Promise<SaveBlogPostResult> {
-  const user = auth.currentUser;
-  if (!user) {
-    return { success: false, message: 'User not authenticated.' };
+  // auth.currentUser is unreliable in server actions.
+  // We now rely on authorId passed from the client and verify the user's role.
+
+  if (!serverData.authorId) {
+    return { success: false, message: 'Author ID not provided.' };
   }
-  // Basic role check - ideally, a more robust check via custom claims or admin SDK on backend
-  const userDocRef = doc(db, 'users', user.uid);
+
+  // Verify the user's role using the passed authorId
+  const userDocRef = doc(db, 'users', serverData.authorId);
   const userDoc = await getDoc(userDocRef);
-  if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
+
+  if (!userDoc.exists()) {
+    return { success: false, message: 'User account not found.' };
+  }
+  
+  const userData = userDoc.data();
+  if (userData?.role !== 'admin') {
       return { success: false, message: 'User does not have admin privileges.' };
   }
 
 
   try {
-    const slug = await generateUniqueSlug(data.title);
+    const slug = await generateUniqueSlug(serverData.title);
 
     const newPost: Omit<BlogPost, 'id'> = {
-      ...data,
+      title: serverData.title,
+      content: serverData.content,
+      category: serverData.category,
+      excerpt: serverData.excerpt,
+      status: serverData.status,
       slug,
-      authorId: user.uid,
-      authorName: user.displayName || user.email || 'Admin',
+      authorId: serverData.authorId, // Use the verified authorId
+      authorName: userData.displayName || userData.email || 'Admin', // Get authorName from fetched userDoc
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
-    if (data.status === 'published') {
+    if (serverData.status === 'published') {
       newPost.publishedAt = serverTimestamp();
     }
 
@@ -84,3 +108,4 @@ export async function saveBlogPostAction(
     return { success: false, message: error.message || 'Failed to save blog post.' };
   }
 }
+
