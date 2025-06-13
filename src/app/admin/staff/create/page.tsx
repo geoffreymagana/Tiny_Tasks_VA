@@ -20,7 +20,7 @@ import { addStaffAction, type StaffFormData, type StaffOperationResult } from '.
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { ArrowLeft, Save, UserPlus } from 'lucide-react';
 
-// Department Configuration (moved from actions.ts)
+// Department Configuration
 const STAFF_DEPARTMENTS_CONFIG: Record<string, { name: string; color: string; textColor?: string }> = {
   'Client Success & Onboarding': { name: 'Client Success & Onboarding', color: 'hsl(207, 70%, 50%)', textColor: 'hsl(0, 0%, 100%)' },
   'VA Operations': { name: 'VA Operations', color: 'hsl(145, 63%, 42%)', textColor: 'hsl(0, 0%, 100%)' },
@@ -40,7 +40,6 @@ const staffFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(100, "Name too long."),
   email: z.string().email("Invalid email address.").max(100, "Email too long."),
   department: z.enum(STAFF_DEPARTMENT_NAMES as [string, ...string[]], {
-    required_error: "Department is required.",
     errorMap: () => ({ message: "Please select a valid department." }),
   }),
   phone: z.string().max(20, "Phone number too long.").optional().or(z.literal('')),
@@ -75,7 +74,7 @@ const CreateStaffPage: FC = () => {
     if (result.success) {
       toast({ 
         title: 'Success', 
-        description: `${result.message}. A default password "password123" has been set via Cloud Function. The staff member should change it.`,
+        description: `${result.message}. A default password "password123" has been set. The staff member should change it upon first login.`,
         duration: 7000 
       });
       router.push('/admin/staff'); 
@@ -178,5 +177,3 @@ const CreateStaffPage: FC = () => {
 };
 
 export default CreateStaffPage;
-
-    
