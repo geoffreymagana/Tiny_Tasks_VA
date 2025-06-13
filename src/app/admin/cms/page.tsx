@@ -39,7 +39,6 @@ const CmsPage: FC = () => {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
   const [isDeletingPost, setIsDeletingPost] = useState(false);
 
   useEffect(() => {
@@ -94,16 +93,15 @@ const CmsPage: FC = () => {
     }
   };
 
-  const handleDeletePost = async () => {
-    if (!postToDelete || !postToDelete.id || !firebaseUser?.uid) {
-      toast({ title: 'Error', description: 'No post selected or user not authenticated.', variant: 'destructive'});
+  const handleDeletePostWithConfirmation = async (postId: string) => {
+    if (!postId || !firebaseUser?.uid) {
+      toast({ title: 'Error', description: 'Post ID missing or user not authenticated.', variant: 'destructive'});
       return;
     }
     setIsDeletingPost(true);
-    const result: BlogOperationResult = await deleteBlogPostAction(postToDelete.id, firebaseUser.uid);
+    const result: BlogOperationResult = await deleteBlogPostAction(postId, firebaseUser.uid);
     if (result.success) {
       toast({ title: 'Success', description: result.message });
-      setPostToDelete(null); // Close dialog by resetting state
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
@@ -205,11 +203,32 @@ const CmsPage: FC = () => {
                          <Edit3 className="mr-1 h-3 w-3" /> Edit
                        </Link>
                     </Button>
-                     <AlertDialogTrigger asChild>
-                       <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setPostToDelete(post)} title="Delete Post">
-                         <Trash2 className="mr-1 h-3 w-3" /> Delete
-                       </Button>
-                    </AlertDialogTrigger>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive hover:text-destructive-foreground" title="Delete Post" disabled={isDeletingPost}>
+                          <Trash2 className="mr-1 h-3 w-3" /> Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure you want to delete this post?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the blog post titled &quot;{post.title}&quot;.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel disabled={isDeletingPost}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => handleDeletePostWithConfirmation(post.id!)} 
+                            disabled={isDeletingPost} 
+                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                          >
+                            {isDeletingPost ? <LottieLoader className="mr-2" size={16} /> : null}
+                            {isDeletingPost ? 'Deleting...' : 'Delete'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </Card>
               ))
@@ -220,26 +239,6 @@ const CmsPage: FC = () => {
           </CardContent>
         </Card>
       </div>
-      
-      {postToDelete && (
-        <AlertDialog open={!!postToDelete} onOpenChange={(open) => !open && setPostToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure you want to delete this post?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the blog post titled &quot;{postToDelete.title}&quot;.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setPostToDelete(null)} disabled={isDeletingPost}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeletePost} disabled={isDeletingPost} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                {isDeletingPost ? <LottieLoader className="mr-2" size={16} /> : null}
-                {isDeletingPost ? 'Deleting...' : 'Delete'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </div>
   );
 };
