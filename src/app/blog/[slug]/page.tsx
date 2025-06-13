@@ -1,4 +1,5 @@
 
+import { use } from 'react'; // Import React.use
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -10,10 +11,16 @@ import type { BlogPost } from '@/app/admin/blog/actions';
 import ReactMarkdown from 'react-markdown';
 import { notFound } from 'next/navigation';
 
-interface BlogSlugPageProps {
-  params: {
-    slug: string;
-  };
+// This interface describes the shape of the params object *after* unwrapping.
+interface ResolvedPageParams {
+  slug: string;
+}
+
+// This interface describes the props object as received by the page component.
+// We assume `params` here is the "Readable" entity.
+interface BlogSlugPageServerProps {
+  params: any; // The type of this "Readable" is not precisely known without more Next.js internal details.
+               // It should resolve to an object like ResolvedPageParams.
 }
 
 async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
@@ -50,8 +57,12 @@ async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
   }
 }
 
-export default async function BlogSlugPage({ params }: BlogSlugPageProps) {
-  const post = await getBlogPostBySlug(params.slug);
+export default async function BlogSlugPage({ params: incomingParams }: BlogSlugPageServerProps) {
+  // Unwrap the params object using React.use() as suggested by the error.
+  const resolvedParams: ResolvedPageParams = use(incomingParams);
+  const slug = resolvedParams.slug;
+
+  const post = await getBlogPostBySlug(slug);
 
   if (!post) {
     notFound();
@@ -96,9 +107,6 @@ export default async function BlogSlugPage({ params }: BlogSlugPageProps) {
             </div>
           </header>
           
-          {/* Add featured image here if you implement it */}
-          {/* {post.featuredImageUrl && <Image src={post.featuredImageUrl} alt={post.title} width={800} height={400} className="rounded-lg mb-8 object-cover" />} */}
-
           <div className="prose prose-lg dark:prose-invert max-w-none text-foreground/90">
             <ReactMarkdown
               components={{
