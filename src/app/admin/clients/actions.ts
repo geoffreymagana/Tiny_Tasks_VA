@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, updateDoc, deleteDoc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, updateDoc, deleteDoc, query, where, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { z } from 'zod';
 
@@ -17,8 +17,8 @@ export type ClientFormData = z.infer<typeof ClientFormSchema>;
 
 export interface Client extends ClientFormData {
   id: string;
-  createdAt: any;
-  updatedAt: any;
+  createdAt: string | null; // Timestamps are converted to ISO strings or null
+  updatedAt: string | null; // Timestamps are converted to ISO strings or null
 }
 
 export interface ClientOperationResult {
@@ -77,21 +77,50 @@ export async function addClientAction(
 
 export async function getAllClientsAction(): Promise<Client[]> {
   try {
-    const querySnapshot = await getDocs(query(collection(db, 'clients'), orderBy('createdAt', 'desc')));
+    const clientsRef = collection(db, 'clients');
+    // Ensure you have a Firestore index for 'createdAt' descending if you use orderBy.
+    // Firestore usually logs a link in the console to create it if missing.
+    const q = query(clientsRef, orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return [];
+    }
+
+    const convertTimestamp = (timestamp: any): string | null => {
+      if (!timestamp) return null;
+      if (timestamp instanceof Timestamp) {
+        return timestamp.toDate().toISOString();
+      }
+      // If it's already a string (e.g., from a previous serialization/deserialization, or serverTimestamp placeholder)
+      if (typeof timestamp === 'string') {
+        // Basic validation if it looks like an ISO string, otherwise null
+        // This handles cases where a serverTimestamp might resolve to a string before full conversion
+        return /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp) ? timestamp : null;
+      }
+       // Handle Firestore server timestamp placeholder objects before they are fully written
+      if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+         return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate().toISOString();
+      }
+      console.warn("Unsupported timestamp format:", timestamp);
+      return null; // Fallback for unrecognized formats
+    };
+    
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
-      return {
+      const client: Client = {
         id: doc.id,
-        name: data.name,
-        email: data.email,
+        name: data.name || '', // Fallback, though Zod should ensure it exists on write
+        email: data.email || '', // Fallback
         company: data.company || '',
         phone: data.phone || '',
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
-      } as Client;
+        createdAt: convertTimestamp(data.createdAt),
+        updatedAt: convertTimestamp(data.updatedAt),
+      };
+      return client;
     });
   } catch (error) {
-    console.error("Error fetching clients:", error);
+    console.error("Error fetching clients in getAllClientsAction:", error);
     return [];
   }
 }
@@ -105,15 +134,29 @@ export async function getClientAction(clientId: string): Promise<Client | null> 
       return null;
     }
     const data = clientDocSnap.data();
+    const convertTimestamp = (timestamp: any): string | null => {
+      if (!timestamp) return null;
+      if (timestamp instanceof Timestamp) {
+        return timestamp.toDate().toISOString();
+      }
+      if (typeof timestamp === 'string') {
+        return /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp) ? timestamp : null;
+      }
+      if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+         return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate().toISOString();
+      }
+      return null;
+    };
+
     return {
       id: clientDocSnap.id,
-      name: data.name,
-      email: data.email,
+      name: data.name || '',
+      email: data.email || '',
       company: data.company || '',
       phone: data.phone || '',
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
-    } as Client;
+      createdAt: convertTimestamp(data.createdAt),
+      updatedAt: convertTimestamp(data.updatedAt),
+    } as Client; // Ensure it casts to Client which expects string | null for dates
   } catch (error) {
     console.error("Error fetching client:", error);
     return null;
