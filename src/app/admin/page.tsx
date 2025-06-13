@@ -16,6 +16,7 @@ import {
   ClipboardList, PlusCircle, UserCircle, Circle, BarChart2, MessageSquare, Flag, Eye, Pin, Workflow, AlertCircle, Clock, LogIn, LogOut, CheckCircle as CheckCircleIcon, AlertTriangle, Rocket, MoreHorizontal, Trash2, Edit3
 } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils'; // Added missing import
 
 // Sample data (replace with actual data fetching later)
 const sampleActivityFeed = [
@@ -317,3 +318,5 @@ const AdminDashboardPage: FC = () => {
 };
 
 export default AdminDashboardPage;
+
+    
