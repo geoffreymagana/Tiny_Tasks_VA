@@ -16,9 +16,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import { addStaffAction, STAFF_DEPARTMENT_NAMES, type StaffFormData, type StaffOperationResult } from '../actions';
+import { addStaffAction, type StaffFormData, type StaffOperationResult } from '../actions';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { ArrowLeft, Save, UserPlus } from 'lucide-react';
+
+// Department Configuration (moved from actions.ts)
+const STAFF_DEPARTMENTS_CONFIG: Record<string, { name: string; color: string; textColor?: string }> = {
+  'Client Success & Onboarding': { name: 'Client Success & Onboarding', color: 'hsl(207, 70%, 50%)', textColor: 'hsl(0, 0%, 100%)' },
+  'VA Operations': { name: 'VA Operations', color: 'hsl(145, 63%, 42%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Sales & Account Management': { name: 'Sales & Account Management', color: 'hsl(30, 90%, 50%)', textColor: 'hsl(0, 0%, 100%)' },
+  'HR / VA Talent': { name: 'HR / VA Talent', color: 'hsl(260, 60%, 55%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Automation & AI': { name: 'Automation & AI', color: 'hsl(180, 50%, 45%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Marketing & Content': { name: 'Marketing & Content', color: 'hsl(330, 70%, 55%)', textColor: 'hsl(0, 0%, 100%)' },
+  'IT Support': { name: 'IT Support', color: 'hsl(0, 0%, 40%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Finance & Billing': { name: 'Finance & Billing', color: 'hsl(45, 100%, 50%)', textColor: 'hsl(210, 29%, 10%)' },
+  'QA & Training': { name: 'QA & Training', color: 'hsl(240, 60%, 65%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Product/UX': { name: 'Product/UX', color: 'hsl(350, 75%, 60%)', textColor: 'hsl(0, 0%, 100%)' },
+};
+const STAFF_DEPARTMENT_NAMES = Object.keys(STAFF_DEPARTMENTS_CONFIG);
+
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(100, "Name too long."),
@@ -27,7 +43,7 @@ const staffFormSchema = z.object({
     required_error: "Department is required.",
     errorMap: () => ({ message: "Please select a valid department." }),
   }),
-  phone: z.string().max(20, "Phone number too long.").optional(),
+  phone: z.string().max(20, "Phone number too long.").optional().or(z.literal('')),
 });
 
 
@@ -42,7 +58,7 @@ const CreateStaffPage: FC = () => {
     defaultValues: {
       name: '',
       email: '',
-      department: undefined, // Or a default department if you prefer
+      department: undefined, 
       phone: '',
     },
   });
@@ -59,7 +75,7 @@ const CreateStaffPage: FC = () => {
     if (result.success) {
       toast({ 
         title: 'Success', 
-        description: `${result.message}. A default password "password123" has been set. The staff member should change it upon first login.`,
+        description: `${result.message}. A default password "password123" has been set via Cloud Function. The staff member should change it.`,
         duration: 7000 
       });
       router.push('/admin/staff'); 
@@ -127,7 +143,7 @@ const CreateStaffPage: FC = () => {
                       <SelectContent>
                         {STAFF_DEPARTMENT_NAMES.map((dept) => (
                           <SelectItem key={dept} value={dept}>
-                            {dept}
+                            {STAFF_DEPARTMENTS_CONFIG[dept]?.name || dept}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -162,3 +178,5 @@ const CreateStaffPage: FC = () => {
 };
 
 export default CreateStaffPage;
+
+    

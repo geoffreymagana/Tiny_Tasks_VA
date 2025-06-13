@@ -26,12 +26,26 @@ import {
     toggleStaffAccountDisabledStatusAction, 
     type StaffMember, 
     type StaffOperationResult,
-    STAFF_DEPARTMENTS_CONFIG
 } from './actions';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { PlusCircle, UsersRound, Edit3, Trash2, UserX, UserCheck, ShieldAlert } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+
+// Department Configuration (moved from actions.ts)
+const STAFF_DEPARTMENTS_CONFIG: Record<string, { name: string; color: string; textColor?: string }> = {
+  'Client Success & Onboarding': { name: 'Client Success & Onboarding', color: 'hsl(207, 70%, 50%)', textColor: 'hsl(0, 0%, 100%)' },
+  'VA Operations': { name: 'VA Operations', color: 'hsl(145, 63%, 42%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Sales & Account Management': { name: 'Sales & Account Management', color: 'hsl(30, 90%, 50%)', textColor: 'hsl(0, 0%, 100%)' },
+  'HR / VA Talent': { name: 'HR / VA Talent', color: 'hsl(260, 60%, 55%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Automation & AI': { name: 'Automation & AI', color: 'hsl(180, 50%, 45%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Marketing & Content': { name: 'Marketing & Content', color: 'hsl(330, 70%, 55%)', textColor: 'hsl(0, 0%, 100%)' },
+  'IT Support': { name: 'IT Support', color: 'hsl(0, 0%, 40%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Finance & Billing': { name: 'Finance & Billing', color: 'hsl(45, 100%, 50%)', textColor: 'hsl(210, 29%, 10%)' },
+  'QA & Training': { name: 'QA & Training', color: 'hsl(240, 60%, 65%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Product/UX': { name: 'Product/UX', color: 'hsl(350, 75%, 60%)', textColor: 'hsl(0, 0%, 100%)' },
+};
+// const STAFF_DEPARTMENT_NAMES = Object.keys(STAFF_DEPARTMENTS_CONFIG); // Not directly used in this file anymore
 
 const StaffHubPage: FC = () => {
   const { toast } = useToast();
@@ -76,7 +90,7 @@ const StaffHubPage: FC = () => {
   const handleDialogAction = async () => {
     if (!staffToProcess || !firebaseUser?.uid || !dialogActionType) {
       toast({ title: 'Error', description: 'Action cannot be performed.', variant: 'destructive'});
-      setDialogActionType(null); // Close dialog
+      setDialogActionType(null); 
       setStaffToProcess(null);
       return;
     }
@@ -98,7 +112,7 @@ const StaffHubPage: FC = () => {
       toast({ title: 'Error', description: result.message || "An unknown error occurred.", variant: 'destructive', duration: 7000 });
     }
     setIsProcessing(false);
-    setDialogActionType(null); // Close dialog
+    setDialogActionType(null); 
     setStaffToProcess(null);
   };
   
@@ -107,7 +121,7 @@ const StaffHubPage: FC = () => {
     if (dialogActionType === 'delete') {
       return {
         title: 'Are you absolutely sure?',
-        description: `This action will attempt to delete the staff member "${staffToProcess.name}", their authentication account, and their user record. This cannot be undone.`,
+        description: `This action will attempt to delete the staff member "${staffToProcess.name}", their authentication account, and their user record via Cloud Function. This cannot be undone.`,
         actionText: 'Delete Staff Member',
         actionVariant: "destructive" as const,
       };
@@ -208,7 +222,7 @@ const StaffHubPage: FC = () => {
                                 size="icon" 
                                 title={staff.isDisabled ? "Enable Account" : "Disable Account"} 
                                 onClick={() => openDialog(staff, 'toggleStatus')}
-                                disabled={!staff.authUid} // Can only disable if there's an auth account
+                                disabled={!staff.authUid} 
                             >
                                 {staff.isDisabled ? <UserCheck className="h-4 w-4 text-green-600" /> : <UserX className="h-4 w-4 text-orange-600" />}
                             </Button>
@@ -273,3 +287,5 @@ const StaffHubPage: FC = () => {
 };
 
 export default StaffHubPage;
+
+    
