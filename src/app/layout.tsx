@@ -1,10 +1,11 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Tiny Tasks Landing',
-  description: 'Effortlessly manage your daily to-dos with Tiny Tasks.',
+  title: 'Tiny Tasks - Your Expert Virtual Assistant Service',
+  description: 'Delegate your tasks and boost productivity with Tiny Tasks, your reliable partner for professional virtual assistant services.',
 };
 
 export default function RootLayout({

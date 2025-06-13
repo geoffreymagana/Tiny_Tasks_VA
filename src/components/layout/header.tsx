@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -13,16 +14,21 @@ export function Header() {
         </Link>
         
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-          <Link href="#features" className="transition-colors hover:text-primary">
+          <Link href="/#features" className="transition-colors hover:text-primary">
             Features
           </Link>
-          <Link href="#how-it-works" className="transition-colors hover:text-primary">
+          <Link href="/#services" className="transition-colors hover:text-primary">
+            Services
+          </Link>
+          <Link href="/#onboarding-overview" className="transition-colors hover:text-primary">
             How It Works
           </Link>
-          <Link href="#copy-comparison" className="transition-colors hover:text-primary">
-            Our Copy
+          <Link href="/#copy-comparison" className="transition-colors hover:text-primary">
+            Our Approach
           </Link>
-          <Button>Get Started</Button>
+          <Button asChild>
+            <Link href="/#cta">Get Started</Link>
+          </Button>
         </nav>
 
         <div className="md:hidden">
@@ -39,16 +45,21 @@ export function Header() {
                   <Zap className="h-6 w-6 text-primary" />
                   <span className="font-headline text-xl font-bold">Tiny Tasks</span>
                 </Link>
-                <Link href="#features" className="hover:text-primary">
+                <Link href="/#features" className="hover:text-primary">
                   Features
                 </Link>
-                <Link href="#how-it-works" className="hover:text-primary">
+                <Link href="/#services" className="hover:text-primary">
+                  Services
+                </Link>
+                <Link href="/#onboarding-overview" className="hover:text-primary">
                   How It Works
                 </Link>
-                <Link href="#copy-comparison" className="hover:text-primary">
-                  Our Copy
+                <Link href="/#copy-comparison" className="hover:text-primary">
+                  Our Approach
                 </Link>
-                <Button className="w-full">Get Started</Button>
+                <Button className="w-full" asChild>
+                  <Link href="/#cta">Get Started</Link>
+                </Button>
               </nav>
             </SheetContent>
           </Sheet>
