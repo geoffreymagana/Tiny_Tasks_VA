@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,9 +17,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, Bot, CheckCircle, Wand2 } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, Sparkles, Bot, CheckCircle, Wand2, Save } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
-import { saveBlogPostAction, type BlogOperationResult, type SaveBlogPostServerData } from '../actions';
+import { 
+  updateBlogPostAction, 
+  getBlogPostAction,
+  type BlogOperationResult, 
+  type UpdateBlogPostServerData,
+  type BlogPost
+} from '../actions';
 import { generateBlogPost, type GenerateBlogPostInput } from '@/ai/flows/generate-blog-post-flow';
 import { improveBlogPostContent, type ImproveBlogPostContentInput } from '@/ai/flows/improve-blog-content-flow';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
@@ -42,9 +49,14 @@ const aiGenerateSchema = z.object({
 type AiGenerateFormValues = z.infer<typeof aiGenerateSchema>;
 
 
-const CreateBlogPage: FC = () => {
+const EditBlogPage: FC = () => {
   const { toast } = useToast();
   const { user: firebaseUser } = useAdminAuth(); 
+  const router = useRouter();
+  const params = useParams();
+  const postId = params.postId as string;
+
+  const [isLoadingPost, setIsLoadingPost] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAiContent, setIsGeneratingAiContent] = useState(false);
   const [isImprovingAiContent, setIsImprovingAiContent] = useState(false);
@@ -66,22 +78,43 @@ const CreateBlogPage: FC = () => {
     defaultValues: { topic: '', category: '', keywords: '' },
   });
 
-  const handleSavePost: SubmitHandler<BlogPostFormValues> = async (data) => {
-    setIsSubmitting(true);
+  useEffect(() => {
+    if (!postId) return;
+    setIsLoadingPost(true);
+    const fetchPost = async () => {
+      const postData = await getBlogPostAction(postId);
+      if (postData) {
+        form.reset({
+          title: postData.title,
+          content: postData.content,
+          category: postData.category,
+          excerpt: postData.excerpt,
+          status: postData.status,
+        });
+      } else {
+        toast({ title: 'Error', description: 'Blog post not found or could not be loaded.', variant: 'destructive' });
+        router.push('/admin/cms');
+      }
+      setIsLoadingPost(false);
+    };
+    fetchPost();
+  }, [postId, form, toast, router]);
 
+  const handleUpdatePost: SubmitHandler<BlogPostFormValues> = async (data) => {
+    setIsSubmitting(true);
     if (!firebaseUser || !firebaseUser.uid) {
       toast({ title: 'Authentication Error', description: 'User not authenticated. Please log in again.', variant: 'destructive' });
       setIsSubmitting(false);
       return;
     }
 
-    const serverActionData: SaveBlogPostServerData = data;
-
-    const result: BlogOperationResult = await saveBlogPostAction(serverActionData, firebaseUser.uid);
+    const serverActionData: UpdateBlogPostServerData = data;
+    const result: BlogOperationResult = await updateBlogPostAction(postId, serverActionData, firebaseUser.uid);
+    
     if (result.success) {
       toast({ title: 'Success', description: result.message });
-      form.reset();
-      // Optionally redirect: router.push(`/admin/blog/edit/${result.postId}`);
+      // Optionally redirect or allow further edits
+      // router.push(`/admin/cms`); 
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
@@ -135,6 +168,14 @@ const CreateBlogPage: FC = () => {
     setIsImprovingAiContent(false);
   };
 
+  if (isLoadingPost) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <LottieLoader size={64} />
+        <p className="ml-4 text-lg">Loading post data...</p>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -146,11 +187,11 @@ const CreateBlogPage: FC = () => {
         </Button>
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline text-3xl text-primary">Create New Blog Post</CardTitle>
-            <CardDescription>Fill in the details below to publish a new article. Use AI tools to assist you!</CardDescription>
+            <CardTitle className="font-headline text-3xl text-primary">Edit Blog Post</CardTitle>
+            <CardDescription>Modify the details below and save your changes. Use AI tools to assist you!</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={form.handleSubmit(handleSavePost)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(handleUpdatePost)} className="space-y-6">
               
               <Dialog open={aiDialogGenerateOpen} onOpenChange={setAiDialogGenerateOpen}>
                 <DialogContent className="sm:max-w-lg">
@@ -266,7 +307,7 @@ const CreateBlogPage: FC = () => {
                   render={({ field }) => (
                     <RadioGroup
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value} // Ensure value is controlled
                       className="flex space-x-4"
                       disabled={isSubmitting}
                     >
@@ -285,8 +326,8 @@ const CreateBlogPage: FC = () => {
               </div>
               
               <Button type="submit" disabled={isSubmitting || isGeneratingAiContent || isImprovingAiContent || !firebaseUser} size="lg">
-                {isSubmitting ? <LottieLoader className="mr-2" size={20} /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                {isSubmitting ? 'Saving...' : (form.getValues('status') === 'published' ? 'Publish Post' : 'Save Draft')}
+                {isSubmitting ? <LottieLoader className="mr-2" size={20} /> : <Save className="mr-2 h-4 w-4" />}
+                {isSubmitting ? 'Saving Changes...' : 'Save Changes'}
               </Button>
             </form>
           </CardContent>
@@ -296,4 +337,4 @@ const CreateBlogPage: FC = () => {
   );
 };
 
-export default CreateBlogPage;
+export default EditBlogPage;

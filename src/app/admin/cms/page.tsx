@@ -16,15 +16,31 @@ import { ImageIcon, Eye, Clock, BookOpen, Edit3, Trash2 } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { BlogPost } from '@/app/admin/blog/actions';
+import type { BlogPost, BlogOperationResult } from '@/app/admin/blog/actions';
+import { deleteBlogPostAction } from '@/app/admin/blog/actions';
+import { useAdminAuth } from '@/hooks/use-admin-auth';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const CmsPage: FC = () => {
   const { toast } = useToast();
+  const { user: firebaseUser } = useAdminAuth();
   const [imageDescription, setImageDescription] = useState('');
   const [generatedImage, setGeneratedImage] = useState<GenerateDescribedImageOutput | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
 
   useEffect(() => {
     setIsLoadingPosts(true);
@@ -76,6 +92,22 @@ const CmsPage: FC = () => {
     } finally {
       setIsGeneratingImage(false);
     }
+  };
+
+  const handleDeletePost = async () => {
+    if (!postToDelete || !postToDelete.id || !firebaseUser?.uid) {
+      toast({ title: 'Error', description: 'No post selected or user not authenticated.', variant: 'destructive'});
+      return;
+    }
+    setIsDeletingPost(true);
+    const result: BlogOperationResult = await deleteBlogPostAction(postToDelete.id, firebaseUser.uid);
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
+      setPostToDelete(null); // Close dialog by resetting state
+    } else {
+      toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
+    setIsDeletingPost(false);
   };
 
   return (
@@ -163,17 +195,21 @@ const CmsPage: FC = () => {
                     </span>
                   </div>
                   <div className="flex space-x-2 mt-2">
-                    <Button variant="outline" size="sm" asChild className="text-accent">
+                    <Button variant="outline" size="sm" asChild className="text-accent" disabled={post.status !== 'published'}>
                       <Link href={`/blog/${post.slug}`} target="_blank" title="View Post">
                         <Eye className="mr-1 h-3 w-3" /> View
                       </Link>
                     </Button>
-                    <Button variant="outline" size="sm" disabled title="Edit Post (Coming Soon)">
-                       <Edit3 className="mr-1 h-3 w-3" /> Edit
+                    <Button variant="outline" size="sm" asChild>
+                       <Link href={`/admin/blog/edit/${post.id}`} title="Edit Post">
+                         <Edit3 className="mr-1 h-3 w-3" /> Edit
+                       </Link>
                     </Button>
-                     <Button variant="outline" size="sm" disabled  className="text-destructive" title="Delete Post (Coming Soon)">
-                       <Trash2 className="mr-1 h-3 w-3" /> Delete
-                    </Button>
+                     <AlertDialogTrigger asChild>
+                       <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setPostToDelete(post)} title="Delete Post">
+                         <Trash2 className="mr-1 h-3 w-3" /> Delete
+                       </Button>
+                    </AlertDialogTrigger>
                   </div>
                 </Card>
               ))
@@ -184,6 +220,26 @@ const CmsPage: FC = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {postToDelete && (
+        <AlertDialog open={!!postToDelete} onOpenChange={(open) => !open && setPostToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure you want to delete this post?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the blog post titled &quot;{postToDelete.title}&quot;.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPostToDelete(null)} disabled={isDeletingPost}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeletePost} disabled={isDeletingPost} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                {isDeletingPost ? <LottieLoader className="mr-2" size={16} /> : null}
+                {isDeletingPost ? 'Deleting...' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 };
