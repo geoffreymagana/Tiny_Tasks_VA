@@ -183,17 +183,17 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className={cn(
-          "flex flex-col flex-1 min-h-0 bg-secondary/20",
-          "transition-all duration-200 ease-linear" // Added transition for smoother reflow
+          "flex flex-col flex-1 min-h-0 bg-secondary/20 ml-0",
+          "transition-all duration-200 ease-linear" 
         )}>
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-background">
+        <div className="flex items-center justify-between px-2 sm:px-4 py-3 border-b border-border bg-background">
           <div className="md:hidden">
             <SidebarTrigger />
           </div>
           {getRolePill()}
         </div>
 
-        <main className="flex-1 overflow-hidden container mx-auto">
+        <main className="flex-1 overflow-hidden container mx-auto px-2 sm:px-4">
           {children}
         </main>
         <Footer className="py-3" />
