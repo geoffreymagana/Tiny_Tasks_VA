@@ -17,7 +17,8 @@ export const createStaffAuthUser = onCall(
   async (request: functions.https.CallableRequest<CreateStaffData>) => {
     // Optional: Admin check for v2 (context is part of request.auth)
     // if (!request.auth || !request.auth.token.admin) {
-    //   throw new functions.https.HttpsError('permission-denied', 'Must be an administrative user to perform this action.');
+    //   throw new functions.https.HttpsError('permission-denied',
+    // 'Must be an administrative user to perform this action.');
     // }
 
     const {email, password, displayName, department} = request.data;
@@ -74,7 +75,8 @@ export const deleteStaffAuthUser = onCall(
   async (request: functions.https.CallableRequest<DeleteStaffData>) => {
     // Optional: Admin check
     // if (!request.auth || !request.auth.token.admin) {
-    //   throw new functions.https.HttpsError('permission-denied', 'Must be an administrative user to perform this action.');
+    //   throw new functions.https.HttpsError('permission-denied',
+    // 'Must be an administrative user to perform this action.');
     // }
 
     const uid = request.data.uid;
@@ -97,16 +99,21 @@ export const deleteStaffAuthUser = onCall(
       let errorMessage = "Failed to delete staff user.";
       if (error instanceof Error) {
         errorMessage = error.message;
-        if (error.message.includes("auth/user-not-found")) { // More robust check
+        // More robust check for user-not-found
+        if (error.message.includes("auth/user-not-found")) {
           try {
+            // If auth user not found, try to delete Firestore doc anyway
             await admin.firestore().collection("users").doc(uid).delete();
             return {
               success: true,
-              message: "Auth user not found (already deleted?), Firestore record deleted.",
+              message:
+                "Auth user not found (already deleted?), " +
+                "Firestore record deleted.",
             };
           } catch (fsError: unknown) {
             console.error(
-              "Error deleting Firestore user record after auth/user-not-found:",
+              "Error deleting Firestore user record " +
+              "after auth/user-not-found:",
               fsError
             );
             if (fsError instanceof Error) {
