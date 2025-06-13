@@ -2,16 +2,10 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
-import { generateDescribedImage, type GenerateDescribedImageOutput } from '@/ai/flows/generate-described-image-flow';
-import { LottieLoader } from '@/components/ui/lottie-loader';
-import { Sparkles, Wand2, Palette, FileEdit, AlignLeft, Languages, BarChartBig, Code2, Puzzle, Bot, GitFork, Book, ChevronRight, Search } from 'lucide-react';
+import { Sparkles, Palette, FileEdit, AlignLeft, Languages, BarChartBig, Puzzle, Bot, GitFork, Book, ChevronRight, Search, FolderKanban } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -48,36 +42,8 @@ const ToolCard: FC<ToolCardProps> = ({ icon, name, description, isNew, href }) =
 };
 
 const AiToolsPage: FC = () => {
-  const { toast } = useToast();
-  const [imageDescription, setImageDescription] = useState('');
-  const [generatedImage, setGeneratedImage] = useState<GenerateDescribedImageOutput | null>(null);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-
-  const handleGenerateImage = async () => {
-    if (!imageDescription.trim()) {
-      toast({ title: 'Error', description: 'Please enter an image description.', variant: 'destructive' });
-      return;
-    }
-    setIsGeneratingImage(true);
-    setGeneratedImage(null);
-    try {
-      const result = await generateDescribedImage({ imageDescription });
-      if (result && result.imageDataURI) {
-        setGeneratedImage(result);
-        toast({ title: 'Success', description: 'Image generated successfully.' });
-      } else {
-        toast({ title: 'Image Generation Failed', description: 'Could not generate image. The model might have returned no content or an error occurred.', variant: 'destructive' });
-      }
-    } catch (error: any) {
-      console.error('Image generation error:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to generate image.', variant: 'destructive' });
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  };
-
   const tools = [
-    { name: 'AI Image Generation', description: 'Create images from text prompts.', icon: <Palette size={20}/>, isNew: false, href: '#image-generator-tool' },
+    // AI Image Generation tool removed
     { name: 'Content Improver', description: 'Refine and enhance your writing.', icon: <FileEdit size={20}/>, isNew: true },
     { name: 'Text Summarizer', description: 'Get concise summaries of long texts.', icon: <AlignLeft size={20}/> },
     { name: 'Translation Service', description: 'Translate text between languages.', icon: <Languages size={20}/>, isNew: true },
@@ -91,52 +57,10 @@ const AiToolsPage: FC = () => {
 
   return (
     <div className="space-y-8">
-      <Card id="image-generator-tool">
-        <CardHeader>
-          <CardTitle className="flex items-center"><Wand2 className="mr-2 h-6 w-6 text-accent" /> AI Image Generation Tool</CardTitle>
-          <CardDescription>Generate images using AI based on a text description. Useful for blog posts, social media, or creative inspiration.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="imageDescAiTools">Image Description</Label>
-            <Input
-              id="imageDescAiTools"
-              placeholder="e.g., A serene beach at sunset with palm trees"
-              value={imageDescription}
-              onChange={(e) => setImageDescription(e.target.value)}
-              disabled={isGeneratingImage}
-            />
-          </div>
-          <Button onClick={handleGenerateImage} disabled={isGeneratingImage}>
-            {isGeneratingImage ? <LottieLoader className="mr-2" size={20} /> : <Sparkles className="mr-2 h-4 w-4" />}
-            {isGeneratingImage ? 'Generating...' : 'Generate Image'}
-          </Button>
-
-          {generatedImage?.imageDataURI && (
-            <div className="mt-6 border p-4 rounded-md">
-              <h3 className="text-lg font-semibold mb-2 text-primary">Generated Image:</h3>
-              <Image
-                src={generatedImage.imageDataURI}
-                alt={imageDescription || 'AI Generated Image'}
-                width={500}
-                height={350}
-                className="rounded-md object-contain border"
-              />
-              <p className="text-xs text-muted-foreground mt-2 break-all">
-                Data URI (first 100 chars): {generatedImage.imageDataURI.substring(0, 100)}...
-              </p>
-              <Button variant="outline" className="mt-4" onClick={() => navigator.clipboard.writeText(generatedImage.imageDataURI || '')}>
-                Copy Data URI
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       <Card className="bg-secondary/30">
         <CardHeader>
-          <CardTitle className="flex items-center"><Puzzle className="mr-2 h-6 w-6 text-accent" />Explore Other AI Tools & Integrations</CardTitle>
-          <CardDescription>Discover more tools to enhance your productivity and creativity. Click to learn more (placeholders).</CardDescription>
+          <CardTitle className="flex items-center"><Puzzle className="mr-2 h-6 w-6 text-accent" />Explore AI Tools & Integrations</CardTitle>
+          <CardDescription>Discover tools to enhance your productivity and creativity. Click to learn more (most are placeholders).</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="mb-6">
@@ -165,5 +89,4 @@ const AiToolsPage: FC = () => {
 };
 
 export default AiToolsPage;
-
     

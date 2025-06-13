@@ -1,7 +1,7 @@
 
 "use client";
 import type { FC, ReactNode } from 'react';
-import { useRouter } from 'next/navigation'; 
+import { useRouter, usePathname } from 'next/navigation'; 
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { 
   LogOut, Zap, LayoutDashboard, Users, Briefcase, FileText as FileTextIconLucide, 
-  Receipt, MessageSquareText, UsersRound, Sparkles, User, Settings2, Newspaper
+  Receipt, MessageSquareText, UsersRound, Sparkles, User, Settings2, Newspaper, FolderKanban
 } from 'lucide-react';
 import { 
   SidebarProvider, Sidebar, SidebarHeader, SidebarContent, 
@@ -26,6 +26,7 @@ interface AdminLayoutProps {
 const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const authState = useAdminAuth(); 
   const router = useRouter(); 
+  const currentPath = usePathname(); // Using Next.js hook for current path
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -75,12 +76,14 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
       </div>
     );
   }
-
-  const currentPath = typeof window !== 'undefined' ? window.location.pathname : ""; 
   
   const isActivePath = (href: string) => {
-    if (href === "/admin") return currentPath === "/admin" || currentPath === "/admin/";
-    return currentPath.startsWith(href);
+    if (href === "/admin" || href === "/admin/") { // Handle trailing slash for exact match
+      return currentPath === "/admin" || currentPath === "/admin/";
+    }
+    // For other paths, ensure it's not just a prefix of another longer path (e.g. /admin/cms should not match /admin/cms-settings)
+    // but should match /admin/cms or /admin/cms/create
+    return currentPath === href || currentPath.startsWith(href + '/');
   };
 
   const navItems = [
@@ -92,6 +95,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     { href: "/admin/invoices", icon: <Receipt />, label: "Invoices", tooltip: "Invoices (coming soon)" },
     { href: "/admin/communication", icon: <MessageSquareText />, label: "Communication Hub", tooltip: "Communication Hub (coming soon)" },
     { href: "/admin/staff", icon: <UsersRound />, label: "Staff", tooltip: "Staff Management" },
+    { href: "/admin/file-manager", icon: <FolderKanban />, label: "File Manager", tooltip: "File Manager (coming soon)" },
     { href: "/admin/ai-tools", icon: <Sparkles />, label: "AI Tools", tooltip: "AI Tools & Integrations" },
   ];
 
@@ -197,5 +201,4 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 };
 
 export default AdminLayout;
-
     
