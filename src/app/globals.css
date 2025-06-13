@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -43,14 +44,15 @@ body {
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
 
-    --sidebar-background: 210 29% 98%; /* Slightly off-white for sidebar */
-    --sidebar-foreground: 210 29% 20%; /* Darker text for sidebar */
-    --sidebar-primary: 210 100% 15%; /* Primary color for sidebar active elements */
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 210 25% 92%; /* Lighter accent for sidebar hover */
-    --sidebar-accent-foreground: 210 100% 15%;
+    /* Sidebar Colors - Light Mode */
+    --sidebar-background: 210 29% 98%; /* Slightly off-white */
+    --sidebar-foreground: 210 29% 20%; /* Darker text */
     --sidebar-border: 210 20% 88%;
-    --sidebar-ring: 274 92% 70%;
+    --sidebar-ring: 274 92% 70%; /* Accent color for ring */
+    --sidebar-accent: 210 25% 92%; /* Lighter accent for hover/active */
+    --sidebar-accent-foreground: 210 100% 15%; /* Primary color for text on accent */
+    --sidebar-primary: 210 100% 15%; /* Primary color for active/important items */
+    --sidebar-primary-foreground: 0 0% 98%; /* Light text for primary items */
   }
 
   .dark {
@@ -88,14 +90,15 @@ body {
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
 
+    /* Sidebar Colors - Dark Mode */
     --sidebar-background: 210 29% 8%; /* Darker sidebar */
-    --sidebar-foreground: 210 29% 85%; /* Lighter text for dark sidebar */
-    --sidebar-primary: 0 0% 98%; /* Light primary for sidebar active elements */
-    --sidebar-primary-foreground: 210 100% 15%;
-    --sidebar-accent: 210 25% 15%; /* Darker accent for sidebar hover */
-    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-foreground: 210 29% 85%; /* Lighter text */
     --sidebar-border: 210 20% 20%;
-    --sidebar-ring: 274 92% 55%;
+    --sidebar-ring: 274 92% 55%; /* Accent color for ring */
+    --sidebar-accent: 210 25% 15%; /* Darker accent for hover/active */
+    --sidebar-accent-foreground: 0 0% 98%; /* Light text for accent */
+    --sidebar-primary: 0 0% 98%; /* Light primary for active/important items */
+    --sidebar-primary-foreground: 210 100% 15%; /* Dark text for primary items */
   }
 }
 
