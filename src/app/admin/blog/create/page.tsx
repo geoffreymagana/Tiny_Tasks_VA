@@ -12,14 +12,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { FormItem } from '@/components/ui/form'; // Imported FormItem for Controller context
+import { FormItem } from '@/components/ui/form';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, Bot, Loader2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Sparkles, Bot, Loader2, CheckCircle, Wand2 } from 'lucide-react';
 import { saveBlogPostAction, type SaveBlogPostResult } from '../actions';
-import { generateBlogPost, type GenerateBlogPostInput, type GenerateBlogPostOutput } from '@/ai/flows/generate-blog-post-flow';
-import { improveBlogPostContent, type ImproveBlogPostContentInput, type ImproveBlogPostContentOutput } from '@/ai/flows/improve-blog-content-flow';
+import { generateBlogPost, type GenerateBlogPostInput } from '@/ai/flows/generate-blog-post-flow';
+import { improveBlogPostContent, type ImproveBlogPostContentInput } from '@/ai/flows/improve-blog-content-flow';
 
 const blogPostSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters").max(150, "Title must be 150 characters or less"),
@@ -83,7 +84,7 @@ const CreateBlogPage: FC = () => {
         category: aiData.category,
         keywords: aiData.keywords.split(',').map(k => k.trim()).filter(k => k),
       };
-      const output: GenerateBlogPostOutput = await generateBlogPost(input);
+      const output = await generateBlogPost(input);
       form.setValue('title', output.title);
       form.setValue('content', output.content);
       form.setValue('excerpt', output.excerpt);
@@ -111,7 +112,7 @@ const CreateBlogPage: FC = () => {
 
     try {
       const input: ImproveBlogPostContentInput = { currentTitle, currentContent };
-      const output: ImproveBlogPostContentOutput = await improveBlogPostContent(input);
+      const output = await improveBlogPostContent(input);
       form.setValue('title', output.improvedTitle);
       form.setValue('content', output.improvedContent);
       toast({ title: 'AI Content Improved', description: 'Title and Content updated.' });
@@ -124,137 +125,168 @@ const CreateBlogPage: FC = () => {
 
 
   return (
-    <div>
-      <Button variant="outline" asChild className="mb-6">
-        <Link href="/admin/cms">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to CMS
-        </Link>
-      </Button>
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-headline text-3xl text-primary">Create New Blog Post</CardTitle>
-          <CardDescription>Fill in the details below to publish a new article. Use AI tools to assist you!</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={form.handleSubmit(handleSavePost)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Dialog open={aiDialogGenerateOpen} onOpenChange={setAiDialogGenerateOpen}>
-                  <DialogTrigger asChild>
-                    <Button type="button" variant="outline" className="w-full md:w-auto">
-                      <Bot className="mr-2 h-4 w-4" /> Generate with AI
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>Generate Blog Post with AI</DialogTitle>
-                      <DialogDescription>
-                        Provide a topic, category, and keywords for the AI to generate a draft.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={aiGenerateForm.handleSubmit(handleGenerateWithAi)} className="space-y-4 py-4">
-                      <div>
-                        <Label htmlFor="aiTopic">Topic</Label>
-                        <Input id="aiTopic" {...aiGenerateForm.register('topic')} placeholder="e.g., The Future of Remote Work" disabled={isGeneratingAiContent} />
-                        {aiGenerateForm.formState.errors.topic && <p className="text-sm text-destructive mt-1">{aiGenerateForm.formState.errors.topic.message}</p>}
-                      </div>
-                      <div>
-                        <Label htmlFor="aiCategory">Category</Label>
-                        <Input id="aiCategory" {...aiGenerateForm.register('category')} placeholder="e.g., Productivity" disabled={isGeneratingAiContent} />
-                         {aiGenerateForm.formState.errors.category && <p className="text-sm text-destructive mt-1">{aiGenerateForm.formState.errors.category.message}</p>}
-                      </div>
-                      <div>
-                        <Label htmlFor="aiKeywords">Keywords (comma-separated)</Label>
-                        <Input id="aiKeywords" {...aiGenerateForm.register('keywords')} placeholder="e.g., virtual assistant, efficiency, tasks" disabled={isGeneratingAiContent} />
-                         {aiGenerateForm.formState.errors.keywords && <p className="text-sm text-destructive mt-1">{aiGenerateForm.formState.errors.keywords.message}</p>}
-                      </div>
-                      <DialogFooter>
-                        <DialogClose asChild>
-                            <Button type="button" variant="outline" disabled={isGeneratingAiContent}>Cancel</Button>
-                        </DialogClose>
-                        <Button type="submit" disabled={isGeneratingAiContent}>
-                          {isGeneratingAiContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                          {isGeneratingAiContent ? 'Generating...' : 'Generate Draft'}
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+    <TooltipProvider>
+      <div>
+        <Button variant="outline" asChild className="mb-6">
+          <Link href="/admin/cms">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to CMS
+          </Link>
+        </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline text-3xl text-primary">Create New Blog Post</CardTitle>
+            <CardDescription>Fill in the details below to publish a new article. Use AI tools to assist you!</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={form.handleSubmit(handleSavePost)} className="space-y-6">
+              
+              {/* AI Generation Dialog (kept separate for its own form) */}
+              <Dialog open={aiDialogGenerateOpen} onOpenChange={setAiDialogGenerateOpen}>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Generate Blog Post with AI</DialogTitle>
+                    <DialogDescription>
+                      Provide a topic, category, and keywords for the AI to generate a draft.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={aiGenerateForm.handleSubmit(handleGenerateWithAi)} className="space-y-4 py-4">
+                    <div>
+                      <Label htmlFor="aiTopic">Topic</Label>
+                      <Input id="aiTopic" {...aiGenerateForm.register('topic')} placeholder="e.g., The Future of Remote Work" disabled={isGeneratingAiContent} />
+                      {aiGenerateForm.formState.errors.topic && <p className="text-sm text-destructive mt-1">{aiGenerateForm.formState.errors.topic.message}</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="aiCategory">Category</Label>
+                      <Input id="aiCategory" {...aiGenerateForm.register('category')} placeholder="e.g., Productivity" disabled={isGeneratingAiContent} />
+                        {aiGenerateForm.formState.errors.category && <p className="text-sm text-destructive mt-1">{aiGenerateForm.formState.errors.category.message}</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="aiKeywords">Keywords (comma-separated)</Label>
+                      <Input id="aiKeywords" {...aiGenerateForm.register('keywords')} placeholder="e.g., virtual assistant, efficiency, tasks" disabled={isGeneratingAiContent} />
+                        {aiGenerateForm.formState.errors.keywords && <p className="text-sm text-destructive mt-1">{aiGenerateForm.formState.errors.keywords.message}</p>}
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                          <Button type="button" variant="outline" disabled={isGeneratingAiContent}>Cancel</Button>
+                      </DialogClose>
+                      <Button type="submit" disabled={isGeneratingAiContent}>
+                        {isGeneratingAiContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        {isGeneratingAiContent ? 'Generating...' : 'Generate Draft'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
-                <Button type="button" variant="outline" onClick={handleImproveWithAi} disabled={isImprovingAiContent || isSubmitting}  className="w-full md:w-auto">
-                  {isImprovingAiContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                  Improve with AI
-                </Button>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="blogTitle">Post Title</Label>
+                <Input id="blogTitle" placeholder="Enter a catchy title" {...form.register('title')} disabled={isSubmitting} />
+                {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="blogTitle">Post Title</Label>
-              <Input id="blogTitle" placeholder="Enter a catchy title" {...form.register('title')} disabled={isSubmitting} />
-              {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="blogCategory">Category</Label>
+                <Input id="blogCategory" placeholder="e.g., Productivity, Technology" {...form.register('category')} disabled={isSubmitting} />
+                {form.formState.errors.category && <p className="text-sm text-destructive">{form.formState.errors.category.message}</p>}
+              </div>
 
-             <div className="space-y-2">
-              <Label htmlFor="blogCategory">Category</Label>
-              <Input id="blogCategory" placeholder="e.g., Productivity, Technology" {...form.register('category')} disabled={isSubmitting} />
-              {form.formState.errors.category && <p className="text-sm text-destructive">{form.formState.errors.category.message}</p>}
-            </div>
+              <div className="space-y-2 relative"> {/* Added relative positioning */}
+                <Label htmlFor="blogContent">Content (Markdown supported)</Label>
+                <Textarea
+                  id="blogContent"
+                  placeholder="Write your amazing blog post here..."
+                  {...form.register('content')}
+                  disabled={isSubmitting}
+                  rows={20}
+                  className="min-h-[400px] pr-12" // Added padding-right for buttons
+                />
+                {form.formState.errors.content && <p className="text-sm text-destructive">{form.formState.errors.content.message}</p>}
+                
+                {/* AI Action Buttons */}
+                <div className="absolute bottom-5 right-3 flex flex-col space-y-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                       {/* DialogTrigger for "Generate with AI" is now part of the icon button */}
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="icon" 
+                        disabled={isGeneratingAiContent || isSubmitting} 
+                        onClick={() => setAiDialogGenerateOpen(true)}
+                      >
+                        <Bot className="h-4 w-4" />
+                        <span className="sr-only">Generate content with AI</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Generate with AI</p>
+                    </TooltipContent>
+                  </Tooltip>
 
-            <div className="space-y-2">
-              <Label htmlFor="blogContent">Content (Markdown supported)</Label>
-              <Textarea
-                id="blogContent"
-                placeholder="Write your amazing blog post here..."
-                {...form.register('content')}
-                disabled={isSubmitting}
-                rows={20}
-                className="min-h-[400px]"
-              />
-              {form.formState.errors.content && <p className="text-sm text-destructive">{form.formState.errors.content.message}</p>}
-            </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="icon" 
+                        onClick={handleImproveWithAi} 
+                        disabled={isImprovingAiContent || isSubmitting}
+                      >
+                        {isImprovingAiContent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                        <span className="sr-only">Improve content with AI</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Improve with AI</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
 
-             <div className="space-y-2">
-              <Label htmlFor="blogExcerpt">Excerpt (Short Summary)</Label>
-              <Textarea id="blogExcerpt" placeholder="A brief summary to entice readers..." {...form.register('excerpt')} disabled={isSubmitting} rows={3} />
-              {form.formState.errors.excerpt && <p className="text-sm text-destructive">{form.formState.errors.excerpt.message}</p>}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="blogExcerpt">Excerpt (Short Summary)</Label>
+                <Textarea id="blogExcerpt" placeholder="A brief summary to entice readers..." {...form.register('excerpt')} disabled={isSubmitting} rows={3} />
+                {form.formState.errors.excerpt && <p className="text-sm text-destructive">{form.formState.errors.excerpt.message}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Controller
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    className="flex space-x-4"
-                    disabled={isSubmitting}
-                  >
-                    <FormItem className="flex items-center space-x-2">
-                      <RadioGroupItem value="draft" id="draft" />
-                      <Label htmlFor="draft">Draft</Label>
-                    </FormItem>
-                    <FormItem className="flex items-center space-x-2">
-                      <RadioGroupItem value="published" id="published" />
-                      <Label htmlFor="published">Published</Label>
-                    </FormItem>
-                  </RadioGroup>
-                )}
-              />
-               {form.formState.errors.status && <p className="text-sm text-destructive">{form.formState.errors.status.message}</p>}
-            </div>
-            
-            <Button type="submit" disabled={isSubmitting || isGeneratingAiContent || isImprovingAiContent} size="lg">
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-              {isSubmitting ? 'Saving...' : (form.getValues('status') === 'published' ? 'Publish Post' : 'Save Draft')}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Controller
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex space-x-4"
+                      disabled={isSubmitting}
+                    >
+                      <FormItem className="flex items-center space-x-2">
+                        <RadioGroupItem value="draft" id="draft" />
+                        <Label htmlFor="draft">Draft</Label>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2">
+                        <RadioGroupItem value="published" id="published" />
+                        <Label htmlFor="published">Published</Label>
+                      </FormItem>
+                    </RadioGroup>
+                  )}
+                />
+                {form.formState.errors.status && <p className="text-sm text-destructive">{form.formState.errors.status.message}</p>}
+              </div>
+              
+              <Button type="submit" disabled={isSubmitting || isGeneratingAiContent || isImprovingAiContent} size="lg">
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                {isSubmitting ? 'Saving...' : (form.getValues('status') === 'published' ? 'Publish Post' : 'Save Draft')}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 };
 
 export default CreateBlogPage;
-
 
     
