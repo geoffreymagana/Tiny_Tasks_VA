@@ -6,6 +6,9 @@ import { Toaster } from "@/components/ui/toaster";
 export const metadata: Metadata = {
   title: 'Tiny Tasks - Your Expert Virtual Assistant Service',
   description: 'Delegate your tasks and boost productivity with Tiny Tasks, your reliable partner for professional virtual assistant services.',
+  icons: {
+    icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  },
 };
 
 export default function RootLayout({

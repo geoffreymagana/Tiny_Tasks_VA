@@ -250,6 +250,7 @@ async function safeGenerateImageInfo(sectionId: string, aiTextForImagePrompt: st
 
 
 export default async function HomePage() {
+  // Batch 1
   const [
     heroImageInfo, 
     onboardingOverviewImageInfo,
@@ -258,14 +259,15 @@ export default async function HomePage() {
     safeGenerateImageInfo('onboarding-overview', sectionsData.find(s => s.id === 'onboarding-overview')?.aiTextForImage || ''),
   ]);
 
+  // Batch 2: Features and Services Intro
   const [
-    featuresImageInfo,
     servicesIntroImageInfo,
   ] = await Promise.all([
-    safeGenerateImageInfo('features', `Features overview showcasing streamlined processes, expert task management, and dedicated assistant partnerships for virtual assistants. ${features.map(f => `${f.title}: ${f.description}`).join(' ')}`),
-    safeGenerateImageInfo('services-intro', services[0]?.aiTextForImage || "Overview of virtual assistant services"), // Example, ideally map all service aiTexts
+    // The featuresImageInfo was removed as per user request
+    safeGenerateImageInfo('services-intro', services[0]?.aiTextForImage || "Overview of virtual assistant services"),
   ]);
   
+  // Batch 3: Tools and Pricing
   const [
     toolsImageInfo,
     pricingImageInfo,
@@ -274,20 +276,25 @@ export default async function HomePage() {
     safeGenerateImageInfo('pricing', pricingData.aiTextForImage),
   ]);
 
+  // Batch 4: Testimonials and Blog Intro
   const [
     testimonialsImageInfo,
     blogIntroImageInfo,
-    ctaImageInfo,
   ] = await Promise.all([
     safeGenerateImageInfo('testimonials', testimonialsData.aiTextForImage),
     safeGenerateImageInfo('blog-intro', blogIntroData.aiTextForImage),
+  ]);
+
+  // Batch 5: CTA
+  const [
+    ctaImageInfo,
+  ] = await Promise.all([
     safeGenerateImageInfo('cta', ctaSectionData.aiTextForImage),
   ]);
   
   const sectionImageInfos: Record<string, AiImageInfo | null> = {
     hero: heroImageInfo,
     'onboarding-overview': onboardingOverviewImageInfo,
-    // Note: improvedCopyImage was removed based on user request to remove its visual section
   };
 
   return (
@@ -332,19 +339,7 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            {featuresImageInfo && (
-               <div className="mt-12 max-w-3xl mx-auto">
-                 <AiImageSection
-                    title="Visually Unified Experience"
-                    text="Our AI helps select imagery that complements our features, ensuring a cohesive and engaging user experience across the platform when highlighting our VA capabilities."
-                    imageInfo={featuresImageInfo}
-                    imagePlacement="right" 
-                    className="py-0"
-                    titleClassName="text-3xl text-center md:text-left"
-                    textClassName="text-center md:text-left"
-                 />
-               </div>
-            )}
+            {/* The AiImageSection for "Visually Unified Experience" has been removed here */}
           </div>
         </section>
 
@@ -400,7 +395,6 @@ export default async function HomePage() {
                     improvedTitle={improvedCopyData.improvedTitle}
                     improvedText={improvedCopyData.improvedText}
                 />
-                 {/* Visualizing Our VA Commitment section was here, removed as per user request */}
             </div>
         </section>
 
