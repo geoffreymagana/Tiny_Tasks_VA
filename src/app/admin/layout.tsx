@@ -26,7 +26,7 @@ interface AdminLayoutProps {
 const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const authState = useAdminAuth(); 
   const router = useRouter(); 
-  const currentPath = usePathname(); // Using Next.js hook for current path
+  const currentPath = usePathname(); 
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -78,11 +78,9 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   }
   
   const isActivePath = (href: string) => {
-    if (href === "/admin" || href === "/admin/") { // Handle trailing slash for exact match
+    if (href === "/admin" || href === "/admin/") { 
       return currentPath === "/admin" || currentPath === "/admin/";
     }
-    // For other paths, ensure it's not just a prefix of another longer path (e.g. /admin/cms should not match /admin/cms-settings)
-    // but should match /admin/cms or /admin/cms/create
     return currentPath === href || currentPath.startsWith(href + '/');
   };
 
@@ -183,7 +181,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="bg-secondary/20">
+      <SidebarInset className="flex flex-col flex-1 min-h-0 bg-secondary/20">
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-background">
           <div className="md:hidden">
             <SidebarTrigger />
@@ -191,7 +189,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
           {getRolePill()}
         </div>
         
-        <main className="flex-grow container mx-auto py-8 md:py-12">
+        <main className="flex-1 overflow-hidden container mx-auto">
           {children}
         </main>
         <Footer className="py-3" />

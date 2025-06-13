@@ -20,7 +20,6 @@ import {
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
-// Sample data (replace with actual data fetching later)
 const sampleActivityFeed = [
   { id: '1', text: "Client 'Acme Corp' logged in.", time: "2m ago" },
   { id: '2', text: "VA 'Jane D.' completed task 'Social Media Schedule'.", time: "15m ago" },
@@ -97,9 +96,9 @@ const sampleAiSuggestions = [
 
 const AdminDashboardPage: FC = () => {
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
+    <div className="flex flex-col lg:flex-row lg:gap-x-8 h-full">
       {/* Middle Section: Primary Workspace */}
-      <div className="flex-grow lg:w-2/3 space-y-8">
+      <div className="lg:w-0 lg:flex-1 space-y-8 h-full overflow-y-auto p-6 md:p-8">
         <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Admin Dashboard</h1>
         
         <Card>
@@ -137,7 +136,7 @@ const AdminDashboardPage: FC = () => {
                     <span>{status}</span>
                     <Badge variant="secondary" className="text-xs">{(groupedTasks[status] || []).length}</Badge>
                   </h3>
-                  <ScrollArea className="max-h-[26rem]"> {/* Increased max height for task columns */}
+                  <ScrollArea className="max-h-[26rem]"> 
                     <div className="space-y-2 pr-2">
                       {(groupedTasks[status] || []).map(task => (
                         <Card key={task.id} className="p-3 bg-card shadow-sm hover:shadow-md transition-shadow relative">
@@ -191,7 +190,6 @@ const AdminDashboardPage: FC = () => {
                     <div className="grid gap-4 py-4">
                         <Input placeholder="Task Title" />
                         <Textarea placeholder="Task Description" />
-                        {/* Add more fields like assignee, priority, status */}
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
@@ -323,11 +321,10 @@ const AdminDashboardPage: FC = () => {
              <Button variant="outline" size="sm" disabled>View All Alerts</Button>
           </CardFooter>
         </Card>
-
       </div>
 
       {/* Right Panel: Utility/Assistance Zone */}
-      <div className="lg:w-1/3 space-y-6 shrink-0">
+      <div className="lg:w-[16rem] shrink-0 space-y-6 h-full overflow-y-auto p-6 md:p-8">
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center text-lg"><Bell className="mr-2 h-5 w-5 text-accent" /> Real-Time Notifications</CardTitle>
@@ -441,10 +438,8 @@ const AdminDashboardPage: FC = () => {
                 <CardDescription>Client meetings, VA time blocks.</CardDescription>
             </CardHeader>
             <CardContent className="flex justify-center">
-                <Calendar
+                 <Calendar
                     mode="single"
-                    // selected={date} // Add state for selected date if needed
-                    // onSelect={setDate} // Add handler if needed
                     className="rounded-md border shadow"
                 />
             </CardContent>
@@ -456,5 +451,4 @@ const AdminDashboardPage: FC = () => {
 };
 
 export default AdminDashboardPage;
-
     
