@@ -53,10 +53,10 @@ const groupedTasks = sampleTasks.reduce((acc, task) => {
 
 
 const sampleVAs = [
-  { id: 'va1', name: "Jane Doe", avatarFallback: "JD", online: true, completionRate: 92, satisfaction: 4.8, currentTask: "Social Media Posts for Client X" },
-  { id: 'va2', name: "John Smith", avatarFallback: "JS", online: false, completionRate: 88, satisfaction: 4.5, currentTask: "Client Outreach & Follow-ups" },
-  { id: 'va3', name: "Alice Brown", avatarFallback: "AB", online: true, completionRate: 95, satisfaction: 4.9, currentTask: "Report Generation for Project Y" },
-  { id: 'va4', name: "Mike Ross", avatarFallback: "MR", online: true, completionRate: 90, satisfaction: 4.6, currentTask: "Calendar Management for Exec Team" },
+  { id: 'va1', name: "Jane Doe", avatarFallback: "JD", avatarSrc: "https://images.unsplash.com/photo-1595211877493-41a4e5f236b3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NDk4NTc0MTB8MA&ixlib=rb-4.1.0&q=80&w=1080", online: true, completionRate: 92, satisfaction: 4.8, currentTask: "Social Media Posts for Client X" },
+  { id: 'va2', name: "John Smith", avatarFallback: "JS", avatarSrc: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cHJvZmVzc2lvbmFsJTIwaGVhZHNob3R8ZW58MHx8fHwxNzQ5ODU3NDEwfDA&ixlib=rb-4.1.0&q=80&w=1080", online: false, completionRate: 88, satisfaction: 4.5, currentTask: "Client Outreach & Follow-ups" },
+  { id: 'va3', name: "Alice Brown", avatarFallback: "AB", avatarSrc: "https://images.unsplash.com/photo-1629425733761-caae3b5f2e50?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NDk4NTc0MTB8MA&ixlib=rb-4.1.0&q=80&w=1080", online: true, completionRate: 95, satisfaction: 4.9, currentTask: "Report Generation for Project Y" },
+  { id: 'va4', name: "Mike Ross", avatarFallback: "MR", avatarSrc: "https://images.unsplash.com/photo-1595211877493-41a4e5f236b3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NDk4NTc0MTB8MA&ixlib=rb-4.1.0&q=80&w=1080", online: true, completionRate: 90, satisfaction: 4.6, currentTask: "Calendar Management for Exec Team" },
 ];
 
 const sampleClientActivity = [
@@ -98,7 +98,7 @@ const AdminDashboardPage: FC = () => {
   return (
     <div className="flex flex-col lg:flex-row lg:gap-x-8 h-full">
       {/* Middle Section: Primary Workspace */}
-      <div className="lg:w-0 lg:flex-1 space-y-8 h-full overflow-y-auto p-6 md:p-8">
+      <div className="lg:w-0 lg:flex-1 h-full overflow-y-auto p-6 md:p-8 space-y-8">
         <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Admin Dashboard</h1>
         
         <Card>
@@ -212,7 +212,7 @@ const AdminDashboardPage: FC = () => {
                   <Card key={va.id} className="p-4">
                     <div className="flex items-center space-x-3 mb-3">
                       <Avatar>
-                        <AvatarImage src={`https://placehold.co/40x40.png?text=${va.avatarFallback}`} alt={va.name} data-ai-hint="professional headshot" />
+                        <AvatarImage src={va.avatarSrc} alt={va.name} data-ai-hint="professional headshot" />
                         <AvatarFallback>{va.avatarFallback}</AvatarFallback>
                       </Avatar>
                       <div>
@@ -324,7 +324,7 @@ const AdminDashboardPage: FC = () => {
       </div>
 
       {/* Right Panel: Utility/Assistance Zone */}
-      <div className="lg:w-[16rem] shrink-0 space-y-6 h-full overflow-y-auto p-6 md:p-8">
+      <div className="lg:w-[16rem] shrink-0 h-full overflow-y-auto px-3 md:px-4 py-6 md:py-8 space-y-6">
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center text-lg"><Bell className="mr-2 h-5 w-5 text-accent" /> Real-Time Notifications</CardTitle>
