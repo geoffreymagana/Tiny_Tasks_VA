@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Calendar } from "@/components/ui/calendar"; // Added Calendar import
 import {
   Activity, Zap, Newspaper, Bell, ListChecks, ExternalLink, Users, Briefcase, Settings,
   ClipboardList, PlusCircle, UserCircle, Circle, BarChart2, MessageSquare, Flag, Eye, Pin, Workflow, AlertCircle, Clock, LogIn, LogOut, CheckCircle as CheckCircleIcon, AlertTriangle, Rocket, MoreHorizontal, Trash2, Edit3, Filter, MessageCircle as MessageCircleChatIcon, BrainCircuit, CalendarDays as CalendarDaysIcon, Settings2, Info, ChevronDown, BookOpen
@@ -375,9 +376,13 @@ const AdminDashboardPage: FC = () => {
                 <CardTitle className="flex items-center text-lg"><CalendarDaysIcon className="mr-2 h-5 w-5 text-accent" /> Embedded Calendar / Upcoming</CardTitle>
                 <CardDescription>Client meetings, VA time blocks.</CardDescription>
             </CardHeader>
-            <CardContent>
-                <p className="text-sm text-muted-foreground">Full calendar integration coming soon.</p>
-                <Button variant="outline" size="sm" className="mt-3 w-full" disabled>View Calendar (Coming Soon)</Button>
+            <CardContent className="flex justify-center">
+                <Calendar
+                    mode="single"
+                    // selected={date} // Add state for selected date if needed
+                    // onSelect={setDate} // Add handler if needed
+                    className="rounded-md border shadow"
+                />
             </CardContent>
         </Card>
 
@@ -387,3 +392,4 @@ const AdminDashboardPage: FC = () => {
 };
 
 export default AdminDashboardPage;
+
