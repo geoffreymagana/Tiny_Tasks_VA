@@ -216,6 +216,9 @@ const blogIntroData = {
 // Helper function to generate image sections and handle errors
 async function safeGenerateImage(sectionId: string, text: string): Promise<GenerateImageSectionsOutput | null> {
   try {
+    // Adding a small delay to slightly stagger individual calls within a Promise.all, though Promise.all itself parallelizes.
+    // This is a minor attempt and might not fully resolve strict rate limits.
+    // await new Promise(resolve => setTimeout(resolve, 50)); 
     return await generateImageSections({ sectionText: text });
   } catch (err) {
     console.error(`Failed to generate image for ${sectionId}:`, err);
@@ -224,37 +227,28 @@ async function safeGenerateImage(sectionId: string, text: string): Promise<Gener
 }
 
 export default async function HomePage() {
-  // Batch 1: Hero, Onboarding, Features
-  const [
-    heroImage,
-    onboardingOverviewImage,
-    featuresImage,
-  ] = await Promise.all([
+  // Fetch images in smaller, sequential batches
+  const [heroImage, onboardingOverviewImage] = await Promise.all([
     safeGenerateImage('hero', sectionsData.find(s => s.id === 'hero')?.aiTextForImage || sectionsData.find(s => s.id === 'hero')?.text || ''),
     safeGenerateImage('onboarding-overview', sectionsData.find(s => s.id === 'onboarding-overview')?.aiTextForImage || sectionsData.find(s => s.id === 'onboarding-overview')?.text || ''),
-    safeGenerateImage('features', `Features overview showcasing streamlined processes, expert task management, and dedicated assistant partnerships for virtual assistants. ${features.map(f => `${f.title}: ${f.description}`).join(' ')}`),
   ]);
 
-  // Batch 2: Services Intro, Improved Copy, Tools
-  const [
-    servicesIntroImage,
-    improvedCopyImage,
-    toolsImage,
-  ] = await Promise.all([
+  const [featuresImage, servicesIntroImage] = await Promise.all([
+    safeGenerateImage('features', `Features overview showcasing streamlined processes, expert task management, and dedicated assistant partnerships for virtual assistants. ${features.map(f => `${f.title}: ${f.description}`).join(' ')}`),
     safeGenerateImage('services-intro', `Overview of virtual assistant services including executive assistance, social media management, and graphic design, emphasizing comprehensive business support. ${services.map(s => `${s.title}: ${s.description} ${s.serviceItems.map(si => si.text).join(', ')}`).join('; ')}`),
+  ]);
+  
+  const [improvedCopyImage, toolsImage] = await Promise.all([
     safeGenerateImage('improved-copy', improvedCopyData.aiTextForImage),
     safeGenerateImage('tools', toolsData.aiTextForImage),
   ]);
 
-  // Batch 3: Pricing, Testimonials, Blog Intro, CTA
-  const [
-    pricingImage,
-    testimonialsImage,
-    blogIntroImage,
-    ctaImage,
-  ] = await Promise.all([
+  const [pricingImage, testimonialsImage] = await Promise.all([
     safeGenerateImage('pricing', pricingData.aiTextForImage),
     safeGenerateImage('testimonials', testimonialsData.aiTextForImage),
+  ]);
+
+  const [blogIntroImage, ctaImage] = await Promise.all([
     safeGenerateImage('blog-intro', blogIntroData.aiTextForImage),
     safeGenerateImage('cta', ctaSectionData.aiTextForImage),
   ]);
@@ -590,3 +584,5 @@ export default async function HomePage() {
     </div>
   );
 }
+
+    
