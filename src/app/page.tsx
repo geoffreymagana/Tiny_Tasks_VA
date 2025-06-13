@@ -216,9 +216,6 @@ const blogIntroData = {
 // Helper function to generate image sections and handle errors
 async function safeGenerateImage(sectionId: string, text: string): Promise<GenerateImageSectionsOutput | null> {
   try {
-    // Adding a small delay to slightly stagger individual calls within a Promise.all, though Promise.all itself parallelizes.
-    // This is a minor attempt and might not fully resolve strict rate limits.
-    // await new Promise(resolve => setTimeout(resolve, 50)); 
     return await generateImageSections({ sectionText: text });
   } catch (err) {
     console.error(`Failed to generate image for ${sectionId}:`, err);
@@ -371,19 +368,6 @@ export default async function HomePage() {
                     improvedTitle={improvedCopyData.improvedTitle}
                     improvedText={improvedCopyData.improvedText}
                 />
-                {improvedCopyImage && (
-                    <div className="mt-12 max-w-2xl mx-auto">
-                         <AiImageSection
-                            title="Visualizing Our VA Commitment"
-                            text="AI helps us select visuals that underscore our dedication to providing impactful and efficient virtual assistant solutions for your business."
-                            aiImage={improvedCopyImage}
-                            imagePlacement="left"
-                            className="py-0"
-                            titleClassName="text-3xl text-center md:text-left"
-                            textClassName="text-center md:text-left"
-                         />
-                    </div>
-                )}
             </div>
         </section>
 
