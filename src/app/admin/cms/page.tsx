@@ -3,16 +3,12 @@
 
 import type { FC } from 'react';
 import { useState, useEffect } from 'react';
-import { generateDescribedImage, type GenerateDescribedImageOutput } from '@/ai/flows/generate-described-image-flow';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 import Link from 'next/link';
-import { ImageIcon, Eye, Clock, BookOpen, Edit3, Trash2 } from 'lucide-react';
+import { Eye, Clock, BookOpen, Edit3, Trash2 } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -28,15 +24,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 const CmsPage: FC = () => {
   const { toast } = useToast();
   const { user: firebaseUser } = useAdminAuth();
-  const [imageDescription, setImageDescription] = useState('');
-  const [generatedImage, setGeneratedImage] = useState<GenerateDescribedImageOutput | null>(null);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [isDeletingPost, setIsDeletingPost] = useState(false);
@@ -70,29 +62,6 @@ const CmsPage: FC = () => {
   }, [toast]);
 
 
-  const handleGenerateImage = async () => {
-    if (!imageDescription.trim()) {
-      toast({ title: 'Error', description: 'Please enter an image description.', variant: 'destructive' });
-      return;
-    }
-    setIsGeneratingImage(true);
-    setGeneratedImage(null);
-    try {
-      const result = await generateDescribedImage({ imageDescription });
-      if (result && result.imageDataURI) {
-        setGeneratedImage(result);
-        toast({ title: 'Success', description: 'Image generated successfully.' });
-      } else {
-        toast({ title: 'Image Generation Failed', description: 'Could not generate image. The model might have returned no content or an error occurred.', variant: 'destructive' });
-      }
-    } catch (error: any) {
-      console.error('Image generation error:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to generate image.', variant: 'destructive' });
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  };
-
   const handleDeletePostWithConfirmation = async (postId: string) => {
     if (!postId || !firebaseUser?.uid) {
       toast({ title: 'Error', description: 'Post ID missing or user not authenticated.', variant: 'destructive'});
@@ -120,52 +89,25 @@ const CmsPage: FC = () => {
             <Button asChild size="lg">
               <Link href="/admin/blog/create">Create New Blog Post</Link>
             </Button>
+            <p className="text-sm text-muted-foreground">
+              The AI Image Generation tool has been moved to the <Button variant="link" asChild className="p-0 h-auto"><Link href="/admin/ai-tools">AI Tools page</Link></Button>.
+            </p>
           </CardContent>
         </Card>
 
         <Separator />
-
+        
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center"><ImageIcon className="mr-2 h-6 w-6 text-accent" /> AI Image Generation Tool</CardTitle>
-            <CardDescription>Generate images using AI based on a text description for your content. (e.g., for blog featured images)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="imageDescCms">Image Description</Label>
-              <Input
-                id="imageDescCms"
-                placeholder="e.g., A futuristic cityscape at sunset"
-                value={imageDescription}
-                onChange={(e) => setImageDescription(e.target.value)}
-                disabled={isGeneratingImage}
-              />
-            </div>
-            <Button onClick={handleGenerateImage} disabled={isGeneratingImage}>
-              {isGeneratingImage ? <LottieLoader className="mr-2" size={20} /> : null}
-              {isGeneratingImage ? 'Generating...' : 'Generate Image'}
-            </Button>
-
-            {generatedImage?.imageDataURI && (
-              <div className="mt-6 border p-4 rounded-md">
-                <h3 className="text-lg font-semibold mb-2 text-primary">Generated Image:</h3>
-                <Image
-                  src={generatedImage.imageDataURI}
-                  alt={imageDescription || 'AI Generated Image'}
-                  width={500}
-                  height={350}
-                  className="rounded-md object-contain border"
-                />
-                <p className="text-xs text-muted-foreground mt-2 break-all">
-                  Data URI (first 100 chars): {generatedImage.imageDataURI.substring(0, 100)}...
-                </p>
-                <Button variant="outline" className="mt-4" onClick={() => navigator.clipboard.writeText(generatedImage.imageDataURI || '')}>
-                  Copy Data URI
-                </Button>
-              </div>
-            )}
-          </CardContent>
+            <CardHeader>
+                <CardTitle className="text-xl">Website Pages Overview</CardTitle>
+                <CardDescription>Manage static pages of your website (Coming Soon).</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">Functionality to edit pages like 'Homepage', 'About Us', 'Services' will be available here.</p>
+                <Button disabled className="mt-4">Manage Pages (Coming Soon)</Button>
+            </CardContent>
         </Card>
+
       </div>
 
       <div className="lg:w-1/3 space-y-6">
@@ -244,3 +186,5 @@ const CmsPage: FC = () => {
 };
 
 export default CmsPage;
+
+    

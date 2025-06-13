@@ -92,7 +92,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     { href: "/admin/invoices", icon: <Receipt />, label: "Invoices", tooltip: "Invoices (coming soon)" },
     { href: "/admin/communication", icon: <MessageSquareText />, label: "Communication Hub", tooltip: "Communication Hub (coming soon)" },
     { href: "/admin/staff", icon: <UsersRound />, label: "Staff", tooltip: "Staff Management" },
-    { href: "/admin/ai-tools", icon: <Sparkles />, label: "AI Tools", tooltip: "AI Tools (Placeholder for /admin/cms tools)" },
+    { href: "/admin/ai-tools", icon: <Sparkles />, label: "AI Tools", tooltip: "AI Tools & Integrations" },
   ];
 
   const accountItems = [
@@ -149,7 +149,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
             {navItems.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <SidebarMenuButton asChild isActive={isActivePath(item.href)} tooltip={item.tooltip}>
-                  <Link href={item.href === "/admin/ai-tools" ? "/admin/cms" : item.href}> 
+                  <Link href={item.href}> 
                     {item.icon}
                     <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
                   </Link>
@@ -197,3 +197,5 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 };
 
 export default AdminLayout;
+
+    
