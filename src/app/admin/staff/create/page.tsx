@@ -3,7 +3,7 @@
 
 import type { FC } from 'react';
 import { useState } from 'react';
-import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
@@ -16,9 +16,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import { addStaffAction, type StaffFormData, type StaffOperationResult } from '../actions';
 import { LottieLoader } from '@/components/ui/lottie-loader';
-import { ArrowLeft, Save, UserPlus } from 'lucide-react';
+import { ArrowLeft, Save, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 // Department Configuration
 const STAFF_DEPARTMENTS_CONFIG: Record<string, { name: string; color: string; textColor?: string }> = {
@@ -39,24 +41,28 @@ const STAFF_DEPARTMENT_NAMES = Object.keys(STAFF_DEPARTMENTS_CONFIG);
 const staffFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(100, "Name too long."),
   email: z.string().email("Invalid email address.").max(100, "Email too long."),
+  password: z.string().min(6, "Password must be at least 6 characters."),
   department: z.enum(STAFF_DEPARTMENT_NAMES as [string, ...string[]], {
     errorMap: () => ({ message: "Please select a valid department." }),
   }),
   phone: z.string().max(20, "Phone number too long.").optional().or(z.literal('')),
 });
 
+export type StaffFormData = z.infer<typeof staffFormSchema>;
 
 const CreateStaffPage: FC = () => {
   const { toast } = useToast();
   const router = useRouter();
-  const { user: firebaseUser } = useAdminAuth();
+  const { user: adminFirebaseUser } = useAdminAuth(); // Renamed to avoid conflict
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<StaffFormData>({
     resolver: zodResolver(staffFormSchema),
     defaultValues: {
       name: '',
       email: '',
+      password: '',
       department: undefined, 
       phone: '',
     },
@@ -64,24 +70,71 @@ const CreateStaffPage: FC = () => {
 
   const handleSaveStaff: SubmitHandler<StaffFormData> = async (data) => {
     setIsSubmitting(true);
-    if (!firebaseUser?.uid) {
+    if (!adminFirebaseUser?.uid) { // Check original admin user
       toast({ title: 'Authentication Error', description: 'Admin not authenticated.', variant: 'destructive' });
       setIsSubmitting(false);
       return;
     }
 
-    const result: StaffOperationResult = await addStaffAction(data, firebaseUser.uid);
-    if (result.success) {
-      toast({ 
-        title: 'Success', 
-        description: `${result.message}. A default password "password123" has been set. The staff member should change it upon first login.`,
-        duration: 7000 
+    try {
+      // 1. Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const newStaffUser = userCredential.user;
+
+      // 2. Update Firebase Auth profile (displayName)
+      await updateProfile(newStaffUser, { displayName: data.name });
+
+      // 3. Create Firestore document in /users collection
+      const userDocRef = doc(db, 'users', newStaffUser.uid);
+      await setDoc(userDocRef, {
+        uid: newStaffUser.uid,
+        email: newStaffUser.email,
+        displayName: data.name,
+        role: 'staff',
+        department: data.department,
+        isDisabled: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
-      router.push('/admin/staff'); 
-    } else {
-      toast({ title: 'Error', description: result.message, variant: 'destructive', duration: 7000 });
+
+      // 4. Create Firestore document in /staff collection
+      const staffCollectionRef = collection(db, 'staff');
+      const newStaffDocRef = doc(staffCollectionRef); // Auto-generate ID for staff specific record
+      await setDoc(newStaffDocRef, {
+        authUid: newStaffUser.uid,
+        name: data.name,
+        email: data.email,
+        department: data.department,
+        phone: data.phone || '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      
+      toast({
+        title: 'Staff Member Created',
+        description: `${data.name} has been successfully created. You are now logged in as this new staff member. To continue admin tasks, please sign out and sign back in with your admin credentials.`,
+        duration: 10000, // Longer duration for this important message
+      });
+
+      // After this, the onAuthStateChanged listener in useAdminAuth should pick up the new user,
+      // and redirectToDashboard in auth/page.tsx (if it's still part of that flow)
+      // or a similar logic should redirect to the staff portal.
+      // If not, we might need to explicitly call router.push here for the staff portal.
+      // For now, relying on the auth state change to trigger redirection.
+      // Explicitly push to a known location to ensure admin sees they are logged in as new user.
+      router.push('/admin/staff'); // Or '/staff-portal' once that's ready
+
+    } catch (error: any) {
+      console.error('Error creating staff member:', error);
+      toast({
+        title: 'Staff Creation Failed',
+        description: error.message || 'An unexpected error occurred.',
+        variant: 'destructive',
+        duration: 7000,
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
@@ -96,7 +149,10 @@ const CreateStaffPage: FC = () => {
           <CardTitle className="font-headline text-3xl text-primary flex items-center">
             <UserPlus className="mr-3 h-7 w-7" /> Add New Staff Member
           </CardTitle>
-          <CardDescription>Enter the details for the new staff member. An account will be created with a default password.</CardDescription>
+          <CardDescription>
+            Enter details for the new staff member. This will create a new user account.
+            The admin performing this action will be temporarily signed in as the new staff member.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -122,6 +178,38 @@ const CreateStaffPage: FC = () => {
                     <FormLabel>Email Address *</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="e.g., alex.johnson@example.com" {...field} disabled={isSubmitting} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password *</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter a strong password"
+                          {...field}
+                          disabled={isSubmitting}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                          onClick={() => setShowPassword(!showPassword)}
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -164,7 +252,7 @@ const CreateStaffPage: FC = () => {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isSubmitting || !firebaseUser} size="lg">
+              <Button type="submit" disabled={isSubmitting || !adminFirebaseUser} size="lg">
                 {isSubmitting ? <LottieLoader className="mr-2" size={20} /> : <Save className="mr-2 h-4 w-4" />}
                 {isSubmitting ? 'Adding Staff...' : 'Add Staff Member'}
               </Button>
