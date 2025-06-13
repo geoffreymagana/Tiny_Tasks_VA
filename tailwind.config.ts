@@ -8,6 +8,14 @@ export default {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    container: {
+      center: true,
+      padding: {
+        DEFAULT: '1rem', // 16px
+        md: '1.5rem',  // 24px for screens >= 768px
+        lg: '2rem',    // 32px for screens >= 1024px
+      },
+    },
     extend: {
       fontFamily: {
         body: ['PT Sans', 'sans-serif'],
