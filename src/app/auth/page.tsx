@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Chrome } from 'lucide-react';
+import { Chrome, Eye, EyeOff } from 'lucide-react'; // Added Eye, EyeOff
 import { LottieLoader } from '@/components/ui/lottie-loader';
 
 const signInSchema = z.object({
@@ -45,6 +45,8 @@ const AuthPage: FC = () => {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
   const signInForm = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
@@ -67,7 +69,7 @@ const AuthPage: FC = () => {
         photoURL: user.photoURL,
         role: 'client',
         updatedAt: serverTimestamp(),
-        isDisabled: false,
+        isDisabled: false, // Initialize isDisabled to false
       };
 
       if (company) userDataToSet.company = company;
@@ -78,7 +80,6 @@ const AuthPage: FC = () => {
         await setDoc(userRef, userDataToSet);
         console.log('User document created in Firestore for UID:', user.uid);
       } else {
-        // If user document exists, ensure 'isDisabled' field is present or update other fields
         const existingData = userSnap.data();
         const updates: any = { updatedAt: serverTimestamp() };
         if (existingData.isDisabled === undefined) {
@@ -90,14 +91,12 @@ const AuthPage: FC = () => {
         if (user.photoURL && user.photoURL !== existingData.photoURL) {
           updates.photoURL = user.photoURL;
         }
-        // Update company and phone if provided and different or not present
         if (company && company !== existingData.company) {
             updates.company = company;
         }
         if (phone && phone !== existingData.phone) {
             updates.phone = phone;
         }
-
         await setDoc(userRef, { ...userDataToSet, ...updates }, { merge: true });
         console.log('User document updated/merged in Firestore for UID:', user.uid);
       }
@@ -119,14 +118,14 @@ const AuthPage: FC = () => {
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
         if (userData.isDisabled) {
-          await auth.signOut(); // Sign out the disabled user
+          await auth.signOut();
           toast({
             title: 'Account Disabled',
             description: 'Your account has been disabled. Please contact support.',
             variant: 'destructive',
             duration: 7000,
           });
-          router.push('/auth'); // Keep them on auth page or redirect to a specific "disabled" page
+          router.push('/auth');
           return { success: false, isAdminRedirect: false, isAccountDisabled: true };
         }
         if (userData.role === 'admin') {
@@ -137,7 +136,6 @@ const AuthPage: FC = () => {
           return { success: true, isAdminRedirect: false, isAccountDisabled: false };
         }
       } else {
-         // This case should ideally not happen if handleUserSetup runs correctly
         toast({ title: 'User Data Not Found', description: 'Could not retrieve user details. Please try again.', variant: 'destructive' });
         router.push('/');
         return { success: false, isAdminRedirect: false, isAccountDisabled: false };
@@ -192,7 +190,6 @@ const AuthPage: FC = () => {
       if (data.displayName && userCredential.user) {
         await updateProfile(userCredential.user, { displayName: data.displayName });
       }
-      // Pass the updated user object or at least displayName to handleUserSetup
       const userToSetup = auth.currentUser || userCredential.user;
       await handleUserSetup(userToSetup, data.displayName || userToSetup.displayName, data.company, data.phone);
 
@@ -226,9 +223,7 @@ const AuthPage: FC = () => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      // For Google Sign-In, company and phone won't be available from the provider
-      // These fields would need to be collected post-signup if required
-      await handleUserSetup(result.user, result.user.displayName);
+      await handleUserSetup(result.user, result.user.displayName, null, null); // Pass null for company/phone for Google sign-in
       const redirectStatus = await redirectToDashboard(result.user.uid);
 
       if (redirectStatus.success) {
@@ -277,7 +272,26 @@ const AuthPage: FC = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-signin">Password</Label>
-                  <Input id="password-signin" type="password" {...signInForm.register('password')} disabled={isLoading} autoComplete="current-password"/>
+                  <div className="relative">
+                    <Input 
+                      id="password-signin" 
+                      type={showSignInPassword ? "text" : "password"} 
+                      {...signInForm.register('password')} 
+                      disabled={isLoading} 
+                      autoComplete="current-password"
+                      className="pr-10"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                      onClick={() => setShowSignInPassword(!showSignInPassword)}
+                    >
+                      {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <span className="sr-only">{showSignInPassword ? "Hide password" : "Show password"}</span>
+                    </Button>
+                  </div>
                   {signInForm.formState.errors.password && <p className="text-sm text-destructive">{signInForm.formState.errors.password.message}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
@@ -324,7 +338,26 @@ const AuthPage: FC = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-signup">Password</Label>
-                  <Input id="password-signup" type="password" {...signUpForm.register('password')} disabled={isLoading} autoComplete="new-password"/>
+                  <div className="relative">
+                    <Input 
+                      id="password-signup" 
+                      type={showSignUpPassword ? "text" : "password"} 
+                      {...signUpForm.register('password')} 
+                      disabled={isLoading} 
+                      autoComplete="new-password"
+                      className="pr-10"
+                    />
+                     <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                      onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                    >
+                      {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <span className="sr-only">{showSignUpPassword ? "Hide password" : "Show password"}</span>
+                    </Button>
+                  </div>
                   {signUpForm.formState.errors.password && <p className="text-sm text-destructive">{signUpForm.formState.errors.password.message}</p>}
                 </div>
                 <div className="space-y-2">
@@ -367,3 +400,5 @@ const AuthPage: FC = () => {
 };
 
 export default AuthPage;
+
+    
