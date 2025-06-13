@@ -17,8 +17,9 @@ export type ClientFormData = z.infer<typeof ClientFormSchema>;
 
 export interface Client extends ClientFormData {
   id: string;
-  createdAt: string | null; // Timestamps are converted to ISO strings or null
-  updatedAt: string | null; // Timestamps are converted to ISO strings or null
+  createdAt: string | null; 
+  updatedAt: string | null; 
+  source: 'clients' | 'users'; // To identify the origin of the client data
 }
 
 export interface ClientOperationResult {
@@ -35,14 +36,13 @@ async function verifyAdmin(adminId: string): Promise<boolean> {
   return adminDoc.exists() && adminDoc.data()?.role === 'admin';
 }
 
-// Helper function to check if email is unique
-async function isEmailUnique(email: string, currentClientId?: string): Promise<boolean> {
+// Helper function to check if email is unique in the 'clients' collection
+async function isEmailUniqueInClientsCollection(email: string, currentClientId?: string): Promise<boolean> {
   const q = query(collection(db, 'clients'), where('email', '==', email));
   const querySnapshot = await getDocs(q);
   if (querySnapshot.empty) {
     return true;
   }
-  // If we are updating and the found email belongs to the current client, it's still "unique" in this context
   if (currentClientId && querySnapshot.docs[0].id === currentClientId) {
     return true;
   }
@@ -57,9 +57,11 @@ export async function addClientAction(
     return { success: false, message: 'User does not have admin privileges.' };
   }
 
-  if (!(await isEmailUnique(clientData.email))) {
-    return { success: false, message: 'This email address is already in use by another client.' };
+  if (!(await isEmailUniqueInClientsCollection(clientData.email))) {
+    return { success: false, message: 'This email address is already in use by another client in the dedicated clients list.' };
   }
+  // Note: This doesn't check against the 'users' collection here, as adding is specific to the 'clients' collection.
+  // A more comprehensive check could be added if necessary.
 
   try {
     const newClient = {
@@ -68,95 +70,139 @@ export async function addClientAction(
       updatedAt: serverTimestamp(),
     };
     const docRef = await addDoc(collection(db, 'clients'), newClient);
-    return { success: true, message: 'Client added successfully!', clientId: docRef.id };
+    return { success: true, message: 'Client added successfully to dedicated list!', clientId: docRef.id };
   } catch (error: any) {
     console.error('Error adding client:', error);
     return { success: false, message: error.message || 'Failed to add client.' };
   }
 }
 
-export async function getAllClientsAction(): Promise<Client[]> {
-  try {
-    const clientsRef = collection(db, 'clients');
-    // Ensure you have a Firestore index for 'createdAt' descending if you use orderBy.
-    // Firestore usually logs a link in the console to create it if missing.
-    const q = query(clientsRef, orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      return [];
+const convertDbTimestamp = (timestamp: any): string | null => {
+    if (!timestamp) return null;
+    if (timestamp instanceof Timestamp) {
+      return timestamp.toDate().toISOString();
     }
+    // Handle cases where timestamp might already be an ISO string or a Firestore ServerTimestamp placeholder object
+    if (typeof timestamp === 'string' && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp)) {
+      return timestamp;
+    }
+    if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+       return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate().toISOString();
+    }
+    // Fallback for unexpected formats, trying to create a date if it's a recognizable date string, otherwise null
+    try {
+        if (timestamp && typeof timestamp.toDate === 'function') { // Handle Firestore ServerTimestamp placeholder before written
+            return new Date().toISOString(); // Placeholder for current time, will be updated by server
+        }
+        const d = new Date(timestamp);
+        if (!isNaN(d.getTime())) return d.toISOString();
+    } catch (e) {
+        // ignore
+    }
+    console.warn("Unsupported timestamp format encountered:", timestamp);
+    return null; 
+};
 
-    const convertTimestamp = (timestamp: any): string | null => {
-      if (!timestamp) return null;
-      if (timestamp instanceof Timestamp) {
-        return timestamp.toDate().toISOString();
-      }
-      // If it's already a string (e.g., from a previous serialization/deserialization, or serverTimestamp placeholder)
-      if (typeof timestamp === 'string') {
-        // Basic validation if it looks like an ISO string, otherwise null
-        // This handles cases where a serverTimestamp might resolve to a string before full conversion
-        return /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp) ? timestamp : null;
-      }
-       // Handle Firestore server timestamp placeholder objects before they are fully written
-      if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-         return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate().toISOString();
-      }
-      console.warn("Unsupported timestamp format:", timestamp);
-      return null; // Fallback for unrecognized formats
-    };
+
+export async function getAllClientsAction(): Promise<Client[]> {
+  const allClientsMap = new Map<string, Client>();
+
+  try {
+    // 1. Fetch from 'clients' collection
+    const clientsRef = collection(db, 'clients');
+    const clientsQuery = query(clientsRef); // Removed orderBy for now, will sort merged list later
+    const clientsSnapshot = await getDocs(clientsQuery);
     
-    return querySnapshot.docs.map(doc => {
+    clientsSnapshot.forEach(doc => {
       const data = doc.data();
-      const client: Client = {
+      const clientRecord: Client = {
         id: doc.id,
-        name: data.name || '', // Fallback, though Zod should ensure it exists on write
-        email: data.email || '', // Fallback
+        name: data.name || '',
+        email: data.email || '',
         company: data.company || '',
         phone: data.phone || '',
-        createdAt: convertTimestamp(data.createdAt),
-        updatedAt: convertTimestamp(data.updatedAt),
+        createdAt: convertDbTimestamp(data.createdAt),
+        updatedAt: convertDbTimestamp(data.updatedAt),
+        source: 'clients',
       };
-      return client;
+      if (clientRecord.email) {
+        allClientsMap.set(clientRecord.email, clientRecord); // Add or overwrite if email conflict (clients specific info)
+      }
     });
+
+    // 2. Fetch from 'users' collection where role is 'client'
+    const usersRef = collection(db, 'users');
+    const usersQuery = query(usersRef, where('role', '==', 'client'));
+    const usersSnapshot = await getDocs(usersQuery);
+
+    usersSnapshot.forEach(doc => {
+      const data = doc.data();
+      const userEmail = data.email || '';
+
+      const existingClientRecord = userEmail ? allClientsMap.get(userEmail) : undefined;
+
+      if (existingClientRecord && existingClientRecord.source === 'clients') {
+        // User exists in 'users' and was also manually added to 'clients'.
+        // Update the existing record from 'clients' to indicate it's also a 'user' (for future reference)
+        // and ensure user data (like name, email, createdAt from user record) takes precedence if more up-to-date.
+        // For simplicity, we can just mark it or decide a priority. Let's make 'users' data primary for core fields.
+        existingClientRecord.name = data.displayName || data.email?.split('@')[0] || existingClientRecord.name;
+        existingClientRecord.createdAt = convertDbTimestamp(data.createdAt) || existingClientRecord.createdAt;
+        existingClientRecord.updatedAt = convertDbTimestamp(data.updatedAt) || convertDbTimestamp(data.createdAt) || existingClientRecord.updatedAt;
+        // Keep company/phone from 'clients' record if they exist
+      } else if (userEmail && !existingClientRecord) {
+        // New client from 'users' collection not in 'clients' map yet
+        allClientsMap.set(userEmail, {
+          id: doc.id, // User UID
+          name: data.displayName || data.email?.split('@')[0] || 'N/A',
+          email: userEmail,
+          company: '', // Not typically in 'users' collection
+          phone: '',   // Not typically in 'users' collection
+          createdAt: convertDbTimestamp(data.createdAt),
+          updatedAt: convertDbTimestamp(data.updatedAt) || convertDbTimestamp(data.createdAt),
+          source: 'users',
+        });
+      }
+    });
+
+    let combinedClients = Array.from(allClientsMap.values());
+
+    // Sort by createdAt descending (most recent first)
+    combinedClients.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+    
+    return combinedClients;
+
   } catch (error) {
-    console.error("Error fetching clients in getAllClientsAction:", error);
+    console.error("Error fetching all clients in getAllClientsAction:", error);
     return [];
   }
 }
 
+// getClientAction, updateClientAction, deleteClientAction primarily operate on the 'clients' collection.
+// The ID passed to them will be from the `clients` collection if edit/delete is initiated from UI.
 export async function getClientAction(clientId: string): Promise<Client | null> {
   try {
-    const clientDocRef = doc(db, 'clients', clientId);
+    const clientDocRef = doc(db, 'clients', clientId); // Assumes ID is for 'clients' collection
     const clientDocSnap = await getDoc(clientDocRef);
 
     if (!clientDocSnap.exists()) {
       return null;
     }
     const data = clientDocSnap.data();
-    const convertTimestamp = (timestamp: any): string | null => {
-      if (!timestamp) return null;
-      if (timestamp instanceof Timestamp) {
-        return timestamp.toDate().toISOString();
-      }
-      if (typeof timestamp === 'string') {
-        return /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp) ? timestamp : null;
-      }
-      if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-         return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate().toISOString();
-      }
-      return null;
-    };
-
     return {
       id: clientDocSnap.id,
       name: data.name || '',
       email: data.email || '',
       company: data.company || '',
       phone: data.phone || '',
-      createdAt: convertTimestamp(data.createdAt),
-      updatedAt: convertTimestamp(data.updatedAt),
-    } as Client; // Ensure it casts to Client which expects string | null for dates
+      createdAt: convertDbTimestamp(data.createdAt),
+      updatedAt: convertDbTimestamp(data.updatedAt),
+      source: 'clients', // This specific action fetches from 'clients'
+    };
   } catch (error) {
     console.error("Error fetching client:", error);
     return null;
@@ -172,14 +218,15 @@ export async function updateClientAction(
     return { success: false, message: 'User does not have admin privileges.' };
   }
 
+  // This operation is intended for records in the 'clients' collection
   const clientRef = doc(db, 'clients', clientId);
   const clientSnap = await getDoc(clientRef);
   if (!clientSnap.exists()) {
-    return { success: false, message: 'Client not found.' };
+    return { success: false, message: 'Client record not found in dedicated list.' };
   }
 
-  if (!(await isEmailUnique(clientData.email, clientId))) {
-    return { success: false, message: 'This email address is already in use by another client.' };
+  if (!(await isEmailUniqueInClientsCollection(clientData.email, clientId))) {
+    return { success: false, message: 'This email address is already in use by another client in the dedicated list.' };
   }
 
   try {
@@ -188,7 +235,7 @@ export async function updateClientAction(
       updatedAt: serverTimestamp(),
     };
     await updateDoc(clientRef, updatedClientData);
-    return { success: true, message: 'Client updated successfully!', clientId };
+    return { success: true, message: 'Client updated successfully in dedicated list!', clientId };
   } catch (error: any) {
     console.error('Error updating client:', error);
     return { success: false, message: error.message || 'Failed to update client.' };
@@ -196,16 +243,21 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(
-  clientId: string,
+  clientId: string, // Assumes ID is for 'clients' collection
   adminId: string
 ): Promise<ClientOperationResult> {
   if (!(await verifyAdmin(adminId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
   try {
+    // This operation is intended for records in the 'clients' collection
     const clientRef = doc(db, 'clients', clientId);
+    const clientSnap = await getDoc(clientRef);
+    if (!clientSnap.exists()) {
+      return { success: false, message: 'Client record not found in dedicated list for deletion.' };
+    }
     await deleteDoc(clientRef);
-    return { success: true, message: 'Client deleted successfully!' };
+    return { success: true, message: 'Client deleted successfully from dedicated list!' };
   } catch (error: any) {
     console.error('Error deleting client:', error);
     return { success: false, message: error.message || 'Failed to delete client.' };
