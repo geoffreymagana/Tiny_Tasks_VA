@@ -3,7 +3,6 @@
 import type { FC, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -76,6 +75,14 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     );
   }
 
+  // Determine current page to set active state, simplify paths
+  const currentPath = router.pathname || "";
+  const isChildOfAdmin = (pathSegment: string) => currentPath.startsWith(`/admin/${pathSegment}`);
+  const isActivePath = (href: string) => {
+    if (href === "/admin") return currentPath === "/admin";
+    return currentPath.startsWith(href);
+  };
+
   const navItems = [
     { href: "/admin", icon: <LayoutDashboard />, label: "Dashboard", tooltip: "Dashboard" },
     { href: "/admin/cms", icon: <Newspaper />, label: "CMS", tooltip: "Content Management" },
@@ -107,7 +114,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton asChild isActive={router.pathname === item.href} tooltip={item.tooltip}>
+                <SidebarMenuButton asChild isActive={isActivePath(item.href)} tooltip={item.tooltip}>
                   <Link href={item.href}>
                     {item.icon}
                     <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
@@ -121,7 +128,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
           <SidebarMenu>
              {accountItems.map((item) => (
               <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton asChild isActive={router.pathname === item.href} tooltip={item.tooltip}>
+                <SidebarMenuButton asChild isActive={isActivePath(item.href)} tooltip={item.tooltip}>
                   <Link href={item.href}>
                     {item.icon}
                     <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
@@ -140,13 +147,15 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
       </Sidebar>
       <SidebarInset className="bg-secondary/20">
         <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
-           {/* Mobile sidebar trigger will be here */}
            <div className="md:hidden">
              <SidebarTrigger />
            </div>
-           {/* Could add breadcrumbs or page title here */}
            <div className="flex-1">
-             <h1 className="text-xl font-semibold text-foreground">Admin Dashboard</h1>
+             <h1 className="text-xl font-semibold text-foreground">
+               {currentPath.startsWith("/admin/cms") ? "CMS Dashboard" : 
+                currentPath.startsWith("/admin/blog/create") ? "Create Blog Post" :
+                "Admin Dashboard"}
+             </h1>
            </div>
         </header>
         <main className="flex-grow container mx-auto py-8 md:py-12">
