@@ -1,13 +1,13 @@
 
 "use client";
 import type { FC, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // Keep useRouter if used for isActivePath or other logic
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { 
-  Loader2, LogOut, Zap, LayoutDashboard, Users, Briefcase, FileText, 
+  Loader2, LogOut, Zap, LayoutDashboard, Users, Briefcase, FileText as FileTextIconLucide, // Renamed to avoid conflict
   Receipt, MessageSquareText, UsersRound, Sparkles, User, Settings2, Newspaper
 } from 'lucide-react';
 import { 
@@ -23,8 +23,8 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
-  const { isLoading, isAdmin, user } = useAdminAuth();
-  const router = useRouter();
+  const authState = useAdminAuth(); // Use the whole authState
+  const router = useRouter(); // Keep for path checking
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -38,7 +38,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     }
   };
 
-  if (isLoading) {
+  if (authState.isLoading) {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -47,7 +47,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     );
   }
 
-  if (!user) {
+  if (!authState.user) {
     return (
        <div className="flex flex-col min-h-screen items-center justify-center bg-background p-6">
         <h1 className="text-2xl font-bold text-destructive mb-4">Authentication Required</h1>
@@ -61,7 +61,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     );
   }
   
-  if (!isAdmin) {
+  if (!authState.isAdmin) {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background p-6">
         <h1 className="text-2xl font-bold text-destructive mb-4">Access Denied</h1>
@@ -75,30 +75,69 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     );
   }
 
-  // Determine current page to set active state, simplify paths
-  const currentPath = router.pathname || "";
-  const isChildOfAdmin = (pathSegment: string) => currentPath.startsWith(`/admin/${pathSegment}`);
+  // Determine current page to set active state
+  // For Next.js App Router, router.pathname might not be available directly in layouts
+  // A more robust way might involve using usePathname() from 'next/navigation'
+  // For simplicity, if router.pathname is available from Next <=13 pages router context it might work
+  // Otherwise, this logic needs adjustment for App Router context if router.pathname is undefined.
+  // Assuming router.pathname is available or will be adapted:
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname : ""; // Fallback for server
+  
   const isActivePath = (href: string) => {
-    if (href === "/admin") return currentPath === "/admin";
+    if (href === "/admin") return currentPath === "/admin" || currentPath === "/admin/";
     return currentPath.startsWith(href);
   };
 
   const navItems = [
     { href: "/admin", icon: <LayoutDashboard />, label: "Dashboard", tooltip: "Dashboard" },
     { href: "/admin/cms", icon: <Newspaper />, label: "CMS", tooltip: "Content Management" },
-    { href: "/admin/clients", icon: <Users />, label: "Client Hub", tooltip: "Client Hub" },
-    { href: "/admin/projects", icon: <Briefcase />, label: "Project Hub", tooltip: "Project Hub" },
-    { href: "/admin/contracts", icon: <FileText />, label: "Contracts", tooltip: "Contracts" },
-    { href: "/admin/invoices", icon: <Receipt />, label: "Invoices", tooltip: "Invoices" },
-    { href: "/admin/communication", icon: <MessageSquareText />, label: "Communication Hub", tooltip: "Communication Hub" },
-    { href: "/admin/staff", icon: <UsersRound />, label: "Staff", tooltip: "Staff Management" },
-    { href: "/admin/ai-tools", icon: <Sparkles />, label: "AI Tools", tooltip: "AI Tools" },
+    { href: "/admin/clients", icon: <Users />, label: "Client Hub", tooltip: "Client Hub (coming soon)" },
+    { href: "/admin/projects", icon: <Briefcase />, label: "Project Hub", tooltip: "Project Hub (coming soon)" },
+    { href: "/admin/contracts", icon: <FileTextIconLucide />, label: "Contracts", tooltip: "Contracts (coming soon)" },
+    { href: "/admin/invoices", icon: <Receipt />, label: "Invoices", tooltip: "Invoices (coming soon)" },
+    { href: "/admin/communication", icon: <MessageSquareText />, label: "Communication Hub", tooltip: "Communication Hub (coming soon)" },
+    { href: "/admin/staff", icon: <UsersRound />, label: "Staff", tooltip: "Staff Management (coming soon)" },
+    { href: "/admin/ai-tools", icon: <Sparkles />, label: "AI Tools", tooltip: "AI Tools (Placeholder for /admin/cms tools)" },
   ];
 
   const accountItems = [
-    { href: "/admin/profile", icon: <User />, label: "Profile", tooltip: "My Profile" },
-    { href: "/admin/settings", icon: <Settings2 />, label: "Settings", tooltip: "Admin Settings" },
+    { href: "/admin/profile", icon: <User />, label: "Profile", tooltip: "My Profile (coming soon)" },
+    { href: "/admin/settings", icon: <Settings2 />, label: "Settings", tooltip: "Admin Settings (coming soon)" },
   ];
+
+  const getRolePill = () => {
+    if (!authState.userData?.role) return null;
+
+    let backgroundColor = '';
+    let roleText = '';
+
+    switch (authState.userData.role) {
+      case 'admin':
+        backgroundColor = '#ef3da6';
+        roleText = 'Admin Portal';
+        break;
+      case 'client':
+        backgroundColor = '#f58d11';
+        roleText = 'Client Portal';
+        break;
+      case 'staff':
+        backgroundColor = '#00274d';
+        roleText = 'Staff Portal';
+        break;
+      default:
+        return null; // Or some default pill
+    }
+
+    return (
+      <div
+        style={{ backgroundColor }}
+        className="ml-auto px-3 py-1 text-xs font-semibold text-white rounded-full"
+      >
+        {roleText}
+      </div>
+    );
+  };
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -115,7 +154,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
             {navItems.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <SidebarMenuButton asChild isActive={isActivePath(item.href)} tooltip={item.tooltip}>
-                  <Link href={item.href}>
+                  <Link href={item.href === "/admin/ai-tools" ? "/admin/cms" : item.href}> {/* AI Tools points to CMS for now */}
                     {item.icon}
                     <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
                   </Link>
@@ -146,18 +185,14 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="bg-secondary/20">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
-           <div className="md:hidden">
-             <SidebarTrigger />
-           </div>
-           <div className="flex-1">
-             <h1 className="text-xl font-semibold text-foreground">
-               {currentPath.startsWith("/admin/cms") ? "CMS Dashboard" : 
-                currentPath.startsWith("/admin/blog/create") ? "Create Blog Post" :
-                "Admin Dashboard"}
-             </h1>
-           </div>
-        </header>
+        {/* Minimal header bar with mobile trigger and role pill */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-background">
+          <div className="md:hidden">
+            <SidebarTrigger />
+          </div>
+          {getRolePill()}
+        </div>
+        
         <main className="flex-grow container mx-auto py-8 md:py-12">
           {children}
         </main>
@@ -168,3 +203,5 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 };
 
 export default AdminLayout;
+
+      
