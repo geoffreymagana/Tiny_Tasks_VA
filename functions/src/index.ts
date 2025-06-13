@@ -1,7 +1,7 @@
 
 import {onCall} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
-import type * as functions from "firebase-functions"; // Keep for type hints if needed for context, but not for core logic
+import * as functions from "firebase-functions"; // Changed from 'import type'
 
 admin.initializeApp();
 
@@ -88,9 +88,10 @@ export const deleteStaffAuthUser = onCall(async (request: functions.https.Callab
 });
 
 // Example of an HTTP function (if you had one, otherwise remove)
-// import {onRequest} from "firebase-functions/v2/https";
+// import {onRequest} from "firebase-functions/v2/onRequest";
 // import * as logger from "firebase-functions/logger";
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
 // });
+
