@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetClose, SheetHeader, SheetTitle } from "@/components/ui/sheet" // Added SheetHeader, SheetTitle
+import { Sheet, SheetContent, SheetClose, SheetHeader, SheetTitle } from "@/components/ui/sheet" 
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -201,8 +201,8 @@ export const Sidebar = React.forwardRef<
             }
             side={side}
           >
-            <SheetHeader className="sr-only"> {/* Visually hide header but make it accessible */}
-              <SheetTitle>Main Menu</SheetTitle>
+            <SheetHeader>
+              <SheetTitle className="sr-only">Main Menu</SheetTitle>
             </SheetHeader>
             <div className="flex h-full w-full flex-col">
               <div className="flex justify-end p-2">
