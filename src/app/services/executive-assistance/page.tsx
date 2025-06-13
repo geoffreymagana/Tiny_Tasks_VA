@@ -3,7 +3,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, CalendarClock, Mail, Settings, Users, FileText, Plane, PresentationChart, CheckSquare } from 'lucide-react';
+import { ArrowLeft, Briefcase, CalendarClock, Mail, Settings, Users, FileText, Plane, Presentation, CheckSquare } from 'lucide-react';
 import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section';
 
 export default function ExecutiveAssistancePage() { // Removed async
@@ -20,7 +20,7 @@ export default function ExecutiveAssistancePage() { // Removed async
     { icon: <Mail size={20} />, text: "Email Triage & Correspondence" },
     { icon: <Plane size={20} />, text: "Travel Planning & Booking" },
     { icon: <FileText size={20} />, text: "Document Preparation & Management" },
-    { icon: <PresentationChart size={20} />, text: "Presentation Design & Support" },
+    { icon: <Presentation size={20} />, text: "Presentation Design & Support" },
     { icon: <Settings size={20} />, text: "Meeting Coordination & Minute Taking" },
     { icon: <Briefcase size={20} />, text: "Client & Stakeholder Communication" },
     { icon: <Users size={20} />, text: "CRM & Database Management" },
