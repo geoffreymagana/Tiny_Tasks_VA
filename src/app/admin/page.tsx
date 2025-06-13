@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import {
   Activity, Zap, Newspaper, Bell, ListChecks, ExternalLink, Users, Briefcase, Settings,
-  ClipboardList, PlusCircle, UserCircle, Circle, BarChart2, MessageSquare, Flag, Eye, Pin, Workflow, AlertCircle, Clock, LogIn, LogOut, CheckCircle as CheckCircleIcon, AlertTriangle, Rocket, MoreHorizontal, Trash2, Edit3
+  ClipboardList, PlusCircle, UserCircle, Circle, BarChart2, MessageSquare, Flag, Eye, Pin, Workflow, AlertCircle, Clock, LogIn, LogOut, CheckCircle as CheckCircleIcon, AlertTriangle, Rocket, MoreHorizontal, Trash2, Edit3, Filter, MessageCircle as MessageCircleChatIcon, BrainCircuit, CalendarDays as CalendarDaysIcon, Settings2, Info, ChevronDown, BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -56,6 +56,18 @@ const sampleAlerts = [
   { id: 'al3', text: "Email automation sequence 'Welcome Series' has a 5% error rate.", level: "System" },
 ];
 
+const sampleNotifications = [
+    { id: 'n1', text: "Task 'Monthly Report - Client X' is overdue by 2 days.", type: "Overdue", priority: "High", time: "1h ago" },
+    { id: 'n2', text: "New task 'Website Update - Phase 2' assigned to VA 'Laura P'.", type: "New Task", priority: "Medium", time: "3h ago" },
+    { id: 'n3', text: "VA 'Tom B.' has marked 'Client Onboarding - Zed Corp' as complete.", type: "Info", priority: "Low", time: "5h ago" },
+    { id: 'n4', text: "System Alert: Email server connection timed out. Retrying...", type: "System", priority: "High", time: "15m ago"},
+];
+
+const sampleAiSuggestions = [
+    {id: 's1', text: "Consider assigning 'Market Research - Q4' to VA 'Anna S.' based on her recent performance in similar tasks.", category: "Task Assignment"},
+    {id: 's2', text: "The 'Client Feedback Collection' workflow could be optimized by adding an automated follow-up email step.", category: "Workflow Optimization"},
+    {id: 's3', text: "3 new unassigned tasks in 'Graphic Design'. Auto-distribute based on current VA workload?", category: "Task Distribution"},
+];
 
 const AdminDashboardPage: FC = () => {
   return (
@@ -64,7 +76,6 @@ const AdminDashboardPage: FC = () => {
       <div className="flex-grow lg:w-2/3 space-y-8">
         <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Admin Dashboard</h1>
         
-        {/* 1. Today’s Snapshot / Activity Feed */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><Activity className="mr-2 h-5 w-5 text-accent" />Today’s Snapshot</CardTitle>
@@ -74,10 +85,7 @@ const AdminDashboardPage: FC = () => {
             <ul className="space-y-3">
               {sampleActivityFeed.map(item => (
                 <li key={item.id} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center">
-                    {/* Icon removed here */}
-                    <span className="text-foreground/90 ml-3">{item.text}</span>
-                  </div>
+                  <span className="text-foreground/90">{item.text}</span>
                   <span className="text-muted-foreground">{item.time}</span>
                 </li>
               ))}
@@ -88,7 +96,6 @@ const AdminDashboardPage: FC = () => {
           </CardFooter>
         </Card>
 
-        {/* 2. Quick Task Manager */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><ClipboardList className="mr-2 h-5 w-5 text-accent" />Quick Task Manager</CardTitle>
@@ -141,7 +148,6 @@ const AdminDashboardPage: FC = () => {
                     <div className="grid gap-4 py-4">
                         <Input placeholder="Task Title" />
                         <Textarea placeholder="Task Description" />
-                        {/* Add fields for assignment, priority, due date etc. */}
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
@@ -152,7 +158,6 @@ const AdminDashboardPage: FC = () => {
           </CardFooter>
         </Card>
 
-        {/* 3. VAs Status */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-accent" />VAs Status</CardTitle>
@@ -191,7 +196,6 @@ const AdminDashboardPage: FC = () => {
           </CardFooter>
         </Card>
 
-        {/* 4. Client Activity Overview */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><Briefcase className="mr-2 h-5 w-5 text-accent" />Client Activity</CardTitle>
@@ -221,7 +225,6 @@ const AdminDashboardPage: FC = () => {
           </CardFooter>
         </Card>
 
-        {/* 5. Pinned Workflows or Templates */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><Pin className="mr-2 h-5 w-5 text-accent" />Pinned Workflows & Templates</CardTitle>
@@ -243,7 +246,6 @@ const AdminDashboardPage: FC = () => {
           </CardFooter>
         </Card>
 
-        {/* 6. Alerts & Bottlenecks */}
         <Card className="border-destructive/50">
           <CardHeader>
             <CardTitle className="flex items-center text-destructive"><AlertCircle className="mr-2 h-5 w-5" />Alerts & Bottlenecks</CardTitle>
@@ -264,54 +266,121 @@ const AdminDashboardPage: FC = () => {
 
       </div>
 
-      {/* Right Panel: Notifications, Updates, Quick Actions */}
+      {/* Right Panel: Utility/Assistance Zone */}
       <div className="lg:w-1/3 space-y-6 shrink-0">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center text-lg"><Bell className="mr-2 h-5 w-5 text-accent" /> Notifications</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">No new notifications.</p>
-            <Button variant="link" size="sm" className="p-0 h-auto mt-2 text-accent">View all</Button>
-          </CardContent>
+            <CardHeader>
+                <CardTitle className="flex items-center text-lg"><Bell className="mr-2 h-5 w-5 text-accent" /> Real-Time Notifications</CardTitle>
+                <CardDescription>Sorted by importance. Filters coming soon.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex justify-between items-center mb-3">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <Filter className="mr-1.5 h-3.5 w-3.5" /> Filter <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                            <DropdownMenuItem>All</DropdownMenuItem>
+                            <DropdownMenuItem>Tasks</DropdownMenuItem>
+                            <DropdownMenuItem>VAs</DropdownMenuItem>
+                            <DropdownMenuItem>System</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button variant="ghost" size="sm" className="text-xs">Mark all as read</Button>
+                </div>
+                <ul className="space-y-2.5 max-h-60 overflow-y-auto">
+                    {sampleNotifications.map(item => (
+                        <li key={item.id} className={cn(
+                            "p-2.5 rounded-md text-sm border-l-4",
+                            item.priority === "High" && "border-destructive bg-destructive/10",
+                            item.priority === "Medium" && "border-yellow-500 bg-yellow-500/10",
+                            item.priority === "Low" && "border-blue-500 bg-blue-500/10"
+                        )}>
+                            <div className="flex justify-between items-start">
+                                <p className="text-foreground/90 leading-tight">{item.text}</p>
+                                <Badge variant={
+                                   item.type === "Overdue" ? "destructive" :
+                                   item.type === "System" ? "secondary" :
+                                   "outline"
+                                } className="text-xs ml-2 shrink-0">{item.type}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{item.time}</p>
+                        </li>
+                    ))}
+                    {sampleNotifications.length === 0 && <p className="text-muted-foreground text-center py-4">No new notifications.</p>}
+                </ul>
+            </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center text-lg"><ListChecks className="mr-2 h-5 w-5 text-accent" /> Recent Activity (Log)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              <li className="text-muted-foreground">New blog post "Intro to VAs" published.</li>
-              <li className="text-muted-foreground">Client "Acme Corp" onboarded.</li>
-              <li className="text-muted-foreground">Staff member "Jane Doe" updated profile.</li>
-            </ul>
-            <Button variant="link" size="sm" className="p-0 h-auto mt-2 text-accent">View full log</Button>
-          </CardContent>
+            <CardHeader>
+                <CardTitle className="flex items-center text-lg"><MessageCircleChatIcon className="mr-2 h-5 w-5 text-accent" /> Internal Communication</CardTitle>
+                <CardDescription>Threaded chat, DMs, channels. AI Assistant (soon).</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-sm text-muted-foreground">Full communication panel coming soon.</p>
+                <Button variant="outline" size="sm" className="mt-3 w-full" disabled>Open Chat (Coming Soon)</Button>
+            </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center text-lg"><Settings className="mr-2 h-5 w-5 text-accent" /> Quick Actions</CardTitle>
+            <CardTitle className="flex items-center text-lg"><Settings2 className="mr-2 h-5 w-5 text-accent" /> Quick Tools & Shortcuts</CardTitle>
+            <CardDescription>Frequently used actions.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <Button variant="outline" className="w-full justify-start asChild">
-              <Link href="/admin/blog/create" className="flex items-center w-full">
-                Create New Blog Post <ExternalLink className="ml-auto h-4 w-4 text-muted-foreground" />
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full justify-start asChild">
               <Link href="/admin/clients/create" className="flex items-center w-full">
-                Add New Client <ExternalLink className="ml-auto h-4 w-4 text-muted-foreground" />
+                <PlusCircle className="mr-2"/> Add New Client
               </Link>
             </Button>
-            <Button variant="outline" className="w-full justify-start asChild">
-              <Link href="/admin/staff/create" className="flex items-center w-full">
-                Add New Staff <ExternalLink className="ml-auto h-4 w-4 text-muted-foreground" />
-              </Link>
+             <Button variant="outline" className="w-full justify-start" disabled>
+                <Workflow className="mr-2"/> Create Workflow Template
+            </Button>
+            <Button variant="outline" className="w-full justify-start" disabled>
+                <BookOpen className="mr-2"/> Run Audit Log Report
+            </Button>
+            <Button variant="outline" className="w-full justify-start" disabled>
+                <Zap className="mr-2"/> Toggle "Focus Mode"
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center text-lg"><BrainCircuit className="mr-2 h-5 w-5 text-accent" /> AI Suggestions Box</CardTitle>
+                <CardDescription>Smart recommendations to optimize operations.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 {sampleAiSuggestions.length > 0 ? (
+                    <ul className="space-y-2.5">
+                        {sampleAiSuggestions.map(suggestion => (
+                            <li key={suggestion.id} className="p-2.5 rounded-md bg-secondary/40 text-sm">
+                                <p className="text-foreground/90 leading-tight">{suggestion.text}</p>
+                                <Badge variant="outline" className="mt-1.5 text-xs">{suggestion.category}</Badge>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-sm text-muted-foreground">No AI suggestions at the moment.</p>
+                )}
+                <Button variant="link" size="sm" className="p-0 h-auto mt-2 text-accent" disabled>View all suggestions</Button>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center text-lg"><CalendarDaysIcon className="mr-2 h-5 w-5 text-accent" /> Embedded Calendar / Upcoming</CardTitle>
+                <CardDescription>Client meetings, VA time blocks.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-sm text-muted-foreground">Full calendar integration coming soon.</p>
+                <Button variant="outline" size="sm" className="mt-3 w-full" disabled>View Calendar (Coming Soon)</Button>
+            </CardContent>
+        </Card>
+
       </div>
     </div>
   );
