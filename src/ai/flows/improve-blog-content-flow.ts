@@ -11,13 +11,13 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const ImproveBlogPostContentInputSchema = z.object({
+const ImproveBlogPostContentInputSchema = z.object({
   currentTitle: z.string().describe('The current title of the blog post.'),
   currentContent: z.string().describe('The current content of the blog post in Markdown format.'),
 });
 export type ImproveBlogPostContentInput = z.infer<typeof ImproveBlogPostContentInputSchema>;
 
-export const ImproveBlogPostContentOutputSchema = z.object({
+const ImproveBlogPostContentOutputSchema = z.object({
   improvedTitle: z.string().describe('An improved and more engaging title for the blog post.'),
   improvedContent: z.string().describe('The improved and refined content of the blog post in Markdown format.'),
 });
