@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -8,11 +9,12 @@ interface AiImageSectionProps {
   text: string;
   aiImage: GenerateImageSectionsOutput | null;
   imagePlacement?: 'left' | 'right';
-  children?: React.ReactNode; // For additional content like buttons
+  children?: React.ReactNode; 
   className?: string;
   titleClassName?: string;
   textClassName?: string;
   imageContainerClassName?: string;
+  contentContainerClassName?: string; // New prop for content alignment
 }
 
 export function AiImageSection({
@@ -25,6 +27,7 @@ export function AiImageSection({
   titleClassName,
   textClassName,
   imageContainerClassName,
+  contentContainerClassName,
 }: AiImageSectionProps) {
   const imageWidth = 500;
   const imageHeight = 350;
@@ -33,27 +36,33 @@ export function AiImageSection({
     ? aiImage.imageDescription.split(' ').slice(0, 2).join(' ') 
     : 'abstract design';
 
+  const contentOrder = imagePlacement === 'left' ? 'md:order-last' : '';
+  const imageOrder = imagePlacement === 'left' ? 'md:order-first' : '';
+
   return (
     <section className={cn('py-12 md:py-20', className)}>
       <div className="container mx-auto">
         <div
           className={cn(
-            'grid md:grid-cols-2 gap-8 md:gap-12 items-center',
-            imagePlacement === 'left' ? 'md:grid-flow-col-dense' : ''
+            'grid md:grid-cols-2 gap-8 md:gap-12 items-center'
           )}
         >
-          <div className={cn(imagePlacement === 'left' ? 'md:col-start-1' : 'md:col-start-1', 'space-y-6')}>
-            <h2 className={cn('font-headline text-4xl md:text-5xl font-bold text-primary', titleClassName)}>
-              {title}
-            </h2>
-            <p className={cn('text-lg text-foreground/80 leading-relaxed', textClassName)}>
-              {text}
-            </p>
+          <div className={cn('space-y-6', contentOrder, contentContainerClassName)}>
+            {title && (
+              <h2 className={cn('font-headline text-4xl md:text-5xl font-bold text-primary', titleClassName)}>
+                {title}
+              </h2>
+            )}
+            {text && (
+              <p className={cn('text-lg text-foreground/80 leading-relaxed', textClassName)}>
+                {text}
+              </p>
+            )}
             {children}
           </div>
           <div className={cn(
-              imagePlacement === 'left' ? 'md:col-start-2' : 'md:col-start-2',
               'flex justify-center items-center',
+              imageOrder,
               imageContainerClassName
             )}>
             {aiImage ? (
@@ -64,9 +73,9 @@ export function AiImageSection({
                     alt={aiImage.imageDescription}
                     width={imageWidth}
                     height={imageHeight}
-                    className="object-cover w-full h-auto"
+                    className="object-cover w-full h-auto aspect-[500/350]"
                     data-ai-hint={imageKeywords}
-                    priority={imagePlacement === 'right'} // Example: prioritize hero image if it's on the right initially
+                    priority={imagePlacement === 'right' && title.toLowerCase().includes('hero')} 
                   />
                   <div className="p-4 bg-muted/50">
                     <p className="text-xs text-muted-foreground italic">
@@ -77,8 +86,8 @@ export function AiImageSection({
               </Card>
             ) : (
               <div 
-                className={`w-full max-w-lg h-[${imageHeight}px] bg-muted rounded-xl shadow-lg flex items-center justify-center`}
-                style={{minHeight: `${imageHeight}px`}}
+                className={`w-full max-w-lg bg-muted rounded-xl shadow-lg flex items-center justify-center`}
+                style={{aspectRatio: `${imageWidth}/${imageHeight}`, minHeight: `auto`}} // Use aspect ratio
               >
                 <p className="text-muted-foreground">Image loading...</p>
               </div>

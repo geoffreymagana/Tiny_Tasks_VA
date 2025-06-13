@@ -6,12 +6,16 @@ import { AiImageSection } from '@/components/ui/ai-image-section';
 import { ImprovedCopyDisplay } from '@/components/ui/improved-copy-display';
 import { FeatureCard } from '@/components/ui/feature-card';
 import { ServiceCard } from '@/components/ui/service-card';
+import { PricingCard } from '@/components/ui/pricing-card';
+import { TestimonialCard } from '@/components/ui/testimonial-card';
+import { ContactForm } from '@/components/ui/contact-form';
 import { Button } from '@/components/ui/button';
 import { 
   CheckCircle2, Zap, Users2, Rocket, Palette, Brain,
   Briefcase, Database, Mail, Settings, Plane, Heart, BookOpenCheck,
   Share2, BarChartBig, PenSquare, MessageCircle, Megaphone,
-  Image as ImageIcon, MonitorPlay, Presentation, LayoutGrid, Laptop, Wrench, PackageCheck, Settings2, FileText, Globe, CheckSquare, MessageSquare, BarChart2, MonitorSmartphone
+  Image as ImageIconLucide, MonitorPlay, Presentation, LayoutGrid, Laptop, Wrench, PackageCheck, Settings2, FileText, Globe, CheckSquare, MessageSquareIcon, BarChart2, MonitorSmartphone,
+  Slack, CalendarDays, Trello, ListChecks, Users, Phone, Video, MessageCircle as MessageCircleIcon, FileTextIcon, PaletteIcon, BotMessageSquare, Lightbulb
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -32,90 +36,181 @@ const sectionsData: SectionContent[] = [
     text: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.",
     imagePlacement: 'right',
     cta: { text: 'Get Started', href: '#cta' },
+    aiTextForImage: "A dynamic and modern illustration of a focused professional at a clean desk, with subtle digital icons representing virtual assistant tasks (calendar, email, charts) seamlessly integrated around them, conveying efficiency and support.",
   },
   {
     id: 'onboarding-overview',
     title: 'Our Simple Onboarding Process',
-    text: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.",
+    text: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.",
     imagePlacement: 'left',
-    cta: { text: 'View Detailed Steps', href: '/onboarding-steps' }
+    cta: { text: 'View Detailed Onboarding', href: '/onboarding-steps' },
+    aiTextForImage: "Illustration of a smooth, step-by-step onboarding process for virtual assistant services. Show icons for 'discovery call', 'matching', 'integration', and 'support', connected by a clear path.",
   },
 ];
 
 const services = [
   {
-    mainIcon: <CheckSquare size={32} />,
+    mainIcon: <Briefcase size={32} />,
     title: "Executive Assistance",
-    description: "Professional administrative support to keep your business running smoothly.",
+    description: "Professional administrative support to keep your business running smoothly and efficiently.",
     serviceItems: [
-      { icon: <Briefcase size={18}/>, text: "Executive Support" },
-      { icon: <Database size={18}/>, text: "Data Entry & Processing" },
-      { icon: <Mail size={18}/>, text: "Email & Calendar Management" },
-      { icon: <Settings size={18}/>, text: "Project Management" },
-      { icon: <Plane size={18}/>, text: "Travel Booking" },
-      { icon: <Users2 size={18}/>, text: "HR & Customer Support" },
-      { icon: <Heart size={18}/>, text: "Personal Assistance" },
-      { icon: <BookOpenCheck size={18}/>, text: "Bookkeeping" },
+      { icon: <CalendarDays size={18}/>, text: "Calendar & Schedule Management" },
+      { icon: <Mail size={18}/>, text: "Email Management & Correspondence" },
+      { icon: <Plane size={18}/>, text: "Travel Arrangements" },
+      { icon: <FileText size={18}/>, text: "Document Preparation" },
     ],
+    learnMoreLink: "/services/executive-assistance",
   },
   {
     mainIcon: <Share2 size={32} />,
     title: "Social Media Management",
-    description: "Strategic social media management to grow your online presence and engagement.",
+    description: "Strategic social media support to grow your online presence and engagement effectively.",
     serviceItems: [
-      { icon: <BarChartBig size={18}/>, text: "Social Media Strategy" },
-      { icon: <Share2 size={18}/>, text: "Social Media Management" },
-      { icon: <PenSquare size={18}/>, text: "Blog & Copywriting" },
-      { icon: <Mail size={18}/>, text: "Email Newsletters" },
-      { icon: <MessageCircle size={18}/>, text: "Online Engagement" },
-      { icon: <Megaphone size={18}/>, text: "Online Advertising" },
+      { icon: <PenSquare size={18}/>, text: "Content Creation & Curation" },
+      { icon: <Users2 size={18}/>, text: "Community Engagement" },
+      { icon: <BarChartBig size={18}/>, text: "Analytics & Reporting" },
+      { icon: <Megaphone size={18}/>, text: "Ad Campaign Support" },
     ],
+    learnMoreLink: "/#services", // Placeholder, create /services/social-media later
   },
   {
     mainIcon: <Palette size={32} />,
-    title: "Graphic Design",
-    description: "Creative design solutions to enhance your brand and marketing materials.",
+    title: "Graphic Design Support",
+    description: "Creative design solutions to enhance your brand's visual identity and marketing materials.",
     serviceItems: [
-      { icon: <ImageIcon size={18}/>, text: "Custom Branded Graphics" },
-      { icon: <MonitorPlay size={18}/>, text: "Social Media & Web Images" },
-      { icon: <Presentation size={18}/>, text: "Promotional Materials" },
-      { icon: <LayoutGrid size={18}/>, text: "UX/UI Design" },
-      { icon: <Laptop size={18}/>, text: "Custom Website Design" },
-      { icon: <Wrench size={18}/>, text: "Website Maintenance" },
+      { icon: <ImageIconLucide size={18}/>, text: "Social Media Graphics" },
+      { icon: <Presentation size={18}/>, text: "Presentation Design" },
+      { icon: <FileTextIcon size={18}/>, text: "Marketing Material Layouts" },
+      { icon: <PaletteIcon size={18}/>, text: "Basic Brand Asset Creation" },
     ],
+    learnMoreLink: "/#services", // Placeholder, create /services/graphic-design later
   },
 ];
 
 const features = [
   {
     icon: <Zap size={28} />,
-    title: "Streamlined Processes",
-    description: "Efficient workflows and clear communication channels ensure your tasks are handled smoothly.",
+    title: "Boost Your Productivity",
+    description: "Our VAs handle time-consuming tasks, allowing you to focus on core business activities and strategic growth.",
   },
   {
-    icon: <PackageCheck size={28} />, // Changed from CheckCircle2 for variety
-    title: "Expert Task Management",
-    description: "Our VAs are skilled in organizing, prioritizing, and executing tasks to meet your deadlines.",
+    icon: <PackageCheck size={28} />,
+    title: "Access Specialized Skills",
+    description: "Tap into a wide range of expertise, from administrative support to social media and design, without hiring full-time.",
   },
   {
     icon: <Users2 size={28} />,
-    title: "Dedicated Assistant Partnership",
-    description: "Build a strong, collaborative relationship with a VA committed to your success.",
+    title: "Flexible & Scalable Support",
+    description: "Adjust your VA services as your business needs change, ensuring you always have the right level of support.",
   },
 ];
 
 const improvedCopyData = {
-  originalTitle: "Why Choose Our VA Service?",
-  originalText: "Our virtual assistants help you manage your business tasks. They are efficient and offer many ways to support your daily operations and growth.",
-  improvedTitle: "Elevate Your Business with Expert VA Support",
-  improvedText: "Experience transformative productivity with Tiny Tasks. Our dedicated virtual assistants provide comprehensive support, from critical administrative tasks to strategic project execution, empowering you to achieve your goals with unparalleled efficiency and focus.",
-  aiTextForImage: "A dynamic illustration showcasing a business professional effortlessly juggling multiple tasks with the support of a discreet virtual assistant, symbolizing partnership, efficiency and growth.",
+  originalTitle: "Need Help With Your Tasks?",
+  originalText: "Our virtual assistants can do many things for your business. They are good at managing tasks and can help you every day.",
+  improvedTitle: "Unlock Peak Efficiency with Expert Virtual Assistance",
+  improvedText: "Tiny Tasks empowers your business by connecting you with skilled virtual assistants. We streamline your operations, manage critical tasks, and provide dedicated support, freeing you to concentrate on high-impact activities and achieve your strategic objectives.",
+  aiTextForImage: "A visual metaphor of a key unlocking a complex gear system, symbolizing how virtual assistants unlock business efficiency and smooth operations. Use a clean, modern style.",
 };
 
 const ctaSectionData = {
-  title: "Ready to Delegate and Grow?",
-  text: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Get started today and reclaim your focus to drive your business forward!",
-  aiTextForImage: "An inspiring image of a business owner looking towards a bright horizon, symbolizing growth and new opportunities, with subtle digital overlays representing VA support.",
+  title: "Ready to Delegate, Grow, and Thrive?",
+  text: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!",
+  aiTextForImage: "An inspiring image of diverse business professionals collaborating effectively, with subtle digital network lines connecting them, symbolizing teamwork and VA support fostering growth.",
+};
+
+const toolsData = {
+  title: "Tools We Master for Your Success",
+  description: "Our virtual assistants are proficient with a wide array of industry-standard tools to seamlessly integrate into your workflows and boost productivity.",
+  categories: [
+    {
+      name: "Communication",
+      icon: <MessageSquareIcon size={24} className="text-accent" />,
+      tools: [
+        { name: "Skype", icon: <Phone size={18} /> },
+        { name: "Zoom", icon: <Video size={18} /> },
+        { name: "Microsoft Teams", icon: <Users size={18} /> },
+        { name: "Slack", icon: <Slack size={18} /> },
+      ],
+    },
+    {
+      name: "Calendar Management",
+      icon: <CalendarDays size={24} className="text-accent" />,
+      tools: [
+        { name: "Calendly", icon: <CalendarDays size={18} /> },
+        { name: "Google Calendar", icon: <CalendarDays size={18} /> },
+      ],
+    },
+    {
+      name: "Email Management",
+      icon: <Mail size={24} className="text-accent" />,
+      tools: [{ name: "Zoho Mail", icon: <Mail size={18} /> }],
+    },
+    {
+      name: "Social Media",
+      icon: <Share2 size={24} className="text-accent" />,
+      tools: [
+        { name: "Canva", icon: <PaletteIcon size={18} /> },
+        { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> },
+      ],
+    },
+    {
+      name: "Project Management",
+      icon: <ListChecks size={24} className="text-accent" />,
+      tools: [
+        { name: "Notion", icon: <FileTextIcon size={18} /> },
+        { name: "Trello", icon: <Trello size={18} /> },
+        { name: "Todoist", icon: <CheckSquare size={18} /> },
+      ],
+    },
+  ],
+  aiTextForImage: "A dynamic collage of popular business software logos (like Slack, Zoom, Google Calendar, Trello, Canva) arranged neatly, symbolizing a VA's toolkit.",
+};
+
+const pricingData = {
+  title: "Flexible Pricing for Every Need",
+  description: "Choose a plan that fits your business goals and budget. All prices are in Kenyan Shillings (KES). Note: These are example prices, please update with your actual rates.",
+  tiers: [
+    {
+      tier: "Essential VA Support",
+      price: "KES 15,000/month",
+      description: "Perfect for individuals or small businesses needing core administrative help.",
+      features: ["10 hours of VA support", "Basic Admin Tasks", "Email Management (limited)", "Scheduling Assistance"],
+      isPopular: false,
+    },
+    {
+      tier: "Growth VA Package",
+      price: "KES 35,000/month",
+      description: "Ideal for growing businesses needing consistent, broader support.",
+      features: ["25 hours of VA support", "Advanced Admin Tasks", "Social Media Scheduling", "Calendar Management", "Client Communication"],
+      isPopular: true,
+    },
+    {
+      tier: "Premium VA Partnership",
+      price: "KES 60,000/month",
+      description: "Comprehensive support for established businesses and executives.",
+      features: ["50 hours of VA support", "Dedicated VA", "Project Management Support", "Graphic Design Basics", "Full Email & Calendar Control", "Priority Support"],
+      isPopular: false,
+    },
+  ],
+  aiTextForImage: "Three distinct pricing plan cards with Kenyan Shilling currency symbols, showcasing different levels of virtual assistant services. Clean, modern, and trustworthy design.",
+};
+
+const testimonialsData = {
+  title: "Hear From Our Happy Clients",
+  description: "Discover how Tiny Tasks has helped businesses like yours save time, reduce stress, and achieve their goals.",
+  reviews: [
+    { name: "Aisha K.", role: "Founder, Bloom Creatives", testimonial: "Tiny Tasks revolutionized how I manage my workload. My VA is proactive, efficient, and a true asset to my business!", avatarFallback: "AK", rating: 5 },
+    { name: "David M.", role: "Consultant, Peak Solutions", testimonial: "The onboarding was seamless, and my assistant got up to speed incredibly fast. I can finally focus on strategy instead of being bogged down in admin.", avatarFallback: "DM", rating: 5 },
+    { name: "Sarah L.", role: "E-commerce Store Owner", testimonial: "From social media to customer support, my VA handles it all. Sales are up, and my stress levels are way down. Highly recommend!", avatarFallback: "SL", rating: 4 },
+  ],
+  aiTextForImage: "A diverse group of happy business professionals looking at a screen or interacting positively, with speech bubbles indicating positive feedback. Warm and trustworthy feel.",
+};
+
+const blogIntroData = {
+  title: "Insights & Productivity Tips",
+  description: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.",
+  aiTextForImage: "An open notebook with a pen and a cup of coffee, with icons representing ideas and learning, symbolizing a blog or knowledge sharing.",
 };
 
 
@@ -126,7 +221,7 @@ export default async function HomePage() {
   );
   
   const featuresSectionText = features.map(f => `${f.title}: ${f.description}`).join(' ');
-  const featuresImagePromise = generateImageSections({ sectionText: `Features overview showcasing streamlined processes, expert task management, and dedicated assistant partnerships. ${featuresSectionText}` })
+  const featuresImagePromise = generateImageSections({ sectionText: `Features overview showcasing streamlined processes, expert task management, and dedicated assistant partnerships for virtual assistants. ${featuresSectionText}` })
     .catch(err => { console.error(`Failed to generate image for features section:`, err); return null; });
 
   const servicesSectionCombinedText = services.map(s => `${s.title}: ${s.description} ${s.serviceItems.map(si => si.text).join(', ')}`).join('; ');
@@ -138,6 +233,19 @@ export default async function HomePage() {
 
   const ctaImagePromise = generateImageSections({ sectionText: ctaSectionData.aiTextForImage })
     .catch(err => { console.error(`Failed to generate image for CTA section:`, err); return null; });
+  
+  const toolsImagePromise = generateImageSections({ sectionText: toolsData.aiTextForImage })
+    .catch(err => { console.error(`Failed to generate image for tools section:`, err); return null; });
+
+  const pricingImagePromise = generateImageSections({ sectionText: pricingData.aiTextForImage })
+    .catch(err => { console.error(`Failed to generate image for pricing section:`, err); return null; });
+  
+  const testimonialsImagePromise = generateImageSections({ sectionText: testimonialsData.aiTextForImage })
+    .catch(err => { console.error(`Failed to generate image for testimonials section:`, err); return null; });
+
+  const blogIntroImagePromise = generateImageSections({ sectionText: blogIntroData.aiTextForImage })
+    .catch(err => { console.error(`Failed to generate image for blog intro section:`, err); return null; });
+
 
   const [
     heroImage,
@@ -145,13 +253,21 @@ export default async function HomePage() {
     servicesIntroImage,
     featuresImage,
     improvedCopyImage,
-    ctaImage
+    toolsImage,
+    pricingImage,
+    testimonialsImage,
+    blogIntroImage,
+    ctaImage, // Keep ctaImage if it's used directly in AiImageSection for CTA
   ] = await Promise.all([
-    ...sectionImagePromises,
+    ...sectionImagePromises, // hero and onboarding-overview
     servicesIntroImagePromise,
     featuresImagePromise,
     improvedCopyImagePromise,
-    ctaImagePromise
+    toolsImagePromise,
+    pricingImagePromise,
+    testimonialsImagePromise,
+    blogIntroImagePromise,
+    ctaImagePromise, // This will be used for the CTA section specifically
   ]);
 
   const sectionImages: Record<string, GenerateImageSectionsOutput | null> = {
@@ -189,8 +305,8 @@ export default async function HomePage() {
             <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
               Why Partner With Tiny Tasks?
             </h2>
-            <p className="text-lg text-foreground/80 mb-12 max-w-2xl mx-auto">
-              Our virtual assistant service is built on a foundation of trust, efficiency, and a genuine desire to help your business thrive.
+            <p className="text-lg text-foreground/80 mb-12 max-w-3xl mx-auto">
+              Our virtual assistant service is built on a foundation of trust, efficiency, and a genuine desire to help your business thrive by providing expert VA support.
             </p>
             <div className="grid md:grid-cols-3 gap-8 mb-12">
               {features.map((feature) => (
@@ -206,7 +322,7 @@ export default async function HomePage() {
                <div className="mt-12 max-w-3xl mx-auto">
                  <AiImageSection
                     title="Visually Unified Experience"
-                    text="Our AI helps select imagery that complements our features, ensuring a cohesive and engaging user experience across the platform."
+                    text="Our AI helps select imagery that complements our features, ensuring a cohesive and engaging user experience across the platform when highlighting our VA capabilities."
                     aiImage={featuresImage}
                     imagePlacement="right" 
                     className="py-0"
@@ -225,13 +341,13 @@ export default async function HomePage() {
               Our Virtual Assistant Services
             </h2>
             <p className="text-lg text-foreground/80 mb-12 max-w-3xl mx-auto">
-              Comprehensive solutions designed to streamline your business operations, manage your tasks, and free up your valuable time so you can focus on growth.
+              Comprehensive VA solutions designed to streamline your business operations, manage your tasks effectively, and free up your valuable time so you can focus on strategic growth.
             </p>
             {servicesIntroImage && (
               <div className="mb-12 md:mb-16 max-w-4xl mx-auto">
                 <AiImageSection
-                  title="Expert Support Tailored For You"
-                  text="Our virtual assistants offer a wide array of services. We match you with skilled professionals ready to tackle your specific business needs."
+                  title="Expert VA Support Tailored For You"
+                  text="Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges."
                   aiImage={servicesIntroImage}
                   imagePlacement="left" 
                   className="py-0 !pt-0 text-left"
@@ -248,6 +364,7 @@ export default async function HomePage() {
                   title={service.title}
                   description={service.description}
                   serviceItems={service.serviceItems}
+                  learnMoreLink={service.learnMoreLink}
                 />
               ))}
             </div>
@@ -255,14 +372,14 @@ export default async function HomePage() {
         </section>
         
         {/* Improved Copy Display Section */}
-        <section id="copy-comparison" className="py-16 md:py-24  bg-secondary/30">
+        <section id="copy-comparison" className="py-16 md:py-24 bg-secondary/30">
             <div className="container mx-auto">
                 <div className="text-center mb-12">
                     <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
-                        Our Approach: Clear Value, Real Impact
+                        Our Approach: Clear Value, Real Impact with VAs
                     </h2>
                     <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
-                        We believe in transparent communication and delivering tangible results. See how we articulate the value of our virtual assistant services.
+                        We believe in transparent communication and delivering tangible results. See how we articulate the value of our expert virtual assistant services.
                     </p>
                 </div>
                 <ImprovedCopyDisplay
@@ -274,8 +391,8 @@ export default async function HomePage() {
                 {improvedCopyImage && (
                     <div className="mt-12 max-w-2xl mx-auto">
                          <AiImageSection
-                            title="Visualizing Our Commitment"
-                            text="AI helps us select visuals that underscore our dedication to providing impactful and efficient virtual assistant solutions."
+                            title="Visualizing Our VA Commitment"
+                            text="AI helps us select visuals that underscore our dedication to providing impactful and efficient virtual assistant solutions for your business."
                             aiImage={improvedCopyImage}
                             imagePlacement="left"
                             className="py-0"
@@ -287,23 +404,196 @@ export default async function HomePage() {
             </div>
         </section>
 
-        {/* Call to Action Section */}
-        <section id="cta" className="bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
-           <AiImageSection
-            title={ctaSectionData.title}
-            text={ctaSectionData.text}
-            aiImage={ctaImage}
-            imagePlacement="right"
-            className="py-20 md:py-28"
-            titleClassName="!text-primary-foreground"
-            textClassName="!text-primary-foreground/90"
-          >
-            <Button asChild size="lg" className="mt-8 bg-accent hover:bg-accent/90 text-accent-foreground shadow-2xl hover:shadow-accent/50 transition-all duration-300 transform hover:scale-105">
-              <Link href="#">
-                Begin Your VA Partnership <Zap className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-          </AiImageSection>
+        {/* Tools Section */}
+        <section id="tools" className="py-16 md:py-24 bg-background">
+          <div className="container mx-auto">
+            <div className="text-center mb-12 md:mb-16">
+              <BotMessageSquare className="h-12 w-12 text-accent mx-auto mb-4" />
+              <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
+                {toolsData.title}
+              </h2>
+              <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
+                {toolsData.description}
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+              {toolsData.categories.map((category) => (
+                <div key={category.name} className="p-6 bg-card rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                  <div className="flex items-center mb-4">
+                    {category.icon}
+                    <h3 className="font-headline text-xl text-primary ml-3">{category.name}</h3>
+                  </div>
+                  <ul className="space-y-2">
+                    {category.tools.map(tool => (
+                      <li key={tool.name} className="flex items-center text-foreground/80">
+                        <span className="mr-2 text-primary/70">{tool.icon}</span>
+                        {tool.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+             {toolsImage && (
+              <div className="mt-12 max-w-3xl mx-auto">
+                <AiImageSection
+                  title="Our Versatile Toolkit"
+                  text="We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects."
+                  aiImage={toolsImage}
+                  imagePlacement="right"
+                  className="py-0"
+                  titleClassName="text-3xl text-center md:text-left"
+                  textClassName="text-center md:text-left"
+                />
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Pricing Section */}
+        <section id="pricing" className="py-16 md:py-24 bg-secondary/50">
+          <div className="container mx-auto">
+            <div className="text-center mb-12 md:mb-16">
+              <Lightbulb className="h-12 w-12 text-accent mx-auto mb-4" />
+              <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
+                {pricingData.title}
+              </h2>
+              <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
+                {pricingData.description}
+              </p>
+            </div>
+            <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+              {pricingData.tiers.map((tier) => (
+                <PricingCard
+                  key={tier.tier}
+                  tier={tier.tier}
+                  price={tier.price}
+                  description={tier.description}
+                  features={tier.features}
+                  isPopular={tier.isPopular}
+                />
+              ))}
+            </div>
+            {pricingImage && (
+              <div className="mt-16 max-w-4xl mx-auto">
+                <AiImageSection
+                  title="Transparent VA Pricing"
+                  text="Our AI-assisted visual design helps present our virtual assistant pricing plans clearly, ensuring you find the perfect fit for your business needs."
+                  aiImage={pricingImage}
+                  imagePlacement="left"
+                  className="py-0"
+                  titleClassName="text-3xl text-center md:text-left"
+                  textClassName="text-center md:text-left"
+                />
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section id="testimonials" className="py-16 md:py-24 bg-background">
+          <div className="container mx-auto">
+            <div className="text-center mb-12 md:mb-16">
+              <Users2 className="h-12 w-12 text-accent mx-auto mb-4" />
+              <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
+                {testimonialsData.title}
+              </h2>
+              <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
+                {testimonialsData.description}
+              </p>
+            </div>
+            <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
+              {testimonialsData.reviews.map((review) => (
+                <TestimonialCard
+                  key={review.name}
+                  name={review.name}
+                  role={review.role}
+                  testimonial={review.testimonial}
+                  avatarFallback={review.avatarFallback}
+                  rating={review.rating}
+                />
+              ))}
+            </div>
+            {testimonialsImage && (
+              <div className="mt-16 max-w-3xl mx-auto">
+                <AiImageSection
+                  title="Client Success Stories"
+                  text="Visually representing client satisfaction, our AI helps choose images that reflect the positive impact of our virtual assistant services."
+                  aiImage={testimonialsImage}
+                  imagePlacement="right"
+                  className="py-0"
+                  titleClassName="text-3xl text-center md:text-left"
+                  textClassName="text-center md:text-left"
+                />
+              </div>
+            )}
+          </div>
+        </section>
+
+         {/* Blog Intro Section */}
+        <section id="blog-intro" className="py-16 md:py-24 bg-secondary/30">
+          <div className="container mx-auto">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
+                  {blogIntroData.title}
+                </h2>
+                <p className="text-lg text-foreground/80 mb-6 leading-relaxed">
+                  {blogIntroData.description}
+                </p>
+                <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                  <Link href="/blog">
+                    Explore Our Blog <Rocket className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+              </div>
+              {blogIntroImage && (
+                <div className="mt-8 md:mt-0">
+                  <AiImageSection
+                    title=""
+                    text=""
+                    aiImage={blogIntroImage}
+                    imagePlacement="right" 
+                    className="py-0 !shadow-none"
+                    titleClassName="hidden"
+                    textClassName="hidden" 
+                    imageContainerClassName="max-w-md ml-auto"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Call to Action Section with Contact Form */}
+        <section id="cta" className="py-20 md:py-28 bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
+          <div className="container mx-auto">
+            <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+                <div>
+                    <h2 className="font-headline text-4xl md:text-5xl font-bold !text-primary-foreground mb-4">
+                        {ctaSectionData.title}
+                    </h2>
+                    <p className="text-lg !text-primary-foreground/90 leading-relaxed mb-8">
+                        {ctaSectionData.text}
+                    </p>
+                    <ContactForm />
+                </div>
+                {ctaImage && (
+                    <div className="hidden md:flex justify-center items-center">
+                         <AiImageSection
+                            title=""
+                            text=""
+                            aiImage={ctaImage}
+                            imagePlacement="right"
+                            className="py-0 !bg-transparent !shadow-none"
+                            titleClassName="hidden"
+                            textClassName="hidden"
+                            imageContainerClassName="!p-0"
+                        />
+                    </div>
+                )}
+            </div>
+          </div>
         </section>
 
       </main>

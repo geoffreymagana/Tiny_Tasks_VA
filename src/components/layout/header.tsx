@@ -20,11 +20,14 @@ export function Header() {
           <Link href="/#services" className="transition-colors hover:text-primary">
             Services
           </Link>
-          <Link href="/#onboarding-overview" className="transition-colors hover:text-primary">
-            How It Works
+          <Link href="/#pricing" className="transition-colors hover:text-primary">
+            Pricing
           </Link>
-          <Link href="/#copy-comparison" className="transition-colors hover:text-primary">
-            Our Approach
+          <Link href="/#tools" className="transition-colors hover:text-primary">
+            Tools
+          </Link>
+          <Link href="/blog" className="transition-colors hover:text-primary">
+            Blog
           </Link>
           <Button asChild>
             <Link href="/#cta">Get Started</Link>
@@ -51,11 +54,14 @@ export function Header() {
                 <Link href="/#services" className="hover:text-primary">
                   Services
                 </Link>
-                <Link href="/#onboarding-overview" className="hover:text-primary">
-                  How It Works
+                <Link href="/#pricing" className="hover:text-primary">
+                  Pricing
                 </Link>
-                <Link href="/#copy-comparison" className="hover:text-primary">
-                  Our Approach
+                <Link href="/#tools" className="hover:text-primary">
+                  Tools
+                </Link>
+                <Link href="/blog" className="hover:text-primary">
+                  Blog
                 </Link>
                 <Button className="w-full" asChild>
                   <Link href="/#cta">Get Started</Link>
