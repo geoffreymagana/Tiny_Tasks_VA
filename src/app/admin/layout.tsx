@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { 
   Loader2, LogOut, Zap, LayoutDashboard, Users, Briefcase, FileText, 
-  Receipt, MessageSquareText, UsersRound, Sparkles, User, Settings2 
+  Receipt, MessageSquareText, UsersRound, Sparkles, User, Settings2, Newspaper
 } from 'lucide-react';
 import { 
   SidebarProvider, Sidebar, SidebarHeader, SidebarContent, 
@@ -78,6 +78,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 
   const navItems = [
     { href: "/admin", icon: <LayoutDashboard />, label: "Dashboard", tooltip: "Dashboard" },
+    { href: "/admin/cms", icon: <Newspaper />, label: "CMS", tooltip: "Content Management" },
     { href: "/admin/clients", icon: <Users />, label: "Client Hub", tooltip: "Client Hub" },
     { href: "/admin/projects", icon: <Briefcase />, label: "Project Hub", tooltip: "Project Hub" },
     { href: "/admin/contracts", icon: <FileText />, label: "Contracts", tooltip: "Contracts" },
