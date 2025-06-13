@@ -2,12 +2,12 @@
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-// Removed GenerateImageSectionsOutput import as it's replaced by AiImageInfo
 
 export interface AiImageInfo {
-  imageDataURI: string | null;
-  description: string | null; // For alt text and data-ai-hint
-  imageType: string | null; // Optional: To display 'AI Suggested Image Type' if needed
+  imageDataURI?: string | null; // Made optional for when it's not generated
+  description: string | null;
+  imageType?: string | null;
+  placeholderHint?: string; // New prop for placeholder.co hint
 }
 
 interface AiImageSectionProps {
@@ -38,10 +38,15 @@ export function AiImageSection({
   const imageWidth = 500;
   const imageHeight = 350;
 
-  const imageAlt = imageInfo?.description || title || 'AI generated image';
-  const imageHintKeywords = imageInfo?.description
-    ? imageInfo.description.split(' ').slice(0, 2).join(' ')
+  const imageAlt = imageInfo?.description || title || 'Placeholder image';
+  
+  // Prioritize placeholderHint, then description, then a generic hint
+  const hintDescription = imageInfo?.placeholderHint || imageInfo?.description || "website section";
+  const imageHintKeywords = hintDescription
+    ? hintDescription.split(' ').slice(0, 2).join(' ')
     : 'abstract design';
+  
+  const placeholderImageUrl = `https://placehold.co/${imageWidth}x${imageHeight}.png`;
 
   const contentOrder = imagePlacement === 'left' ? 'md:order-last' : '';
   const imageOrder = imagePlacement === 'left' ? 'md:order-first' : '';
@@ -74,34 +79,37 @@ export function AiImageSection({
             )}>
             {imageInfo?.imageDataURI ? (
               <Card className="overflow-hidden shadow-2xl rounded-xl w-full max-w-lg transform hover:scale-105 transition-transform duration-300">
-                <CardContent className="p-4"> {/* Added padding here */}
+                <CardContent className="p-4">
                   <Image
                     src={imageInfo.imageDataURI}
                     alt={imageAlt}
                     width={imageWidth}
                     height={imageHeight}
-                    className="object-cover w-full h-auto aspect-[500/350] rounded-md" // Added rounded-md if desired within padding
-                    data-ai-hint={imageHintKeywords}
+                    className="object-cover w-full h-auto aspect-[500/350] rounded-md"
+                    data-ai-hint={imageHintKeywords} // Still useful if admin replaces it later
                     priority={imagePlacement === 'right' && title.toLowerCase().includes('hero')}
                   />
                   {imageInfo.imageType && (
                     <p className="mt-2 text-xs text-muted-foreground italic text-center">
-                      Suggested type: {imageInfo.imageType}
+                      Suggested type (for AI generation): {imageInfo.imageType}
                     </p>
                   )}
                 </CardContent>
               </Card>
             ) : (
+              // Always show placeholder if no imageDataURI
               <Card 
-                className={`w-full max-w-lg bg-card rounded-xl shadow-lg flex items-center justify-center p-4`} // Added p-4 for consistency
+                className={`w-full max-w-lg bg-card rounded-xl shadow-lg flex items-center justify-center p-4`}
                 style={{aspectRatio: `${imageWidth}/${imageHeight}`, minHeight: `auto`}}
               >
-                <div className="text-center">
-                  <p className="text-muted-foreground">{imageInfo?.description ? `Generating image for: "${imageInfo.description.substring(0,50)}..."` : 'Image loading...'}</p>
-                  {imageInfo?.description && !imageInfo.imageDataURI && (
-                     <p className="text-xs text-muted-foreground italic mt-1">Image generation might take a moment or has failed.</p>
-                  )}
-                </div>
+                <Image
+                    src={placeholderImageUrl}
+                    alt={imageAlt}
+                    width={imageWidth}
+                    height={imageHeight}
+                    className="object-cover w-full h-auto aspect-[500/350] rounded-md"
+                    data-ai-hint={imageHintKeywords}
+                  />
               </Card>
             )}
           </div>

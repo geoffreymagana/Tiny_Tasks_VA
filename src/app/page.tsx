@@ -1,6 +1,4 @@
 
-import { generateImageSections, GenerateImageSectionsOutput } from '@/ai/flows/generate-image-sections';
-import { generateDescribedImage } from '@/ai/flows/generate-described-image-flow';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section';
@@ -12,11 +10,11 @@ import { TestimonialCard } from '@/components/ui/testimonial-card';
 import { ContactForm } from '@/components/ui/contact-form';
 import { Button } from '@/components/ui/button';
 import { 
-  CheckCircle2, Zap, Users2, Rocket, Palette, Brain,
-  Briefcase, Database, Mail, Settings, Plane, Heart, BookOpenCheck,
-  Share2, BarChartBig, PenSquare, MessageCircle, Megaphone,
-  Image as ImageIconLucide, MonitorPlay, Presentation, LayoutGrid, Laptop, Wrench, PackageCheck, Settings2, FileText, Globe, CheckSquare, MessageSquareIcon, BarChart2, MonitorSmartphone,
-  Slack, CalendarDays, Trello, ListChecks, Users, Phone, Video, MessageCircle as MessageCircleIcon, FileTextIcon, PaletteIcon, BotMessageSquare, Lightbulb
+  Zap, Users2, Rocket, Palette,
+  Briefcase, Mail, Plane, FileText as FileTextLucide, // Renamed to avoid conflict with React.FileText
+  Share2, BarChartBig, PenSquare, Megaphone,
+  Image as ImageIconLucide, Presentation, Palette as PaletteIcon, BotMessageSquare, Lightbulb,
+  CalendarDays, Users, Phone, Video, MessageSquare as MessageCircleIcon, FileTextIcon, ListChecks, CheckSquare, MonitorSmartphone, Slack, Trello
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -27,7 +25,7 @@ interface SectionContent {
   imagePlacement?: 'left' | 'right';
   cta?: { text: string; href: string };
   icon?: React.ReactNode;
-  aiTextForImage: string; // This is the prompt for image *description* generation
+  imageDescriptionForHint: string; // Used for alt text and data-ai-hint for placeholder
 }
 
 const sectionsData: SectionContent[] = [
@@ -36,8 +34,8 @@ const sectionsData: SectionContent[] = [
     title: 'Your Dedicated Virtual Assistant for Effortless Productivity',
     text: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.",
     imagePlacement: 'right',
-    cta: { text: 'Get Started', href: '/auth' }, // Updated href
-    aiTextForImage: "A dynamic and modern illustration of a focused professional at a clean desk, with subtle digital icons representing virtual assistant tasks (calendar, email, charts) seamlessly integrated around them, conveying efficiency and support.",
+    cta: { text: 'Get Started', href: '/auth' },
+    imageDescriptionForHint: "Dynamic and modern illustration of a focused professional at a clean desk, with subtle digital icons representing virtual assistant tasks (calendar, email, charts) seamlessly integrated around them, conveying efficiency and support.",
   },
   {
     id: 'onboarding-overview',
@@ -45,7 +43,7 @@ const sectionsData: SectionContent[] = [
     text: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.",
     imagePlacement: 'left',
     cta: { text: 'View Detailed Onboarding', href: '/onboarding-steps' },
-    aiTextForImage: "Illustration of a smooth, step-by-step onboarding process for virtual assistant services. Show icons for 'discovery call', 'matching', 'integration', and 'support', connected by a clear path.",
+    imageDescriptionForHint: "Illustration of a smooth, step-by-step onboarding process for virtual assistant services. Show icons for 'discovery call', 'matching', 'integration', and 'support', connected by a clear path.",
   },
 ];
 
@@ -58,10 +56,10 @@ const services = [
       { icon: <CalendarDays size={18}/>, text: "Calendar & Schedule Management" },
       { icon: <Mail size={18}/>, text: "Email Management & Correspondence" },
       { icon: <Plane size={18}/>, text: "Travel Arrangements" },
-      { icon: <FileText size={18}/>, text: "Document Preparation" },
+      { icon: <FileTextLucide size={18}/>, text: "Document Preparation" },
     ],
     learnMoreLink: "/services/executive-assistance",
-    aiTextForImage: "Professional executive assistant organizing tasks on a digital interface, symbolizing efficiency and support in a modern office setting.",
+    imageDescriptionForHint: "Professional executive assistant organizing tasks on a digital interface, symbolizing efficiency and support in a modern office setting.",
   },
   {
     mainIcon: <Share2 size={32} />,
@@ -74,7 +72,7 @@ const services = [
       { icon: <Megaphone size={18}/>, text: "Ad Campaign Support" },
     ],
     learnMoreLink: "/#services", 
-    aiTextForImage: "Dynamic composition of social media icons (Instagram, Facebook, Twitter, LinkedIn) with stylized charts and engagement symbols, representing growth and active online presence management.",
+    imageDescriptionForHint: "Dynamic composition of social media icons (Instagram, Facebook, Twitter, LinkedIn) with stylized charts and engagement symbols, representing growth and active online presence management.",
   },
   {
     mainIcon: <Palette size={32} />,
@@ -87,7 +85,7 @@ const services = [
       { icon: <PaletteIcon size={18}/>, text: "Basic Brand Asset Creation" },
     ],
     learnMoreLink: "/#services",
-    aiTextForImage: "Modern flat design illustration of graphic design tools (pen tool, color palette, shapes) creating a visually appealing brand logo or marketing material.",
+    imageDescriptionForHint: "Modern flat design illustration of graphic design tools (pen tool, color palette, shapes) creating a visually appealing brand logo or marketing material.",
   },
 ];
 
@@ -98,12 +96,12 @@ const features = [
     description: "Our VAs handle time-consuming tasks, allowing you to focus on core business activities and strategic growth.",
   },
   {
-    icon: <PackageCheck size={28} />,
+    icon: <Users2 size={28} />, // Changed from PackageCheck for better VA theme alignment
     title: "Access Specialized Skills",
     description: "Tap into a wide range of expertise, from administrative support to social media and design, without hiring full-time.",
   },
   {
-    icon: <Users2 size={28} />,
+    icon: <Rocket size={28} />, // Changed from Users2, as Users2 is now above
     title: "Flexible & Scalable Support",
     description: "Adjust your VA services as your business needs change, ensuring you always have the right level of support.",
   },
@@ -114,13 +112,12 @@ const improvedCopyData = {
   originalText: "Our virtual assistants can do many things for your business. They are good at managing tasks and can help you every day.",
   improvedTitle: "Unlock Peak Efficiency with Expert Virtual Assistance",
   improvedText: "Tiny Tasks empowers your business by connecting you with skilled virtual assistants. We streamline your operations, manage critical tasks, and provide dedicated support, freeing you to concentrate on high-impact activities and achieve your strategic objectives.",
-  aiTextForImage: "A visual metaphor of a key unlocking a complex gear system, symbolizing how virtual assistants unlock business efficiency and smooth operations. Use a clean, modern style.",
 };
 
 const ctaSectionData = {
   title: "Ready to Delegate, Grow, and Thrive?",
   text: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!",
-  aiTextForImage: "An inspiring image of diverse business professionals collaborating effectively, with subtle digital network lines connecting them, symbolizing teamwork and VA support fostering growth.",
+  imageDescriptionForHint: "An inspiring image of diverse business professionals collaborating effectively, with subtle digital network lines connecting them, symbolizing teamwork and VA support fostering growth.",
 };
 
 const toolsData = {
@@ -129,7 +126,7 @@ const toolsData = {
   categories: [
     {
       name: "Communication",
-      icon: <MessageSquareIcon size={24} className="text-accent" />,
+      icon: <MessageCircleIcon size={24} className="text-accent" />,
       tools: [
         { name: "Skype", icon: <Phone size={18} /> },
         { name: "Zoom", icon: <Video size={18} /> },
@@ -155,7 +152,7 @@ const toolsData = {
       icon: <Share2 size={24} className="text-accent" />,
       tools: [
         { name: "Canva", icon: <PaletteIcon size={18} /> },
-        { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> }, // Corrected from Meta Business
+        { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> },
       ],
     },
     {
@@ -164,11 +161,11 @@ const toolsData = {
       tools: [
         { name: "Notion", icon: <FileTextIcon size={18} /> },
         { name: "Trello", icon: <Trello size={18} /> },
-        { name: "Todoist", icon: <CheckSquare size={18} /> }, // Corrected from Todo-ist
+        { name: "Todoist", icon: <CheckSquare size={18} /> },
       ],
     },
   ],
-  aiTextForImage: "A dynamic collage of popular business software logos (like Slack, Zoom, Google Calendar, Trello, Canva) arranged neatly, symbolizing a VA's toolkit.",
+  imageDescriptionForHint: "A dynamic collage of popular business software logos (like Slack, Zoom, Google Calendar, Trello, Canva) arranged neatly, symbolizing a VA's toolkit.",
 };
 
 const pricingData = {
@@ -200,7 +197,7 @@ const pricingData = {
       ctaLink: "/auth"
     },
   ],
-  aiTextForImage: "Three distinct pricing plan cards with Kenyan Shilling currency symbols, showcasing different levels of virtual assistant services. Clean, modern, and trustworthy design.",
+  imageDescriptionForHint: "Three distinct pricing plan cards with Kenyan Shilling currency symbols, showcasing different levels of virtual assistant services. Clean, modern, and trustworthy design.",
 };
 
 const testimonialsData = {
@@ -211,92 +208,27 @@ const testimonialsData = {
     { name: "David M.", role: "Consultant, Peak Solutions", testimonial: "The onboarding was seamless, and my assistant got up to speed incredibly fast. I can finally focus on strategy instead of being bogged down in admin.", avatarFallback: "DM", rating: 5 },
     { name: "Sarah L.", role: "E-commerce Store Owner", testimonial: "From social media to customer support, my VA handles it all. Sales are up, and my stress levels are way down. Highly recommend!", avatarFallback: "SL", rating: 4 },
   ],
-  aiTextForImage: "A diverse group of happy business professionals looking at a screen or interacting positively, with speech bubbles indicating positive feedback. Warm and trustworthy feel.",
+  imageDescriptionForHint: "A diverse group of happy business professionals looking at a screen or interacting positively, with speech bubbles indicating positive feedback. Warm and trustworthy feel.",
 };
 
 const blogIntroData = {
   title: "Insights & Productivity Tips",
   description: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.",
-  aiTextForImage: "An open notebook with a pen and a cup of coffee, with icons representing ideas and learning, symbolizing a blog or knowledge sharing.",
+  imageDescriptionForHint: "An open notebook with a pen and a cup of coffee, with icons representing ideas and learning, symbolizing a blog or knowledge sharing.",
 };
 
-// Helper function to generate image descriptions and then the image URI
-async function safeGenerateImageInfo(sectionId: string, aiTextForImagePrompt: string): Promise<AiImageInfo> {
-  let description: string | null = null;
-  let imageType: string | null = null;
-  let imageDataURI: string | null = null;
 
-  try {
-    const descriptionResult = await generateImageSections({ sectionText: aiTextForImagePrompt });
-    if (descriptionResult?.imageDescription) {
-      description = descriptionResult.imageDescription;
-      imageType = descriptionResult.imageType;
-      
-      const imageGenResult = await generateDescribedImage({ imageDescription: description });
-      if (imageGenResult?.imageDataURI) {
-        imageDataURI = imageGenResult.imageDataURI;
-      } else {
-         console.warn(`Actual image generation failed for ${sectionId}. Description was: "${description}"`);
-      }
-    } else {
-      console.warn(`No image description generated for ${sectionId}. Using prompt substring as fallback description.`);
-      description = aiTextForImagePrompt.substring(0, 100); 
-    }
-  } catch (err) {
-    console.error(`Error in safeGenerateImageInfo for ${sectionId}:`, err);
-    if (!description) { 
-        description = aiTextForImagePrompt.substring(0, 100); 
-    }
-  }
-  return { imageDataURI, description, imageType };
-}
-
-
-export default async function HomePage() {
-  // Batch 1
-  const [
-    heroImageInfo, 
-    onboardingOverviewImageInfo,
-  ] = await Promise.all([
-    safeGenerateImageInfo('hero', sectionsData.find(s => s.id === 'hero')?.aiTextForImage || ''),
-    safeGenerateImageInfo('onboarding-overview', sectionsData.find(s => s.id === 'onboarding-overview')?.aiTextForImage || ''),
-  ]);
-
-  // Batch 2: Services Intro
-  const [
-    servicesIntroImageInfo,
-  ] = await Promise.all([
-    safeGenerateImageInfo('services-intro', services[0]?.aiTextForImage || "Overview of virtual assistant services"),
-  ]);
+export default function HomePage() {
   
-  // Batch 3: Tools and Pricing
-  const [
-    toolsImageInfo,
-    pricingImageInfo,
-  ] = await Promise.all([
-    safeGenerateImageInfo('tools', toolsData.aiTextForImage),
-    safeGenerateImageInfo('pricing', pricingData.aiTextForImage),
-  ]);
-
-  // Batch 4: Testimonials and Blog Intro
-  const [
-    testimonialsImageInfo,
-    blogIntroImageInfo,
-  ] = await Promise.all([
-    safeGenerateImageInfo('testimonials', testimonialsData.aiTextForImage),
-    safeGenerateImageInfo('blog-intro', blogIntroData.aiTextForImage),
-  ]);
-
-  // Batch 5: CTA
-  const [
-    ctaImageInfo,
-  ] = await Promise.all([
-    safeGenerateImageInfo('cta', ctaSectionData.aiTextForImage),
-  ]);
-  
-  const sectionImageInfos: Record<string, AiImageInfo | null> = {
-    hero: heroImageInfo,
-    'onboarding-overview': onboardingOverviewImageInfo,
+  const sectionImageInfos: Record<string, AiImageInfo> = {
+    hero: { imageDataURI: null, description: sectionsData.find(s => s.id === 'hero')?.imageDescriptionForHint || "Hero section image" , placeholderHint: "professional virtual assistant"},
+    'onboarding-overview': { imageDataURI: null, description: sectionsData.find(s => s.id === 'onboarding-overview')?.imageDescriptionForHint || "Onboarding process", placeholderHint: "onboarding steps" },
+    'services-intro': { imageDataURI: null, description: services[0]?.imageDescriptionForHint || "VA services overview", placeholderHint: "virtual assistance" },
+    'tools': { imageDataURI: null, description: toolsData.imageDescriptionForHint, placeholderHint: "business tools collage" },
+    'pricing': { imageDataURI: null, description: pricingData.imageDescriptionForHint, placeholderHint: "pricing plans KES" },
+    'testimonials': { imageDataURI: null, description: testimonialsData.imageDescriptionForHint, placeholderHint: "happy clients" },
+    'blog-intro': { imageDataURI: null, description: blogIntroData.imageDescriptionForHint, placeholderHint: "blog ideas" },
+    'cta': { imageDataURI: null, description: ctaSectionData.imageDescriptionForHint, placeholderHint: "business collaboration" },
   };
 
   return (
@@ -308,7 +240,7 @@ export default async function HomePage() {
             key={section.id}
             title={section.title}
             text={section.text}
-            imageInfo={sectionImageInfos[section.id]}
+            imageInfo={{ imageDataURI: null, description: section.imageDescriptionForHint, placeholderHint: section.imageDescriptionForHint }}
             imagePlacement={section.imagePlacement}
             className={section.id === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
             titleClassName={section.id === 'hero' ? 'text-5xl md:text-6xl lg:text-7xl' : ''}
@@ -352,19 +284,17 @@ export default async function HomePage() {
             <p className="text-lg text-foreground/80 mb-12 max-w-3xl mx-auto">
               Comprehensive VA solutions designed to streamline your business operations, manage your tasks effectively, and free up your valuable time so you can focus on strategic growth.
             </p>
-            {servicesIntroImageInfo && (
-              <div className="mb-12 md:mb-16 max-w-4xl mx-auto">
-                <AiImageSection
-                  title="Expert VA Support Tailored For You"
-                  text="Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges."
-                  imageInfo={servicesIntroImageInfo}
-                  imagePlacement="left" 
-                  className="py-0 !pt-0 text-left"
-                  titleClassName="text-3xl text-center md:text-left"
-                  textClassName="text-center md:text-left"
-                />
-              </div>
-            )}
+            <div className="mb-12 md:mb-16 max-w-4xl mx-auto">
+              <AiImageSection
+                title="Expert VA Support Tailored For You"
+                text="Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges."
+                imageInfo={sectionImageInfos['services-intro']}
+                imagePlacement="left" 
+                className="py-0 !pt-0 text-left"
+                titleClassName="text-3xl text-center md:text-left"
+                textClassName="text-center md:text-left"
+              />
+            </div>
             <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
               {services.map((service) => (
                 <ServiceCard
@@ -428,19 +358,17 @@ export default async function HomePage() {
                 </div>
               ))}
             </div>
-             {toolsImageInfo && (
-              <div className="mt-12 max-w-3xl mx-auto">
-                <AiImageSection
-                  title="Our Versatile Toolkit"
-                  text="We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects."
-                  imageInfo={toolsImageInfo}
-                  imagePlacement="right"
-                  className="py-0"
-                  titleClassName="text-3xl text-center md:text-left"
-                  textClassName="text-center md:text-left"
-                />
-              </div>
-            )}
+            <div className="mt-12 max-w-3xl mx-auto">
+              <AiImageSection
+                title="Our Versatile Toolkit"
+                text="We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects."
+                imageInfo={sectionImageInfos['tools']}
+                imagePlacement="right"
+                className="py-0"
+                titleClassName="text-3xl text-center md:text-left"
+                textClassName="text-center md:text-left"
+              />
+            </div>
           </div>
         </section>
 
@@ -468,19 +396,17 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            {pricingImageInfo && (
-              <div className="mt-16 max-w-4xl mx-auto">
-                <AiImageSection
-                  title="Transparent VA Pricing"
-                  text="Our AI-assisted visual design helps present our virtual assistant pricing plans clearly, ensuring you find the perfect fit for your business needs."
-                  imageInfo={pricingImageInfo}
-                  imagePlacement="left"
-                  className="py-0"
-                  titleClassName="text-3xl text-center md:text-left"
-                  textClassName="text-center md:text-left"
-                />
-              </div>
-            )}
+            <div className="mt-16 max-w-4xl mx-auto">
+              <AiImageSection
+                title="Transparent VA Pricing"
+                text="Our clear pricing plans ensure you find the perfect fit for your business needs."
+                imageInfo={sectionImageInfos['pricing']}
+                imagePlacement="left"
+                className="py-0"
+                titleClassName="text-3xl text-center md:text-left"
+                textClassName="text-center md:text-left"
+              />
+            </div>
           </div>
         </section>
 
@@ -507,19 +433,17 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            {testimonialsImageInfo && (
-              <div className="mt-16 max-w-3xl mx-auto">
-                <AiImageSection
-                  title="Client Success Stories"
-                  text="Visually representing client satisfaction, our AI helps choose images that reflect the positive impact of our virtual assistant services."
-                  imageInfo={testimonialsImageInfo}
-                  imagePlacement="right"
-                  className="py-0"
-                  titleClassName="text-3xl text-center md:text-left"
-                  textClassName="text-center md:text-left"
-                />
-              </div>
-            )}
+            <div className="mt-16 max-w-3xl mx-auto">
+              <AiImageSection
+                title="Client Success Stories"
+                text="Visually representing client satisfaction through placeholder imagery."
+                imageInfo={sectionImageInfos['testimonials']}
+                imagePlacement="right"
+                className="py-0"
+                titleClassName="text-3xl text-center md:text-left"
+                textClassName="text-center md:text-left"
+              />
+            </div>
           </div>
         </section>
 
@@ -539,20 +463,18 @@ export default async function HomePage() {
                   </Link>
                 </Button>
               </div>
-              {blogIntroImageInfo && (
-                <div className="mt-8 md:mt-0">
-                  <AiImageSection
-                    title="" 
-                    text=""
-                    imageInfo={blogIntroImageInfo}
-                    imagePlacement="right" 
-                    className="py-0 !shadow-none"
-                    titleClassName="hidden"
-                    textClassName="hidden" 
-                    imageContainerClassName="max-w-md ml-auto"
-                  />
-                </div>
-              )}
+              <div className="mt-8 md:mt-0">
+                <AiImageSection
+                  title="" 
+                  text=""
+                  imageInfo={sectionImageInfos['blog-intro']}
+                  imagePlacement="right" 
+                  className="py-0 !shadow-none"
+                  titleClassName="hidden"
+                  textClassName="hidden" 
+                  imageContainerClassName="max-w-md ml-auto"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -569,20 +491,18 @@ export default async function HomePage() {
                     </p>
                     <ContactForm />
                 </div>
-                {ctaImageInfo && (
-                    <div className="hidden md:flex justify-center items-center">
-                         <AiImageSection
-                            title=""
-                            text=""
-                            imageInfo={ctaImageInfo}
-                            imagePlacement="right"
-                            className="py-0 !bg-transparent !shadow-none"
-                            titleClassName="hidden"
-                            textClassName="hidden"
-                            imageContainerClassName="!p-0"
-                        />
-                    </div>
-                )}
+                <div className="hidden md:flex justify-center items-center">
+                     <AiImageSection
+                        title=""
+                        text=""
+                        imageInfo={sectionImageInfos['cta']}
+                        imagePlacement="right"
+                        className="py-0 !bg-transparent !shadow-none"
+                        titleClassName="hidden"
+                        textClassName="hidden"
+                        imageContainerClassName="!p-0"
+                    />
+                </div>
             </div>
           </div>
         </section>
