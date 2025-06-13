@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import { getClientAction, updateClientAction, type ClientFormData, type ClientOperationResult } from '../actions';
+import { getClientAction, updateClientAction, type ClientFormData, type ClientOperationResult } from '../../actions';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { ArrowLeft, Save } from 'lucide-react';
 
