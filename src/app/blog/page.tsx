@@ -3,15 +3,43 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Library, Rss } from 'lucide-react';
+import { Library, Rss, CalendarDays, Tag } from 'lucide-react';
+import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { BlogPost } from '@/app/admin/blog/actions'; // Re-using the interface
 
-export default function BlogPage() {
-  // Placeholder blog posts
-  const posts = [
-    { id: 1, title: "Maximizing Productivity with a Virtual Assistant", excerpt: "Discover how a VA can transform your workday and help you achieve more...", date: "October 26, 2023", category: "Productivity", slug: "/blog/maximizing-productivity" },
-    { id: 2, title: "Top 10 Tasks to Delegate to Your VA Today", excerpt: "Free up your schedule by offloading these common tasks to your virtual assistant...", date: "October 20, 2023", category: "Delegation", slug: "/blog/top-10-tasks" },
-    { id: 3, title: "Choosing the Right Virtual Assistant for Your Business", excerpt: "Not all VAs are created equal. Here's how to find the perfect match for your needs...", date: "October 15, 2023", category: "Hiring", slug: "/blog/choosing-right-va" },
-  ];
+async function getPublishedBlogPosts(): Promise<BlogPost[]> {
+  try {
+    const postsCollection = collection(db, 'blogPosts');
+    const q = query(postsCollection, where('status', '==', 'published'), orderBy('publishedAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      // Convert Firestore Timestamps to serializable dates if necessary
+      const convertTimestamp = (timestamp: any) => {
+        if (timestamp instanceof Timestamp) {
+          return timestamp.toDate().toISOString();
+        }
+        return timestamp;
+      };
+
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: convertTimestamp(data.createdAt),
+        updatedAt: convertTimestamp(data.updatedAt),
+        publishedAt: data.publishedAt ? convertTimestamp(data.publishedAt) : null,
+      } as BlogPost;
+    });
+  } catch (error) {
+    console.error("Error fetching published blog posts:", error);
+    return []; // Return empty array on error
+  }
+}
+
+export default async function BlogPage() {
+  const posts = await getPublishedBlogPosts();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -27,25 +55,40 @@ export default function BlogPage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {posts.map(post => (
-            <div key={post.id} className="bg-card p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow flex flex-col">
-              <h2 className="font-headline text-2xl text-primary mb-2">{post.title}</h2>
-              <p className="text-sm text-muted-foreground mb-1">{post.date} - {post.category}</p>
-              <p className="text-foreground/80 mb-4 flex-grow">{post.excerpt}</p>
-              <Button asChild variant="link" className="text-accent p-0 justify-start mt-auto">
-                {/* Link to a non-existent page for now, as full blog post pages are not implemented */}
-                <Link href={post.slug}>Read More &rarr;</Link>
-              </Button>
-            </div>
-          ))}
-        </div>
+        {posts.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {posts.map(post => (
+              <div key={post.id} className="bg-card p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow flex flex-col">
+                <h2 className="font-headline text-2xl text-primary mb-2">{post.title}</h2>
+                <div className="text-xs text-muted-foreground mb-2 space-x-3">
+                  {post.publishedAt && (
+                    <span className="inline-flex items-center">
+                      <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+                      {new Date(post.publishedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </span>
+                  )}
+                  {post.category && (
+                    <span className="inline-flex items-center">
+                      <Tag className="mr-1.5 h-3.5 w-3.5" />
+                     {post.category}
+                    </span>
+                  )}
+                </div>
+                <p className="text-foreground/80 mb-4 flex-grow">{post.excerpt}</p>
+                <Button asChild variant="link" className="text-accent p-0 justify-start mt-auto font-semibold">
+                  <Link href={`/blog/${post.slug}`}>Read More &rarr;</Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10">
+            <p className="text-xl text-muted-foreground">No blog posts published yet. Check back soon!</p>
+          </div>
+        )}
 
         <div className="text-center mt-16">
-            <p className="text-foreground/70">
-                More articles coming soon. Stay tuned!
-            </p>
-            <Button variant="outline" className="mt-4">
+            <Button variant="outline" disabled>
                 <Rss className="mr-2 h-4 w-4" /> Subscribe to Updates (Coming Soon)
             </Button>
         </div>

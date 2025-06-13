@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateDescribedImage, type GenerateDescribedImageOutput } from '@/ai/flows/generate-described-image-flow';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,29 +12,47 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ImageIcon, FileText, Loader2, Eye, Clock, BookOpen } from 'lucide-react';
-
-interface PastBlogPost {
-  id: string;
-  title: string;
-  postedTime: string;
-  reads: number;
-  slug: string;
-}
-
-const pastPostsData: PastBlogPost[] = [
-  { id: '1', title: "Maximizing Productivity with a VA", postedTime: "2 days ago", reads: 120, slug: "/blog/maximizing-productivity" },
-  { id: '2', title: "Top 10 Tasks to Delegate", postedTime: "5 days ago", reads: 250, slug: "/blog/top-10-tasks" },
-  { id: '3', title: "Choosing the Right Virtual Assistant", postedTime: "1 week ago", reads: 95, slug: "/blog/choosing-right-va" },
-  { id: '4', title: "AI in Virtual Assistance", postedTime: "2 weeks ago", reads: 310, slug: "/blog/ai-in-va" },
-];
-
+import { ImageIcon, Loader2, Eye, Clock, BookOpen, Edit3, Trash2 } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { BlogPost } from '@/app/admin/blog/actions';
 
 const CmsPage: FC = () => {
   const { toast } = useToast();
   const [imageDescription, setImageDescription] = useState('');
   const [generatedImage, setGeneratedImage] = useState<GenerateDescribedImageOutput | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+
+  useEffect(() => {
+    setIsLoadingPosts(true);
+    const postsCollection = collection(db, 'blogPosts');
+    const q = query(postsCollection, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const posts: BlogPost[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        posts.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+          publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt.toDate().toISOString() : data.publishedAt,
+        } as BlogPost);
+      });
+      setBlogPosts(posts);
+      setIsLoadingPosts(false);
+    }, (error) => {
+      console.error("Error fetching blog posts:", error);
+      toast({ title: "Error", description: "Could not fetch blog posts.", variant: "destructive" });
+      setIsLoadingPosts(false);
+    });
+
+    return () => unsubscribe();
+  }, [toast]);
+
 
   const handleGenerateImage = async () => {
     if (!imageDescription.trim()) {
@@ -61,7 +79,6 @@ const CmsPage: FC = () => {
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      {/* Main Content Area (Blog Editor / Tools) - Takes up more space */}
       <div className="flex-grow lg:w-2/3 space-y-8">
         <Card>
           <CardHeader>
@@ -72,9 +89,6 @@ const CmsPage: FC = () => {
             <Button asChild size="lg">
               <Link href="/admin/blog/create">Create New Blog Post</Link>
             </Button>
-            <div className="mt-4 p-4 border rounded-md bg-muted/50">
-              <p className="text-muted-foreground">The main blog post editor or a list of posts with edit/delete options will appear here. For now, use the button above to create new posts.</p>
-            </div>
           </CardContent>
         </Card>
 
@@ -83,7 +97,7 @@ const CmsPage: FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><ImageIcon className="mr-2 h-6 w-6 text-accent" /> AI Image Generation Tool</CardTitle>
-            <CardDescription>Generate images using AI based on a text description for your content.</CardDescription>
+            <CardDescription>Generate images using AI based on a text description for your content. (e.g., for blog featured images)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -123,37 +137,49 @@ const CmsPage: FC = () => {
         </Card>
       </div>
 
-      {/* Right Sidebar for Past Blogs */}
       <div className="lg:w-1/3 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Past Blog Posts</CardTitle>
-            <CardDescription>Quick overview of recently published articles.</CardDescription>
+            <CardTitle className="text-xl">Blog Posts Overview</CardTitle>
+            <CardDescription>Recently created or updated articles.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {pastPostsData.length > 0 ? (
-              pastPostsData.map(post => (
+            {isLoadingPosts ? (
+              <div className="flex justify-center items-center h-32">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : blogPosts.length > 0 ? (
+              blogPosts.slice(0, 5).map(post => ( // Show latest 5
                 <Card key={post.id} className="p-4 hover:shadow-md transition-shadow">
-                  <h4 className="font-semibold text-primary mb-1">{post.title}</h4>
+                  <h4 className="font-semibold text-primary mb-1 truncate" title={post.title}>{post.title}</h4>
                   <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-2">
                     <div className="flex items-center">
                       <Clock className="mr-1 h-3 w-3" />
-                      <span>{post.postedTime}</span>
+                      <span>{post.updatedAt ? new Date(post.updatedAt).toLocaleDateString() : 'N/A'}</span>
                     </div>
-                    <div className="flex items-center">
-                      <Eye className="mr-1 h-3 w-3" />
-                      <span>{post.reads} reads</span>
-                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {post.status}
+                    </span>
                   </div>
-                  <Button variant="link" size="sm" asChild className="p-0 h-auto text-accent">
-                    <Link href={post.slug}>Read More &rarr;</Link>
-                  </Button>
+                  <div className="flex space-x-2 mt-2">
+                    <Button variant="outline" size="sm" asChild className="text-accent">
+                      <Link href={`/blog/${post.slug}`} target="_blank" title="View Post">
+                        <Eye className="mr-1 h-3 w-3" /> View
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" disabled title="Edit Post (Coming Soon)">
+                       <Edit3 className="mr-1 h-3 w-3" /> Edit
+                    </Button>
+                     <Button variant="outline" size="sm" disabled  className="text-destructive" title="Delete Post (Coming Soon)">
+                       <Trash2 className="mr-1 h-3 w-3" /> Delete
+                    </Button>
+                  </div>
                 </Card>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground">No blog posts published yet.</p>
+              <p className="text-sm text-muted-foreground">No blog posts found.</p>
             )}
-             <Button variant="outline" className="w-full mt-4">View All Posts (coming soon)</Button>
+             <Button variant="outline" className="w-full mt-4" disabled>View All Posts (coming soon)</Button>
           </CardContent>
         </Card>
       </div>
