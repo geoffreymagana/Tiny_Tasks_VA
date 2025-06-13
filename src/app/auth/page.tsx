@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Chrome, Eye, EyeOff } from 'lucide-react'; // Added Eye, EyeOff
+import { Chrome, Eye, EyeOff } from 'lucide-react'; 
 import { LottieLoader } from '@/components/ui/lottie-loader';
 
 const signInSchema = z.object({
@@ -67,9 +67,9 @@ const AuthPage: FC = () => {
         email: user.email,
         displayName: displayName || user.displayName || user.email?.split('@')[0],
         photoURL: user.photoURL,
-        role: 'client',
+        // role: 'client', // Role is set here if it's a new user from general sign-up
         updatedAt: serverTimestamp(),
-        isDisabled: false, // Initialize isDisabled to false
+        isDisabled: false, 
       };
 
       if (company) userDataToSet.company = company;
@@ -77,6 +77,7 @@ const AuthPage: FC = () => {
 
       if (!userSnap.exists()) {
         userDataToSet.createdAt = serverTimestamp();
+        userDataToSet.role = 'client'; // Default role for new sign-ups
         await setDoc(userRef, userDataToSet);
         console.log('User document created in Firestore for UID:', user.uid);
       } else {
@@ -97,7 +98,9 @@ const AuthPage: FC = () => {
         if (phone && phone !== existingData.phone) {
             updates.phone = phone;
         }
-        await setDoc(userRef, { ...userDataToSet, ...updates }, { merge: true });
+        // Preserve existing role if userSnap exists, unless explicitly changing it (not done here)
+        // Preserve other fields like 'department' if they exist
+        await setDoc(userRef, { ...existingData, ...userDataToSet, ...updates }, { merge: true });
         console.log('User document updated/merged in Firestore for UID:', user.uid);
       }
     } catch (error) {
@@ -111,7 +114,7 @@ const AuthPage: FC = () => {
     }
   };
 
-  const redirectToDashboard = async (userId: string): Promise<{ success: boolean; isAdminRedirect: boolean; isAccountDisabled: boolean }> => {
+  const redirectToDashboard = async (userId: string): Promise<{ success: boolean; isAdminRedirect: boolean; isClientRedirect: boolean; isAccountDisabled: boolean }> => {
     try {
       const userDocRef = doc(db, 'users', userId);
       const userDocSnap = await getDoc(userDocRef);
@@ -125,30 +128,39 @@ const AuthPage: FC = () => {
             variant: 'destructive',
             duration: 7000,
           });
-          router.push('/auth');
-          return { success: false, isAdminRedirect: false, isAccountDisabled: true };
+          router.push('/auth'); // Keep them on auth page
+          return { success: false, isAdminRedirect: false, isClientRedirect: false, isAccountDisabled: true };
         }
-        if (userData.role === 'admin') {
+
+        if (userData.role === 'admin' || userData.role === 'staff') {
           router.push('/admin');
-          return { success: true, isAdminRedirect: true, isAccountDisabled: false };
-        } else {
+          return { success: true, isAdminRedirect: true, isClientRedirect: false, isAccountDisabled: false };
+        } else if (userData.role === 'client') {
           router.push('/');
-          return { success: true, isAdminRedirect: false, isAccountDisabled: false };
+          return { success: true, isAdminRedirect: false, isClientRedirect: true, isAccountDisabled: false };
+        } else { 
+          // Default for any other role or if role is not explicitly client/admin/staff
+          console.warn(`User ${userId} has an unrecognized role: ${userData.role}. Redirecting to homepage.`);
+          router.push('/');
+          return { success: true, isAdminRedirect: false, isClientRedirect: false, isAccountDisabled: false };
         }
+
       } else {
-        toast({ title: 'User Data Not Found', description: 'Could not retrieve user details. Please try again.', variant: 'destructive' });
-        router.push('/');
-        return { success: false, isAdminRedirect: false, isAccountDisabled: false };
+        // This case should ideally be rare if handleUserSetup runs before this
+        toast({ title: 'User Data Not Found', description: 'Could not retrieve user details after login. Please try signing in again.', variant: 'destructive' });
+        await auth.signOut(); // Sign out user as their data setup is incomplete
+        router.push('/auth'); 
+        return { success: false, isAdminRedirect: false, isClientRedirect: false, isAccountDisabled: false };
       }
     } catch (error) {
       console.error("Error fetching user role for redirection (Firestore operation):", error);
       toast({
         title: 'Redirection Error',
-        description: 'Could not determine your role. You may need to disable browser extensions or check your network. Navigating to homepage.',
+        description: 'Could not determine your role. Navigating to homepage.',
         variant: 'destructive',
       });
       router.push('/');
-      return { success: false, isAdminRedirect: false, isAccountDisabled: false };
+      return { success: false, isAdminRedirect: false, isClientRedirect: false, isAccountDisabled: false };
     }
   };
 
@@ -157,11 +169,11 @@ const AuthPage: FC = () => {
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      await handleUserSetup(userCredential.user);
+      await handleUserSetup(userCredential.user); // Ensure user data is up-to-date before redirect
       const redirectStatus = await redirectToDashboard(userCredential.user.uid);
 
       if (redirectStatus.success) {
-        toast({ title: 'Sign In Successful', description: redirectStatus.isAdminRedirect ? 'Redirecting to admin dashboard...' : 'Redirecting to homepage...' });
+        toast({ title: 'Sign In Successful', description: redirectStatus.isAdminRedirect ? 'Redirecting to dashboard...' : 'Redirecting...' });
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
@@ -187,18 +199,19 @@ const AuthPage: FC = () => {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      if (data.displayName && userCredential.user) {
-        await updateProfile(userCredential.user, { displayName: data.displayName });
-      }
       const userToSetup = auth.currentUser || userCredential.user;
+      if (data.displayName && userToSetup) { // Check userToSetup as well
+        await updateProfile(userToSetup, { displayName: data.displayName });
+      }
       await handleUserSetup(userToSetup, data.displayName || userToSetup.displayName, data.company, data.phone);
 
       const redirectStatus = await redirectToDashboard(userToSetup.uid);
        if (redirectStatus.success) {
-        toast({ title: 'Account Created', description: 'Sign up successful. Redirecting...' });
+        toast({ title: 'Account Created', description: redirectStatus.isAdminRedirect ? 'Redirecting to dashboard...' : 'Redirecting...' });
       }
 
-    } catch (error: any) {
+    } catch (error: any)
+    {
       console.error('Sign up error:', error);
        if (error.code && error.message) {
          toast({
@@ -223,11 +236,11 @@ const AuthPage: FC = () => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      await handleUserSetup(result.user, result.user.displayName, null, null); // Pass null for company/phone for Google sign-in
+      await handleUserSetup(result.user, result.user.displayName, null, null); 
       const redirectStatus = await redirectToDashboard(result.user.uid);
 
       if (redirectStatus.success) {
-         toast({ title: 'Google Sign-In Successful', description: redirectStatus.isAdminRedirect ? 'Redirecting to admin dashboard...' : 'Redirecting to homepage...' });
+         toast({ title: 'Google Sign-In Successful', description: redirectStatus.isAdminRedirect ? 'Redirecting to dashboard...' : 'Redirecting...' });
       }
 
     } catch (error: any) {
@@ -400,5 +413,3 @@ const AuthPage: FC = () => {
 };
 
 export default AuthPage;
-
-    
