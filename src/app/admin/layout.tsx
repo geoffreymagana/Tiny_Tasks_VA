@@ -91,12 +91,12 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     { href: "/admin/contracts", icon: <FileTextIconLucide />, label: "Contracts", tooltip: "Contracts (coming soon)" },
     { href: "/admin/invoices", icon: <Receipt />, label: "Invoices", tooltip: "Invoices (coming soon)" },
     { href: "/admin/communication", icon: <MessageSquareText />, label: "Communication Hub", tooltip: "Communication Hub (coming soon)" },
-    { href: "/admin/staff", icon: <UsersRound />, label: "Staff", tooltip: "Staff Management (coming soon)" },
+    { href: "/admin/staff", icon: <UsersRound />, label: "Staff", tooltip: "Staff Management" },
     { href: "/admin/ai-tools", icon: <Sparkles />, label: "AI Tools", tooltip: "AI Tools (Placeholder for /admin/cms tools)" },
   ];
 
   const accountItems = [
-    { href: "/admin/profile", icon: <User />, label: "Profile", tooltip: "My Profile (coming soon)" },
+    { href: "/admin/profile", icon: <User />, label: "Profile", tooltip: "My Profile" },
     { href: "/admin/settings", icon: <Settings2 />, label: "Settings", tooltip: "Admin Settings (coming soon)" },
   ];
 
@@ -190,11 +190,10 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
         <main className="flex-grow container mx-auto py-8 md:py-12">
           {children}
         </main>
-        <Footer />
+        <Footer className="py-3" />
       </SidebarInset>
     </SidebarProvider>
   );
 };
 
 export default AdminLayout;
-
