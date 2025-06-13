@@ -86,7 +86,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const navItems = [
     { href: "/admin", icon: <LayoutDashboard />, label: "Dashboard", tooltip: "Dashboard" },
     { href: "/admin/cms", icon: <Newspaper />, label: "CMS", tooltip: "Content Management" },
-    { href: "/admin/clients", icon: <Users />, label: "Client Hub", tooltip: "Client Hub (coming soon)" },
+    { href: "/admin/clients", icon: <Users />, label: "Client Hub", tooltip: "Client Management" },
     { href: "/admin/projects", icon: <Briefcase />, label: "Project Hub", tooltip: "Project Hub (coming soon)" },
     { href: "/admin/contracts", icon: <FileTextIconLucide />, label: "Contracts", tooltip: "Contracts (coming soon)" },
     { href: "/admin/invoices", icon: <Receipt />, label: "Invoices", tooltip: "Invoices (coming soon)" },
@@ -197,3 +197,4 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 };
 
 export default AdminLayout;
+
