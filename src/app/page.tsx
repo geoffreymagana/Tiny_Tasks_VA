@@ -36,7 +36,7 @@ const sectionsData: SectionContent[] = [
     title: 'Your Dedicated Virtual Assistant for Effortless Productivity',
     text: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.",
     imagePlacement: 'right',
-    cta: { text: 'Get Started', href: '#cta' },
+    cta: { text: 'Get Started', href: '/auth' }, // Updated href
     aiTextForImage: "A dynamic and modern illustration of a focused professional at a clean desk, with subtle digital icons representing virtual assistant tasks (calendar, email, charts) seamlessly integrated around them, conveying efficiency and support.",
   },
   {
@@ -155,7 +155,7 @@ const toolsData = {
       icon: <Share2 size={24} className="text-accent" />,
       tools: [
         { name: "Canva", icon: <PaletteIcon size={18} /> },
-        { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> },
+        { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> }, // Corrected from Meta Business
       ],
     },
     {
@@ -164,7 +164,7 @@ const toolsData = {
       tools: [
         { name: "Notion", icon: <FileTextIcon size={18} /> },
         { name: "Trello", icon: <Trello size={18} /> },
-        { name: "Todoist", icon: <CheckSquare size={18} /> },
+        { name: "Todoist", icon: <CheckSquare size={18} /> }, // Corrected from Todo-ist
       ],
     },
   ],
@@ -181,6 +181,7 @@ const pricingData = {
       description: "Perfect for individuals or small businesses needing core administrative help.",
       features: ["10 hours of VA support", "Basic Admin Tasks", "Email Management (limited)", "Scheduling Assistance"],
       isPopular: false,
+      ctaLink: "/auth"
     },
     {
       tier: "Growth VA Package",
@@ -188,6 +189,7 @@ const pricingData = {
       description: "Ideal for growing businesses needing consistent, broader support.",
       features: ["25 hours of VA support", "Advanced Admin Tasks", "Social Media Scheduling", "Calendar Management", "Client Communication"],
       isPopular: true,
+      ctaLink: "/auth"
     },
     {
       tier: "Premium VA Partnership",
@@ -195,6 +197,7 @@ const pricingData = {
       description: "Comprehensive support for established businesses and executives.",
       features: ["50 hours of VA support", "Dedicated VA", "Project Management Support", "Graphic Design Basics", "Full Email & Calendar Control", "Priority Support"],
       isPopular: false,
+      ctaLink: "/auth"
     },
   ],
   aiTextForImage: "Three distinct pricing plan cards with Kenyan Shilling currency symbols, showcasing different levels of virtual assistant services. Clean, modern, and trustworthy design.",
@@ -259,11 +262,10 @@ export default async function HomePage() {
     safeGenerateImageInfo('onboarding-overview', sectionsData.find(s => s.id === 'onboarding-overview')?.aiTextForImage || ''),
   ]);
 
-  // Batch 2: Features and Services Intro
+  // Batch 2: Services Intro
   const [
     servicesIntroImageInfo,
   ] = await Promise.all([
-    // The featuresImageInfo was removed as per user request
     safeGenerateImageInfo('services-intro', services[0]?.aiTextForImage || "Overview of virtual assistant services"),
   ]);
   
@@ -339,7 +341,6 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            {/* The AiImageSection for "Visually Unified Experience" has been removed here */}
           </div>
         </section>
 
@@ -463,6 +464,7 @@ export default async function HomePage() {
                   description={tier.description}
                   features={tier.features}
                   isPopular={tier.isPopular}
+                  ctaLink={tier.ctaLink}
                 />
               ))}
             </div>

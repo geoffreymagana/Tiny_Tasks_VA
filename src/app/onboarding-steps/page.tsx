@@ -4,9 +4,9 @@ import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle, UserPlus, Zap, MessageSquareHeart } from 'lucide-react';
-import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section'; // Updated import
+import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section';
 import { generateImageSections } from '@/ai/flows/generate-image-sections';
-import { generateDescribedImage } from '@/ai/flows/generate-described-image-flow'; // New import
+import { generateDescribedImage } from '@/ai/flows/generate-described-image-flow';
 
 export default async function OnboardingStepsPage() {
   const pageContentText = "Step 1: Discovery Call. We start with a friendly chat to learn about your business, challenges, and the specific tasks you'd like to delegate. This helps us understand your goals and how our virtual assistants can best support you. Step 2: Assistant Matching. Based on your requirements, we meticulously match you with a virtual assistant whose skills and experience align perfectly with your needs. Step 3: Integration & Kick-off. We facilitate a smooth integration of your new VA into your existing workflows and tools. Step 4: Ongoing Support & Feedback. Our commitment doesn't end once you're onboarded. We provide ongoing support and regularly check in.";
@@ -120,7 +120,7 @@ export default async function OnboardingStepsPage() {
         </div>
         <div className="text-center mt-12 md:mt-16">
             <Button size="lg" asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105">
-                <Link href="/#cta">Begin Your VA Partnership</Link>
+                <Link href="/auth">Begin Your VA Partnership</Link>
             </Button>
         </div>
       </main>

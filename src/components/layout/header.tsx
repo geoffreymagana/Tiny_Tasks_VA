@@ -30,7 +30,7 @@ export function Header() {
             Blog
           </Link>
           <Button asChild>
-            <Link href="/#cta">Get Started</Link>
+            <Link href="/auth">Get Started</Link>
           </Button>
         </nav>
 
@@ -64,7 +64,7 @@ export function Header() {
                   Blog
                 </Link>
                 <Button className="w-full" asChild>
-                  <Link href="/#cta">Get Started</Link>
+                  <Link href="/auth">Get Started</Link>
                 </Button>
               </nav>
             </SheetContent>

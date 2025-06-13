@@ -4,9 +4,9 @@ import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft, Briefcase, CalendarClock, Mail, Settings, Users, FileText, Plane, PresentationChart, CheckSquare } from 'lucide-react';
-import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section'; // Updated import
+import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section';
 import { generateImageSections } from '@/ai/flows/generate-image-sections';
-import { generateDescribedImage } from '@/ai/flows/generate-described-image-flow'; // New import
+import { generateDescribedImage } from '@/ai/flows/generate-described-image-flow';
 
 export default async function ExecutiveAssistancePage() {
   const pageContentText = "Focus on your core business activities while our expert Executive Assistants handle your administrative, organizational, and technical tasks with precision and professionalism. We provide comprehensive support to streamline your workflow and boost your productivity. Our services include calendar management, email correspondence, travel arrangements, document preparation, meeting coordination, and much more, tailored to your specific needs.";
@@ -104,7 +104,7 @@ export default async function ExecutiveAssistancePage() {
 
         <div className="text-center mt-12 md:mt-16">
             <Button size="lg" asChild className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105">
-                <Link href="/#cta">Get Executive Support Today</Link>
+                <Link href="/auth">Get Executive Support Today</Link>
             </Button>
         </div>
       </main>
