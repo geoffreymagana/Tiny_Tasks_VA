@@ -23,7 +23,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Chrome, Loader2 } from 'lucide-react';
+import { Chrome } from 'lucide-react';
+import { LottieLoader } from '@/components/ui/lottie-loader';
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -63,7 +64,7 @@ const AuthPage: FC = () => {
           email: user.email,
           displayName: displayName || user.displayName || user.email?.split('@')[0],
           photoURL: user.photoURL,
-          role: 'client', // Default role
+          role: 'client', 
           createdAt: serverTimestamp(),
         });
         console.log('User document created in Firestore for UID:', user.uid);
@@ -77,7 +78,7 @@ const AuthPage: FC = () => {
         description: 'Could not save user data. Please try again. If the problem persists, check your browser extensions or network.',
         variant: 'destructive',
       });
-      throw error; // Re-throw to be caught by submit handler
+      throw error; 
     }
   };
 
@@ -99,7 +100,7 @@ const AuthPage: FC = () => {
         description: 'Could not determine your role. You may need to disable browser extensions or check your network. Navigating to homepage.',
         variant: 'destructive',
       });
-      router.push('/'); // Fallback to homepage
+      router.push('/'); 
       return { success: false, isAdminRedirect: false };
     }
   };
@@ -109,31 +110,27 @@ const AuthPage: FC = () => {
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      await handleUserSetup(userCredential.user); // Ensure user doc exists or is created
+      await handleUserSetup(userCredential.user); 
       const redirectStatus = await redirectToDashboard(userCredential.user.uid);
 
       if (redirectStatus.success) {
         toast({ title: 'Sign In Successful', description: redirectStatus.isAdminRedirect ? 'Redirecting to admin dashboard...' : 'Redirecting to homepage...' });
       }
-      // If redirectToDashboard itself toasted an error, this general success toast might be confusing,
-      // but the error toast from redirectToDashboard should be more specific.
     } catch (error: any) {
       console.error('Sign in error:', error);
-      // Check if it's a Firebase Auth error or a re-thrown Firestore error from handleUserSetup
-      if (error.code && error.message) { // Likely Firebase Auth error
+      if (error.code && error.message) { 
          toast({
           title: 'Sign In Failed',
           description: error.message,
           variant: 'destructive',
         });
-      } else if (!error.code) { // Likely error from handleUserSetup or a generic error
+      } else if (!error.code) { 
          toast({
           title: 'Sign In Error',
           description: 'An unexpected error occurred during sign-in or user setup.',
           variant: 'destructive',
         });
       }
-      // The toast from handleUserSetup or redirectToDashboard would have already been shown for Firestore issues.
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +143,6 @@ const AuthPage: FC = () => {
       if (data.displayName && userCredential.user) {
         await updateProfile(userCredential.user, { displayName: data.displayName });
       }
-      // Pass the intended displayName to handleUserSetup
       await handleUserSetup(userCredential.user, data.displayName || userCredential.user.displayName);
       
       const redirectStatus = await redirectToDashboard(userCredential.user.uid);
@@ -156,13 +152,13 @@ const AuthPage: FC = () => {
 
     } catch (error: any) {
       console.error('Sign up error:', error);
-       if (error.code && error.message) { // Likely Firebase Auth error
+       if (error.code && error.message) { 
          toast({
           title: 'Sign Up Failed',
           description: error.message,
           variant: 'destructive',
         });
-      } else if (!error.code) { // Likely error from handleUserSetup or a generic error
+      } else if (!error.code) { 
          toast({
           title: 'Sign Up Error',
           description: 'An unexpected error occurred during sign-up or user setup.',
@@ -179,7 +175,7 @@ const AuthPage: FC = () => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      await handleUserSetup(result.user); // Ensure user doc exists or is created/updated
+      await handleUserSetup(result.user); 
       const redirectStatus = await redirectToDashboard(result.user.uid);
 
       if (redirectStatus.success) {
@@ -232,7 +228,7 @@ const AuthPage: FC = () => {
                   {signInForm.formState.errors.password && <p className="text-sm text-destructive">{signInForm.formState.errors.password.message}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : null}
+                  {isLoading ? <LottieLoader size={24} className="mr-2"/> : null}
                   {isLoading ? 'Signing In...' : 'Sign In'}
                 </Button>
               </form>
@@ -249,7 +245,7 @@ const AuthPage: FC = () => {
                 </div>
               </div>
               <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
-                {isLoading ? <Loader2 className="animate-spin" /> : <Chrome className="mr-2 h-4 w-4" /> }
+                {isLoading ? <LottieLoader size={20} className="mr-2" /> : <Chrome className="mr-2 h-4 w-4" /> }
                 Google
               </Button>
             </CardFooter>
@@ -279,7 +275,7 @@ const AuthPage: FC = () => {
                   {signUpForm.formState.errors.password && <p className="text-sm text-destructive">{signUpForm.formState.errors.password.message}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : null}
+                  {isLoading ? <LottieLoader size={24} className="mr-2"/> : null}
                   {isLoading ? 'Creating Account...' : 'Sign Up'}
                 </Button>
               </form>
@@ -296,7 +292,7 @@ const AuthPage: FC = () => {
                 </div>
               </div>
               <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
-                 {isLoading ? <Loader2 className="animate-spin" /> : <Chrome className="mr-2 h-4 w-4" /> }
+                 {isLoading ? <LottieLoader size={20} className="mr-2" /> : <Chrome className="mr-2 h-4 w-4" /> }
                 Google
               </Button>
             </CardFooter>
@@ -308,6 +304,3 @@ const AuthPage: FC = () => {
 };
 
 export default AuthPage;
-    
-
-    

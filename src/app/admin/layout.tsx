@@ -1,13 +1,14 @@
 
 "use client";
 import type { FC, ReactNode } from 'react';
-import { useRouter } from 'next/navigation'; // Keep useRouter if used for isActivePath or other logic
+import { useRouter } from 'next/navigation'; 
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { LottieLoader } from '@/components/ui/lottie-loader';
 import { 
-  Loader2, LogOut, Zap, LayoutDashboard, Users, Briefcase, FileText as FileTextIconLucide, // Renamed to avoid conflict
+  LogOut, Zap, LayoutDashboard, Users, Briefcase, FileText as FileTextIconLucide, 
   Receipt, MessageSquareText, UsersRound, Sparkles, User, Settings2, Newspaper
 } from 'lucide-react';
 import { 
@@ -23,8 +24,8 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
-  const authState = useAdminAuth(); // Use the whole authState
-  const router = useRouter(); // Keep for path checking
+  const authState = useAdminAuth(); 
+  const router = useRouter(); 
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -41,7 +42,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   if (authState.isLoading) {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <LottieLoader size={64} className="text-primary" />
         <p className="mt-4 text-lg text-foreground">Loading Admin Area...</p>
       </div>
     );
@@ -75,13 +76,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     );
   }
 
-  // Determine current page to set active state
-  // For Next.js App Router, router.pathname might not be available directly in layouts
-  // A more robust way might involve using usePathname() from 'next/navigation'
-  // For simplicity, if router.pathname is available from Next <=13 pages router context it might work
-  // Otherwise, this logic needs adjustment for App Router context if router.pathname is undefined.
-  // Assuming router.pathname is available or will be adapted:
-  const currentPath = typeof window !== 'undefined' ? window.location.pathname : ""; // Fallback for server
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname : ""; 
   
   const isActivePath = (href: string) => {
     if (href === "/admin") return currentPath === "/admin" || currentPath === "/admin/";
@@ -125,7 +120,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
         roleText = 'Staff Portal';
         break;
       default:
-        return null; // Or some default pill
+        return null; 
     }
 
     return (
@@ -154,7 +149,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
             {navItems.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <SidebarMenuButton asChild isActive={isActivePath(item.href)} tooltip={item.tooltip}>
-                  <Link href={item.href === "/admin/ai-tools" ? "/admin/cms" : item.href}> {/* AI Tools points to CMS for now */}
+                  <Link href={item.href === "/admin/ai-tools" ? "/admin/cms" : item.href}> 
                     {item.icon}
                     <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
                   </Link>
@@ -185,7 +180,6 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="bg-secondary/20">
-        {/* Minimal header bar with mobile trigger and role pill */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-background">
           <div className="md:hidden">
             <SidebarTrigger />
@@ -203,5 +197,3 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 };
 
 export default AdminLayout;
-
-      

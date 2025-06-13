@@ -17,7 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, Bot, Loader2, CheckCircle, Wand2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Bot, CheckCircle, Wand2 } from 'lucide-react';
+import { LottieLoader } from '@/components/ui/lottie-loader';
 import { saveBlogPostAction, type SaveBlogPostResult, type SaveBlogPostServerData } from '../actions';
 import { generateBlogPost, type GenerateBlogPostInput } from '@/ai/flows/generate-blog-post-flow';
 import { improveBlogPostContent, type ImproveBlogPostContentInput } from '@/ai/flows/improve-blog-content-flow';
@@ -43,7 +44,7 @@ type AiGenerateFormValues = z.infer<typeof aiGenerateSchema>;
 
 const CreateBlogPage: FC = () => {
   const { toast } = useToast();
-  const { user: firebaseUser } = useAdminAuth(); // Get the authenticated user
+  const { user: firebaseUser } = useAdminAuth(); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAiContent, setIsGeneratingAiContent] = useState(false);
   const [isImprovingAiContent, setIsImprovingAiContent] = useState(false);
@@ -75,7 +76,7 @@ const CreateBlogPage: FC = () => {
     }
 
     const serverActionData: SaveBlogPostServerData = {
-      ...data, // Contains title, content, category, excerpt, status
+      ...data, 
       authorId: firebaseUser.uid,
     };
 
@@ -102,9 +103,9 @@ const CreateBlogPage: FC = () => {
       form.setValue('title', output.title);
       form.setValue('content', output.content);
       form.setValue('excerpt', output.excerpt);
-      form.setValue('category', aiData.category); // Set category from AI form
+      form.setValue('category', aiData.category); 
       toast({ title: 'AI Content Generated', description: 'Blog fields populated.' });
-      setAiDialogGenerateOpen(false); // Close dialog on success
+      setAiDialogGenerateOpen(false); 
       aiGenerateForm.reset();
     } catch (error: any) {
       console.error("AI Generation Error:", error);
@@ -154,7 +155,6 @@ const CreateBlogPage: FC = () => {
           <CardContent>
             <form onSubmit={form.handleSubmit(handleSavePost)} className="space-y-6">
               
-              {/* AI Generation Dialog (kept separate for its own form) */}
               <Dialog open={aiDialogGenerateOpen} onOpenChange={setAiDialogGenerateOpen}>
                 <DialogContent className="sm:max-w-lg">
                   <DialogHeader>
@@ -184,7 +184,7 @@ const CreateBlogPage: FC = () => {
                           <Button type="button" variant="outline" disabled={isGeneratingAiContent}>Cancel</Button>
                       </DialogClose>
                       <Button type="submit" disabled={isGeneratingAiContent}>
-                        {isGeneratingAiContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        {isGeneratingAiContent ? <LottieLoader className="mr-2" size={20} /> : <Sparkles className="mr-2 h-4 w-4" />}
                         {isGeneratingAiContent ? 'Generating...' : 'Generate Draft'}
                       </Button>
                     </DialogFooter>
@@ -204,7 +204,7 @@ const CreateBlogPage: FC = () => {
                 {form.formState.errors.category && <p className="text-sm text-destructive">{form.formState.errors.category.message}</p>}
               </div>
 
-              <div className="space-y-2 relative"> {/* Added relative positioning */}
+              <div className="space-y-2 relative">
                 <Label htmlFor="blogContent">Content (Markdown supported)</Label>
                 <Textarea
                   id="blogContent"
@@ -212,15 +212,13 @@ const CreateBlogPage: FC = () => {
                   {...form.register('content')}
                   disabled={isSubmitting}
                   rows={20}
-                  className="min-h-[400px] pr-12" // Added padding-right for buttons
+                  className="min-h-[400px] pr-12" 
                 />
                 {form.formState.errors.content && <p className="text-sm text-destructive">{form.formState.errors.content.message}</p>}
                 
-                {/* AI Action Buttons */}
                 <div className="absolute bottom-5 right-3 flex flex-col space-y-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                       {/* DialogTrigger for "Generate with AI" is now part of the icon button */}
                       <Button 
                         type="button" 
                         variant="outline" 
@@ -246,7 +244,7 @@ const CreateBlogPage: FC = () => {
                         onClick={handleImproveWithAi} 
                         disabled={isImprovingAiContent || isSubmitting}
                       >
-                        {isImprovingAiContent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                        {isImprovingAiContent ? <LottieLoader size={16} /> : <Wand2 className="h-4 w-4" />}
                         <span className="sr-only">Improve content with AI</span>
                       </Button>
                     </TooltipTrigger>
@@ -290,7 +288,7 @@ const CreateBlogPage: FC = () => {
               </div>
               
               <Button type="submit" disabled={isSubmitting || isGeneratingAiContent || isImprovingAiContent || !firebaseUser} size="lg">
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                {isSubmitting ? <LottieLoader className="mr-2" size={20} /> : <CheckCircle className="mr-2 h-4 w-4" />}
                 {isSubmitting ? 'Saving...' : (form.getValues('status') === 'published' ? 'Publish Post' : 'Save Draft')}
               </Button>
             </form>
@@ -302,5 +300,3 @@ const CreateBlogPage: FC = () => {
 };
 
 export default CreateBlogPage;
-
-    

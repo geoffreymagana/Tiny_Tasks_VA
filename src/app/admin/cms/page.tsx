@@ -12,7 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ImageIcon, Loader2, Eye, Clock, BookOpen, Edit3, Trash2 } from 'lucide-react';
+import { ImageIcon, Eye, Clock, BookOpen, Edit3, Trash2 } from 'lucide-react';
+import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { BlogPost } from '@/app/admin/blog/actions';
@@ -111,7 +112,7 @@ const CmsPage: FC = () => {
               />
             </div>
             <Button onClick={handleGenerateImage} disabled={isGeneratingImage}>
-              {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isGeneratingImage ? <LottieLoader className="mr-2" size={20} /> : null}
               {isGeneratingImage ? 'Generating...' : 'Generate Image'}
             </Button>
 
@@ -146,10 +147,10 @@ const CmsPage: FC = () => {
           <CardContent className="space-y-4">
             {isLoadingPosts ? (
               <div className="flex justify-center items-center h-32">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <LottieLoader size={48} className="text-primary" />
               </div>
             ) : blogPosts.length > 0 ? (
-              blogPosts.slice(0, 5).map(post => ( // Show latest 5
+              blogPosts.slice(0, 5).map(post => ( 
                 <Card key={post.id} className="p-4 hover:shadow-md transition-shadow">
                   <h4 className="font-semibold text-primary mb-1 truncate" title={post.title}>{post.title}</h4>
                   <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-2">
