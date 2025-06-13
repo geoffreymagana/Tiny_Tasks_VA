@@ -17,10 +17,10 @@ export type ClientFormData = z.infer<typeof ClientFormSchema>;
 
 export interface Client extends ClientFormData {
   id: string;
-  createdAt: string | null; 
-  updatedAt: string | null; 
+  createdAt: string | null;
+  updatedAt: string | null;
   source: 'clients' | 'users'; // To identify the origin of the client data
-  isDisabled?: boolean; // New field for user account status
+  isDisabled?: boolean;
 }
 
 export interface ClientOperationResult {
@@ -88,8 +88,8 @@ const convertDbTimestamp = (timestamp: any): string | null => {
        return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate().toISOString();
     }
     try {
-        if (timestamp && typeof timestamp.toDate === 'function') { 
-            return new Date().toISOString(); 
+        if (timestamp && typeof timestamp.toDate === 'function') {
+            return new Date().toISOString();
         }
         const d = new Date(timestamp);
         if (!isNaN(d.getTime())) return d.toISOString();
@@ -97,7 +97,7 @@ const convertDbTimestamp = (timestamp: any): string | null => {
         // ignore
     }
     console.warn("Unsupported timestamp format encountered in convertDbTimestamp:", timestamp);
-    return null; 
+    return null;
 };
 
 
@@ -105,30 +105,7 @@ export async function getAllClientsAction(): Promise<Client[]> {
   const allClientsMap = new Map<string, Client>();
 
   try {
-    // 1. Fetch from 'clients' collection
-    const clientsRef = collection(db, 'clients');
-    const clientsQuery = query(clientsRef);
-    const clientsSnapshot = await getDocs(clientsQuery);
-    
-    clientsSnapshot.forEach(doc => {
-      const data = doc.data();
-      const clientRecord: Client = {
-        id: doc.id,
-        name: data.name || '',
-        email: data.email || '',
-        company: data.company || '',
-        phone: data.phone || '',
-        createdAt: convertDbTimestamp(data.createdAt),
-        updatedAt: convertDbTimestamp(data.updatedAt),
-        source: 'clients',
-        isDisabled: data.isDisabled || false, // Assuming 'clients' can also be disabled, though less common
-      };
-      if (clientRecord.email) {
-        allClientsMap.set(clientRecord.email, clientRecord);
-      }
-    });
-
-    // 2. Fetch from 'users' collection where role is 'client'
+    // 1. Fetch from 'users' collection where role is 'client'
     const usersRef = collection(db, 'users');
     const usersQuery = query(usersRef, where('role', '==', 'client'));
     const usersSnapshot = await getDocs(usersQuery);
@@ -136,22 +113,13 @@ export async function getAllClientsAction(): Promise<Client[]> {
     usersSnapshot.forEach(doc => {
       const data = doc.data();
       const userEmail = data.email || '';
-
-      const existingClientRecord = userEmail ? allClientsMap.get(userEmail) : undefined;
-
-      if (existingClientRecord && existingClientRecord.source === 'clients') {
-        existingClientRecord.name = data.displayName || data.email?.split('@')[0] || existingClientRecord.name;
-        existingClientRecord.createdAt = convertDbTimestamp(data.createdAt) || existingClientRecord.createdAt;
-        existingClientRecord.updatedAt = convertDbTimestamp(data.updatedAt) || convertDbTimestamp(data.createdAt) || existingClientRecord.updatedAt;
-        existingClientRecord.isDisabled = data.isDisabled === undefined ? false : data.isDisabled; // Prioritize user's isDisabled status
-        // Keep company/phone from 'clients' record if they exist
-      } else if (userEmail && !existingClientRecord) {
+      if (userEmail) {
         allClientsMap.set(userEmail, {
           id: doc.id, // User UID
           name: data.displayName || data.email?.split('@')[0] || 'N/A',
           email: userEmail,
-          company: '', 
-          phone: '',   
+          company: data.company || '', // Get company from user doc
+          phone: data.phone || '',   // Get phone from user doc
           createdAt: convertDbTimestamp(data.createdAt),
           updatedAt: convertDbTimestamp(data.updatedAt) || convertDbTimestamp(data.createdAt),
           source: 'users',
@@ -160,14 +128,51 @@ export async function getAllClientsAction(): Promise<Client[]> {
       }
     });
 
+    // 2. Fetch from 'clients' collection and merge/override
+    const clientsRef = collection(db, 'clients');
+    const clientsQuery = query(clientsRef); // Consider ordering if needed before final sort
+    const clientsSnapshot = await getDocs(clientsQuery);
+
+    clientsSnapshot.forEach(doc => {
+      const data = doc.data();
+      const clientEmail = data.email || '';
+      if (clientEmail) {
+        const existingUserClient = allClientsMap.get(clientEmail);
+        if (existingUserClient) {
+          // User exists, enrich with 'clients' data only if 'clients' fields are non-empty
+          // and user fields are empty. Or decide on an override strategy.
+          // For now, let's assume 'clients' can override if fields are present.
+          existingUserClient.name = data.name || existingUserClient.name; // Keep user's displayName if client record name is empty
+          existingUserClient.company = data.company || existingUserClient.company;
+          existingUserClient.phone = data.phone || existingUserClient.phone;
+          // isDisabled status and source remain from the user record if it exists
+          // createdAt and updatedAt from user record are generally more relevant for account lifecycle
+        } else {
+          // This client only exists in the 'clients' collection
+          allClientsMap.set(clientEmail, {
+            id: doc.id,
+            name: data.name || '',
+            email: clientEmail,
+            company: data.company || '',
+            phone: data.phone || '',
+            createdAt: convertDbTimestamp(data.createdAt),
+            updatedAt: convertDbTimestamp(data.updatedAt),
+            source: 'clients',
+            isDisabled: data.isDisabled || false,
+          });
+        }
+      }
+    });
+
+
     let combinedClients = Array.from(allClientsMap.values());
 
     combinedClients.sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
+      return dateB - dateA; // Sort by most recently created
     });
-    
+
     return combinedClients;
 
   } catch (error) {
@@ -178,24 +183,34 @@ export async function getAllClientsAction(): Promise<Client[]> {
 
 export async function getClientAction(clientId: string): Promise<Client | null> {
   try {
-    const clientDocRef = doc(db, 'clients', clientId); 
-    const clientDocSnap = await getDoc(clientDocRef);
+    // Attempt to fetch from 'clients' collection first
+    const clientDocRef = doc(db, 'clients', clientId);
+    let clientDocSnap = await getDoc(clientDocRef);
+    let source: 'clients' | 'users' = 'clients';
 
     if (!clientDocSnap.exists()) {
-      // Could also check users collection if ID might be a UID, but for now assuming it's for 'clients'
-      return null;
+      // If not in 'clients', try fetching from 'users' collection (assuming clientId might be a UID)
+      const userDocRef = doc(db, 'users', clientId);
+      clientDocSnap = await getDoc(userDocRef);
+      source = 'users';
+      if (!clientDocSnap.exists() || clientDocSnap.data()?.role !== 'client') {
+        return null; // Not found in either or not a client role
+      }
     }
+
     const data = clientDocSnap.data();
+    if (!data) return null;
+
     return {
       id: clientDocSnap.id,
-      name: data.name || '',
+      name: data.name || data.displayName || '',
       email: data.email || '',
       company: data.company || '',
       phone: data.phone || '',
       createdAt: convertDbTimestamp(data.createdAt),
       updatedAt: convertDbTimestamp(data.updatedAt),
-      source: 'clients', 
-      isDisabled: data.isDisabled || false,
+      source: source,
+      isDisabled: data.isDisabled === undefined ? false : data.isDisabled,
     };
   } catch (error) {
     console.error("Error fetching client:", error);
@@ -212,10 +227,13 @@ export async function updateClientAction(
     return { success: false, message: 'User does not have admin privileges.' };
   }
 
+  // This action primarily targets the 'clients' collection for direct edits.
+  // If we need to edit details for a user from the 'users' collection,
+  // that would typically be a separate action or part of a user profile management system.
   const clientRef = doc(db, 'clients', clientId);
   const clientSnap = await getDoc(clientRef);
   if (!clientSnap.exists()) {
-    return { success: false, message: 'Client record not found in dedicated list.' };
+    return { success: false, message: 'Client record not found in dedicated list for update. To edit user-originated clients, manage their user profile directly.' };
   }
 
   if (!(await isEmailUniqueInClientsCollection(clientData.email, clientId))) {
@@ -236,12 +254,14 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(
-  clientId: string, 
+  clientId: string,
   adminId: string
 ): Promise<ClientOperationResult> {
   if (!(await verifyAdmin(adminId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
+  // This action only deletes from the 'clients' collection.
+  // Deleting users from the 'users' collection (and Firebase Auth) is a separate concern.
   try {
     const clientRef = doc(db, 'clients', clientId);
     const clientSnap = await getDoc(clientRef);
@@ -281,14 +301,12 @@ export async function toggleUserAccountDisabledStatusAction(
       updatedAt: serverTimestamp(),
     });
 
-    return { 
-      success: true, 
-      message: `User account has been ${newDisabledStatus ? 'disabled' : 'enabled'} successfully.` 
+    return {
+      success: true,
+      message: `User account has been ${newDisabledStatus ? 'disabled' : 'enabled'} successfully.`
     };
   } catch (error: any) {
     console.error('Error toggling user account status:', error);
     return { success: false, message: error.message || 'Failed to toggle user account status.' };
   }
 }
-
-    

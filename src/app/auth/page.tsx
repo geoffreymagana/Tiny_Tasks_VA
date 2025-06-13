@@ -33,9 +33,11 @@ const signInSchema = z.object({
 type SignInFormValues = z.infer<typeof signInSchema>;
 
 const signUpSchema = z.object({
-  displayName: z.string().min(2, { message: 'Display name must be at least 2 characters' }).optional(),
+  displayName: z.string().min(2, { message: 'Display name must be at least 2 characters' }),
   email: z.string().email({ message: 'Invalid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
+  company: z.string().max(100, "Company name too long").optional().or(z.literal('')),
+  phone: z.string().max(20, "Phone number too long").optional().or(z.literal('')),
 });
 type SignUpFormValues = z.infer<typeof signUpSchema>;
 
@@ -51,45 +53,53 @@ const AuthPage: FC = () => {
 
   const signUpForm = useForm<SignUpFormValues>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { displayName: '', email: '', password: '' },
+    defaultValues: { displayName: '', email: '', password: '', company: '', phone: '' },
   });
 
-  const handleUserSetup = async (user: User, displayName?: string | null) => {
+  const handleUserSetup = async (user: User, displayName?: string | null, company?: string | null, phone?: string | null) => {
     const userRef = doc(db, 'users', user.uid);
     try {
       const userSnap = await getDoc(userRef);
+      const userDataToSet: any = {
+        uid: user.uid,
+        email: user.email,
+        displayName: displayName || user.displayName || user.email?.split('@')[0],
+        photoURL: user.photoURL,
+        role: 'client',
+        updatedAt: serverTimestamp(),
+        isDisabled: false,
+      };
+
+      if (company) userDataToSet.company = company;
+      if (phone) userDataToSet.phone = phone;
+
       if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email,
-          displayName: displayName || user.displayName || user.email?.split('@')[0],
-          photoURL: user.photoURL,
-          role: 'client', 
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          isDisabled: false, // Initialize isDisabled to false
-        });
+        userDataToSet.createdAt = serverTimestamp();
+        await setDoc(userRef, userDataToSet);
         console.log('User document created in Firestore for UID:', user.uid);
       } else {
-        // If user document exists, ensure 'isDisabled' field is present or update other fields like 'updatedAt'
+        // If user document exists, ensure 'isDisabled' field is present or update other fields
         const existingData = userSnap.data();
-        const updates:any = { updatedAt: serverTimestamp() };
+        const updates: any = { updatedAt: serverTimestamp() };
         if (existingData.isDisabled === undefined) {
           updates.isDisabled = false;
         }
-        // Optionally update displayName or photoURL if they changed from Google sign-in
         if (displayName && displayName !== existingData.displayName) {
-            updates.displayName = displayName;
+          updates.displayName = displayName;
         }
         if (user.photoURL && user.photoURL !== existingData.photoURL) {
-            updates.photoURL = user.photoURL;
+          updates.photoURL = user.photoURL;
         }
-        if(Object.keys(updates).length > 1) { // more than just updatedAt
-            await setDoc(userRef, updates, { merge: true });
-            console.log('User document updated in Firestore for UID:', user.uid);
-        } else {
-            console.log('User document already exists for UID:', user.uid, 'and isDisabled status is set.');
+        // Update company and phone if provided and different or not present
+        if (company && company !== existingData.company) {
+            updates.company = company;
         }
+        if (phone && phone !== existingData.phone) {
+            updates.phone = phone;
+        }
+
+        await setDoc(userRef, { ...userDataToSet, ...updates }, { merge: true });
+        console.log('User document updated/merged in Firestore for UID:', user.uid);
       }
     } catch (error) {
       console.error('Error in handleUserSetup (Firestore operation):', error);
@@ -98,7 +108,7 @@ const AuthPage: FC = () => {
         description: 'Could not save user data. Please try again. If the problem persists, check your browser extensions or network.',
         variant: 'destructive',
       });
-      throw error; 
+      throw error;
     }
   };
 
@@ -139,7 +149,7 @@ const AuthPage: FC = () => {
         description: 'Could not determine your role. You may need to disable browser extensions or check your network. Navigating to homepage.',
         variant: 'destructive',
       });
-      router.push('/'); 
+      router.push('/');
       return { success: false, isAdminRedirect: false, isAccountDisabled: false };
     }
   };
@@ -149,7 +159,7 @@ const AuthPage: FC = () => {
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      await handleUserSetup(userCredential.user); 
+      await handleUserSetup(userCredential.user);
       const redirectStatus = await redirectToDashboard(userCredential.user.uid);
 
       if (redirectStatus.success) {
@@ -157,13 +167,13 @@ const AuthPage: FC = () => {
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
-      if (error.code && error.message) { 
+      if (error.code && error.message) {
          toast({
           title: 'Sign In Failed',
           description: error.message,
           variant: 'destructive',
         });
-      } else if (!error.code) { 
+      } else if (!error.code) {
          toast({
           title: 'Sign In Error',
           description: 'An unexpected error occurred during sign-in or user setup.',
@@ -184,8 +194,8 @@ const AuthPage: FC = () => {
       }
       // Pass the updated user object or at least displayName to handleUserSetup
       const userToSetup = auth.currentUser || userCredential.user;
-      await handleUserSetup(userToSetup, data.displayName || userToSetup.displayName);
-      
+      await handleUserSetup(userToSetup, data.displayName || userToSetup.displayName, data.company, data.phone);
+
       const redirectStatus = await redirectToDashboard(userToSetup.uid);
        if (redirectStatus.success) {
         toast({ title: 'Account Created', description: 'Sign up successful. Redirecting...' });
@@ -193,13 +203,13 @@ const AuthPage: FC = () => {
 
     } catch (error: any) {
       console.error('Sign up error:', error);
-       if (error.code && error.message) { 
+       if (error.code && error.message) {
          toast({
           title: 'Sign Up Failed',
           description: error.message,
           variant: 'destructive',
         });
-      } else if (!error.code) { 
+      } else if (!error.code) {
          toast({
           title: 'Sign Up Error',
           description: 'An unexpected error occurred during sign-up or user setup.',
@@ -216,13 +226,15 @@ const AuthPage: FC = () => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      await handleUserSetup(result.user); 
+      // For Google Sign-In, company and phone won't be available from the provider
+      // These fields would need to be collected post-signup if required
+      await handleUserSetup(result.user, result.user.displayName);
       const redirectStatus = await redirectToDashboard(result.user.uid);
 
       if (redirectStatus.success) {
          toast({ title: 'Google Sign-In Successful', description: redirectStatus.isAdminRedirect ? 'Redirecting to admin dashboard...' : 'Redirecting to homepage...' });
       }
-     
+
     } catch (error: any) {
       console.error('Google sign in error:', error);
       if (error.code && error.message) {
@@ -301,7 +313,7 @@ const AuthPage: FC = () => {
             <CardContent className="space-y-4">
               <form onSubmit={signUpForm.handleSubmit(onSignUpSubmit)} className="space-y-4">
                  <div className="space-y-2">
-                  <Label htmlFor="displayName-signup">Display Name (Optional)</Label>
+                  <Label htmlFor="displayName-signup">Display Name</Label>
                   <Input id="displayName-signup" placeholder="Your Name" {...signUpForm.register('displayName')} disabled={isLoading} autoComplete="name" />
                   {signUpForm.formState.errors.displayName && <p className="text-sm text-destructive">{signUpForm.formState.errors.displayName.message}</p>}
                 </div>
@@ -314,6 +326,16 @@ const AuthPage: FC = () => {
                   <Label htmlFor="password-signup">Password</Label>
                   <Input id="password-signup" type="password" {...signUpForm.register('password')} disabled={isLoading} autoComplete="new-password"/>
                   {signUpForm.formState.errors.password && <p className="text-sm text-destructive">{signUpForm.formState.errors.password.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company-signup">Company (Optional)</Label>
+                  <Input id="company-signup" placeholder="Your Company Inc." {...signUpForm.register('company')} disabled={isLoading} autoComplete="organization" />
+                  {signUpForm.formState.errors.company && <p className="text-sm text-destructive">{signUpForm.formState.errors.company.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone-signup">Phone Number (Optional)</Label>
+                  <Input id="phone-signup" type="tel" placeholder="+1 555-123-4567" {...signUpForm.register('phone')} disabled={isLoading} autoComplete="tel" />
+                  {signUpForm.formState.errors.phone && <p className="text-sm text-destructive">{signUpForm.formState.errors.phone.message}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? <LottieLoader size={24} className="mr-2"/> : null}
@@ -345,5 +367,3 @@ const AuthPage: FC = () => {
 };
 
 export default AuthPage;
-
-    

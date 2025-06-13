@@ -12,8 +12,11 @@ interface UserData {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role: 'admin' | 'client' | 'staff' | string; 
-  createdAt: any; 
+  role: 'admin' | 'client' | 'staff' | string;
+  createdAt: any;
+  company?: string | null;
+  phone?: string | null;
+  isDisabled?: boolean;
 }
 
 interface AuthState {
@@ -45,7 +48,7 @@ export function useAdminAuth(): AuthState {
             setAuthState({ isLoading: false, user: firebaseUser, userData, isAdmin: isAdminUser });
             if (!isAdminUser && typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
               console.log('User is not admin, redirecting from admin page.');
-              router.replace('/'); 
+              router.replace('/');
             }
           } else {
             // User exists in Auth but not in Firestore
@@ -68,7 +71,7 @@ export function useAdminAuth(): AuthState {
         setAuthState({ isLoading: false, user: null, userData: null, isAdmin: false });
         if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
           console.log('No user logged in, redirecting from admin page to /auth.');
-          router.replace('/auth'); 
+          router.replace('/auth');
         }
       }
     });
@@ -78,5 +81,3 @@ export function useAdminAuth(): AuthState {
 
   return authState;
 }
-
-    
