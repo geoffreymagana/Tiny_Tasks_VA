@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react'; // Added imports
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation'; // Added useRouter
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'; // Added CardFooter
 import { ArrowLeft, Edit } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
@@ -472,4 +472,3 @@ const EditContractPage: FC = () => {
 
 export default EditContractPage;
 
-    
