@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getSectionImageAction, updateSectionImageAction, type SectionImageOperationResult } from './actions';
+import { getSectionImageAction, updateSectionImageAction, type SectionImageOperationResult, type SectionImage } from './actions';
 
 interface ManagedSection {
   id: string;
@@ -71,7 +71,7 @@ const CmsPage: FC = () => {
     setManagedSections(prev => prev.map(s => ({ ...s, isLoading: true })));
     const updates = await Promise.all(
       initialManagedSections.map(async (section) => {
-        const imageInfo = await getSectionImageAction(section.id);
+        const imageInfo: SectionImage | null = await getSectionImageAction(section.id);
         return {
           ...section,
           currentImageUrl: imageInfo?.imageUrl || null,
@@ -185,7 +185,10 @@ const CmsPage: FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Images</CardTitle>
-            <CardDescription>Update images for key sections of your public website by providing image URLs. Ensure you use direct image links (e.g., ending in .jpg, .png) for best results.</CardDescription>
+            <CardDescription>
+              Update images for key sections of your public website by providing image URLs. 
+              Important: Ensure you use direct image links (e.g., ending in .jpg, .png), not links to web pages (like Unsplash photo pages).
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {managedSections.map((section) => (
@@ -202,7 +205,8 @@ const CmsPage: FC = () => {
                         alt={`Current ${section.name} image`} 
                         fill 
                         style={{ objectFit: 'contain' }}
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes, adjust as needed
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        priority={section.id === 'hero'}
                       />
                     ) : (
                        <Image 
@@ -213,6 +217,7 @@ const CmsPage: FC = () => {
                          className="opacity-50" 
                          data-ai-hint={section.placeholderHint || "website section"}
                          style={{ objectFit: 'contain' }}
+                         priority={section.id === 'hero'}
                        />
                     )}
                      {section.isLoading && (
@@ -222,7 +227,7 @@ const CmsPage: FC = () => {
                     )}
                   </div>
                   <Input
-                    placeholder="Paste direct image URL here (e.g., https://example.com/image.png)"
+                    placeholder="Paste direct image URL here (e.g., https://images.unsplash.com/your-image.jpg)"
                     value={section.newImageUrl}
                     onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
                     disabled={section.isLoading || !firebaseUser}
@@ -239,7 +244,7 @@ const CmsPage: FC = () => {
                     <Button 
                       size="sm" 
                       onClick={() => handleSaveSectionImage(section.id)}
-                      disabled={section.isLoading || !firebaseUser || section.newImageUrl === section.currentImageUrl}
+                      disabled={section.isLoading || !firebaseUser || section.newImageUrl === section.currentImageUrl || !section.newImageUrl.trim()}
                     >
                       <Save className="mr-1 h-4 w-4"/> Save Image
                     </Button>
@@ -367,3 +372,4 @@ const CmsPage: FC = () => {
 };
 
 export default CmsPage;
+    
