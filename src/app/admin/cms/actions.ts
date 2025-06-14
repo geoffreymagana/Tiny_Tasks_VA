@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { User } from 'firebase/auth';
 
@@ -15,7 +15,7 @@ async function verifyAdmin(adminUserId: string): Promise<boolean> {
 
 export interface SectionImage {
   imageUrl: string | null;
-  updatedAt?: any;
+  updatedAt?: string; // Changed to string for ISO date
 }
 
 export interface SectionImageOperationResult {
@@ -31,7 +31,16 @@ export async function getSectionImageAction(sectionId: string): Promise<SectionI
     const sectionDocRef = doc(db, SECTION_IMAGES_COLLECTION, sectionId);
     const docSnap = await getDoc(sectionDocRef);
     if (docSnap.exists()) {
-      return docSnap.data() as SectionImage;
+      const data = docSnap.data();
+      // Convert Firestore Timestamp to ISO string
+      const updatedAtISO = data.updatedAt instanceof Timestamp 
+        ? data.updatedAt.toDate().toISOString() 
+        : undefined;
+      
+      return {
+        imageUrl: data.imageUrl || null,
+        updatedAt: updatedAtISO,
+      };
     }
     return null;
   } catch (error) {
@@ -82,3 +91,4 @@ export async function updateSectionImageAction(
     return { success: false, message: error.message || 'Failed to update section image.' };
   }
 }
+
