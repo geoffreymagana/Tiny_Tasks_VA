@@ -17,7 +17,7 @@ import {
   CalendarDays, Users, Phone, Video, MessageSquare as MessageCircleIcon, FileTextIcon, ListChecks, CheckSquare, MonitorSmartphone, Slack, Trello, ThumbsUp, TrendingUp, Brush, LayoutGrid, Crop, ShoppingCart
 } from 'lucide-react';
 import Link from 'next/link';
-import { getSectionDataAction, type SectionData } from '@/app/admin/cms/actions'; // Updated import
+import { getSectionDataAction, type SectionData } from '@/app/admin/cms/actions';
 
 interface StaticSectionContent {
   id: string;
@@ -27,10 +27,11 @@ interface StaticSectionContent {
   cta?: { text: string; href: string };
   icon?: React.ReactNode;
   imageDescriptionForHint: string; 
+  // Special rendering flags or component types can be added here if sections become very different
+  // e.g., componentType: 'hero' | 'standard' | 'contactForm'
 }
 
-// Static definitions for section structure and default content
-const staticSectionsData: StaticSectionContent[] = [
+const staticSectionsConfig: StaticSectionContent[] = [
   {
     id: 'hero',
     defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity',
@@ -86,67 +87,22 @@ const staticSectionsData: StaticSectionContent[] = [
     id: 'cta',
     defaultTitle: "Ready to Delegate, Grow, and Thrive?",
     defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!",
-    imagePlacement: 'right', // Image is on the right of the form, text on left
+    imagePlacement: 'right',
     imageDescriptionForHint: "business collaboration",
   },
 ];
 
-// Static data for elements not directly managed by CMS text fields (like feature cards, specific service items)
+// Static data for elements not directly managed by CMS for title/text/image
 const services = [
-  {
-    mainIcon: <Briefcase size={32} />,
-    title: "Executive Assistance",
-    description: "Professional administrative support to keep your business running smoothly and efficiently.",
-    serviceItems: [
-      { icon: <CalendarDays size={18}/>, text: "Calendar & Schedule Management" },
-      { icon: <Mail size={18}/>, text: "Email Management & Correspondence" },
-      { icon: <Plane size={18}/>, text: "Travel Arrangements" },
-      { icon: <FileTextLucide size={18}/>, text: "Document Preparation" },
-    ],
-    learnMoreLink: "/services/executive-assistance",
-  },
-  {
-    mainIcon: <Share2 size={32} />,
-    title: "Social Media Management",
-    description: "Strategic social media support to grow your online presence and engagement effectively.",
-    serviceItems: [
-      { icon: <PenSquare size={18}/>, text: "Content Creation & Curation" },
-      { icon: <Users2 size={18}/>, text: "Community Engagement" },
-      { icon: <BarChartBig size={18}/>, text: "Analytics & Reporting" },
-      { icon: <Megaphone size={18}/>, text: "Ad Campaign Support" },
-    ],
-    learnMoreLink: "/services/social-media-management", 
-  },
-  {
-    mainIcon: <PaletteIconLucide size={32} />,
-    title: "Graphic Design Support",
-    description: "Creative design solutions to enhance your brand's visual identity and marketing materials.",
-    serviceItems: [
-      { icon: <ImageIconLucide size={18}/>, text: "Social Media Graphics" },
-      { icon: <Presentation size={18}/>, text: "Presentation Design" },
-      { icon: <FileTextIcon size={18}/>, text: "Marketing Material Layouts" },
-      { icon: <PaletteIconLucide size={18}/>, text: "Basic Brand Asset Creation" },
-    ],
-    learnMoreLink: "/services/graphic-design-support",
-  },
+  { mainIcon: <Briefcase size={32} />, title: "Executive Assistance", description: "Professional administrative support to keep your business running smoothly and efficiently.", serviceItems: [ { icon: <CalendarDays size={18}/>, text: "Calendar & Schedule Management" }, { icon: <Mail size={18}/>, text: "Email Management & Correspondence" }, { icon: <Plane size={18}/>, text: "Travel Arrangements" }, { icon: <FileTextLucide size={18}/>, text: "Document Preparation" }, ], learnMoreLink: "/services/executive-assistance", },
+  { mainIcon: <Share2 size={32} />, title: "Social Media Management", description: "Strategic social media support to grow your online presence and engagement effectively.", serviceItems: [ { icon: <PenSquare size={18}/>, text: "Content Creation & Curation" }, { icon: <Users2 size={18}/>, text: "Community Engagement" }, { icon: <BarChartBig size={18}/>, text: "Analytics & Reporting" }, { icon: <Megaphone size={18}/>, text: "Ad Campaign Support" }, ], learnMoreLink: "/services/social-media-management",  },
+  { mainIcon: <PaletteIconLucide size={32} />, title: "Graphic Design Support", description: "Creative design solutions to enhance your brand's visual identity and marketing materials.", serviceItems: [ { icon: <ImageIconLucide size={18}/>, text: "Social Media Graphics" }, { icon: <Presentation size={18}/>, text: "Presentation Design" }, { icon: <FileTextIcon size={18}/>, text: "Marketing Material Layouts" }, { icon: <PaletteIconLucide size={18}/>, text: "Basic Brand Asset Creation" }, ], learnMoreLink: "/services/graphic-design-support", },
 ];
 
 const features = [
-  {
-    icon: <Zap size={28} />,
-    title: "Boost Your Productivity",
-    description: "Our VAs handle time-consuming tasks, allowing you to focus on core business activities and strategic growth.",
-  },
-  {
-    icon: <Users2 size={28} />, 
-    title: "Access Specialized Skills",
-    description: "Tap into a wide range of expertise, from administrative support to social media and design, without hiring full-time.",
-  },
-  {
-    icon: <Rocket size={28} />, 
-    title: "Flexible & Scalable Support",
-    description: "Adjust your VA services as your business needs change, ensuring you always have the right level of support.",
-  },
+  { icon: <Zap size={28} />, title: "Boost Your Productivity", description: "Our VAs handle time-consuming tasks, allowing you to focus on core business activities and strategic growth.", },
+  { icon: <Users2 size={28} />,  title: "Access Specialized Skills", description: "Tap into a wide range of expertise, from administrative support to social media and design, without hiring full-time.", },
+  { icon: <Rocket size={28} />,  title: "Flexible & Scalable Support", description: "Adjust your VA services as your business needs change, ensuring you always have the right level of support.", },
 ];
 
 const improvedCopyData = {
@@ -157,19 +113,10 @@ const improvedCopyData = {
 };
 
 const toolsDataStatic = {
-  title: "Tools We Master for Your Success",
-  description: "Our virtual assistants are proficient with a wide array of industry-standard tools to seamlessly integrate into your workflows and boost productivity.",
+  title: "Tools We Master for Your Success", // This title can be overridden by CMS
+  description: "Our virtual assistants are proficient with a wide array of industry-standard tools to seamlessly integrate into your workflows and boost productivity.", // This description can be overridden by CMS
   categories: [
-    {
-      name: "Communication",
-      icon: <MessageCircleIcon size={24} className="text-accent" />,
-      tools: [
-        { name: "Skype", icon: <Phone size={18} /> },
-        { name: "Zoom", icon: <Video size={18} /> },
-        { name: "Microsoft Teams", icon: <Users size={18} /> },
-        { name: "Slack", icon: <Slack size={18} /> },
-      ],
-    },
+    { name: "Communication", icon: <MessageCircleIcon size={24} className="text-accent" />, tools: [ { name: "Skype", icon: <Phone size={18} /> }, { name: "Zoom", icon: <Video size={18} /> }, { name: "Microsoft Teams", icon: <Users size={18} /> }, { name: "Slack", icon: <Slack size={18} /> }, ], },
     { name: "Calendar Management", icon: <CalendarDays size={24} className="text-accent" />, tools: [ { name: "Calendly", icon: <CalendarDays size={18} /> }, { name: "Google Calendar", icon: <CalendarDays size={18} /> }, ], },
     { name: "Email Management", icon: <Mail size={24} className="text-accent" />, tools: [{ name: "Zoho Mail", icon: <Mail size={18} /> }], },
     { name: "Social Media", icon: <Share2 size={24} className="text-accent" />, tools: [ { name: "Canva", icon: <PaletteIconLucide size={18} /> }, { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> }, ], },
@@ -178,8 +125,8 @@ const toolsDataStatic = {
 };
 
 const pricingDataStatic = {
-  title: "Flexible Pricing for Every Need",
-  description: "Choose a plan that fits your business goals and budget. All prices are in Kenyan Shillings (KES). Note: These are example prices, please update with your actual rates.",
+  title: "Flexible Pricing for Every Need", // This title can be overridden by CMS
+  description: "Choose a plan that fits your business goals and budget. All prices are in Kenyan Shillings (KES). Note: These are example prices, please update with your actual rates.", // This description can be overridden by CMS
   tiers: [
     { tier: "Essential VA Support", price: "KES 15,000/month", description: "Perfect for individuals or small businesses needing core administrative help.", features: ["10 hours of VA support", "Basic Admin Tasks", "Email Management (limited)", "Scheduling Assistance"], isPopular: false, ctaLink: "/auth" },
     { tier: "Growth VA Package", price: "KES 35,000/month", description: "Ideal for growing businesses needing consistent, broader support.", features: ["25 hours of VA support", "Advanced Admin Tasks", "Social Media Scheduling", "Calendar Management", "Client Communication"], isPopular: true, ctaLink: "/auth" },
@@ -188,8 +135,8 @@ const pricingDataStatic = {
 };
 
 const testimonialsDataStatic = {
-  title: "Hear From Our Happy Clients",
-  description: "Discover how Tiny Tasks has helped businesses like yours save time, reduce stress, and achieve their goals.",
+  title: "Hear From Our Happy Clients", // This title can be overridden by CMS
+  description: "Discover how Tiny Tasks has helped businesses like yours save time, reduce stress, and achieve their goals.", // This description can be overridden by CMS
   reviews: [
     { name: "Aisha K.", role: "Founder, Bloom Creatives", testimonial: "Tiny Tasks revolutionized how I manage my workload. My VA is proactive, efficient, and a true asset to my business!", avatarFallback: "AK", rating: 5 },
     { name: "David M.", role: "Consultant, Peak Solutions", testimonial: "The onboarding was seamless, and my assistant got up to speed incredibly fast. I can finally focus on strategy instead of being bogged down in admin.", avatarFallback: "DM", rating: 5 },
@@ -200,60 +147,98 @@ const testimonialsDataStatic = {
 
 export default async function HomePage() {
   
-  const fetchedSectionData: Record<string, SectionData | null> = {};
-  for (const section of staticSectionsData) {
-    fetchedSectionData[section.id] = await getSectionDataAction(section.id);
+  const fetchedSectionContent: Record<string, SectionData | null> = {};
+  for (const section of staticSectionsConfig) {
+    fetchedSectionContent[section.id] = await getSectionDataAction(section.id);
   }
 
-  const getDynamicOrStaticContent = (sectionId: string, field: 'title' | 'text') => {
-    const dynamicData = fetchedSectionData[sectionId];
-    const staticSection = staticSectionsData.find(s => s.id === sectionId);
-
-    if (field === 'title') {
-      return dynamicData?.title || staticSection?.defaultTitle || '';
+  const getDynamicOrStaticContent = (sectionId: string, field: 'title' | 'text' | 'imageUrl' | 'isVisible', staticConfig: StaticSectionContent) => {
+    const cmsData = fetchedSectionContent[sectionId];
+    switch (field) {
+      case 'title':
+        return cmsData?.title ?? staticConfig.defaultTitle;
+      case 'text':
+        return cmsData?.text ?? staticConfig.defaultText;
+      case 'imageUrl':
+        return cmsData?.imageUrl ?? null; // Fallback to null for image, AiImageSection handles placeholder
+      case 'isVisible':
+        return cmsData?.isVisible === undefined ? true : cmsData.isVisible; // Default to true if not set
+      default:
+        return '';
     }
-    if (field === 'text') {
-      return dynamicData?.text || staticSection?.defaultText || '';
-    }
-    return '';
   };
   
-  const getAiImageInfoForSection = (staticSection: StaticSectionContent): AiImageInfo => {
-    const dynamicData = fetchedSectionData[staticSection.id];
-    return {
-      imageDataURI: dynamicData?.imageUrl || null,
-      description: staticSection.imageDescriptionForHint, // Alt text from static data
-      placeholderHint: staticSection.imageDescriptionForHint 
-    };
-  };
-
-
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
       <main className="flex-grow">
-        {staticSectionsData.map((section) => (
-          <AiImageSection
-            key={section.id}
-            title={getDynamicOrStaticContent(section.id, 'title')}
-            text={getDynamicOrStaticContent(section.id, 'text')}
-            imageInfo={getAiImageInfoForSection(section)}
-            imagePlacement={section.imagePlacement}
-            className={section.id === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
-            titleClassName={section.id === 'hero' ? 'text-5xl md:text-6xl lg:text-7xl' : (section.id === 'services-intro' || section.id === 'tools' || section.id === 'pricing' || section.id === 'testimonials' || section.id === 'blog-intro' ? 'text-3xl text-center md:text-left' : '')}
-            textClassName={(section.id === 'services-intro' || section.id === 'tools' || section.id === 'pricing' || section.id === 'testimonials' || section.id === 'blog-intro' ? 'text-center md:text-left' : '')}
-            imageContainerClassName={(section.id === 'blog-intro' ? 'max-w-md ml-auto' : '')}
-          >
-            {section.cta && (
-              <Button asChild size="lg" className="mt-6 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Link href={section.cta.href}>
-                  {section.cta.text} <Rocket className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            )}
-          </AiImageSection>
-        ))}
+        {/* Render CMS-managed sections */}
+        {staticSectionsConfig.map((sectionConfig) => {
+          const isVisible = getDynamicOrStaticContent(sectionConfig.id, 'isVisible', sectionConfig) as boolean;
+          if (!isVisible) return null;
 
+          const title = getDynamicOrStaticContent(sectionConfig.id, 'title', sectionConfig) as string;
+          const text = getDynamicOrStaticContent(sectionConfig.id, 'text', sectionConfig) as string;
+          const imageUrl = getDynamicOrStaticContent(sectionConfig.id, 'imageUrl', sectionConfig) as string | null;
+          
+          const imageInfo: AiImageInfo = {
+            imageDataURI: imageUrl,
+            description: sectionConfig.imageDescriptionForHint,
+            placeholderHint: sectionConfig.imageDescriptionForHint
+          };
+
+          // Special handling for CTA section which includes the ContactForm
+          if (sectionConfig.id === 'cta') {
+            return (
+              <section key={sectionConfig.id} id={sectionConfig.id} className="py-20 md:py-28 bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
+                <div className="container mx-auto">
+                  <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+                      <div>
+                          <h2 className="font-headline text-4xl md:text-5xl font-bold mb-6">{title}</h2>
+                          <p className="text-lg leading-relaxed mb-8">{text}</p>
+                          <ContactForm />
+                      </div>
+                      <div className="hidden md:flex justify-center items-center">
+                           <AiImageSection
+                              title="" // Title and text handled above for this specific layout
+                              text=""
+                              imageInfo={imageInfo}
+                              imagePlacement="right" // Does not matter much as it's the only element here
+                              className="!p-0" // Remove padding from AiImageSection itself
+                           />
+                      </div>
+                  </div>
+                </div>
+              </section>
+            );
+          }
+
+          // Default rendering for other sections
+          return (
+            <AiImageSection
+              key={sectionConfig.id}
+              id={sectionConfig.id} // Add id for potential anchor linking
+              title={title}
+              text={text}
+              imageInfo={imageInfo}
+              imagePlacement={sectionConfig.imagePlacement}
+              className={sectionConfig.id === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
+              titleClassName={sectionConfig.id === 'hero' ? 'text-5xl md:text-6xl lg:text-7xl' : (['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro'].includes(sectionConfig.id) ? 'text-3xl text-center md:text-left' : '')}
+              textClassName={(['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro'].includes(sectionConfig.id) ? 'text-center md:text-left' : '')}
+              imageContainerClassName={(sectionConfig.id === 'blog-intro' ? 'max-w-md ml-auto' : '')}
+            >
+              {sectionConfig.cta && (
+                <Button asChild size="lg" className="mt-6 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-accent hover:bg-accent/90 text-accent-foreground">
+                  <Link href={sectionConfig.cta.href}>
+                    {sectionConfig.cta.text} <Rocket className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+              )}
+            </AiImageSection>
+          );
+        })}
+
+        {/* Static Sections (not directly managed by CMS image/title/text fields, but could be hidden by a general "features_section_visible" flag if needed) */}
         <section id="features" className="py-16 md:py-24 bg-secondary/50">
           <div className="container mx-auto text-center">
             <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
@@ -277,13 +262,7 @@ export default async function HomePage() {
 
         <section id="services" className="py-16 md:py-24">
           <div className="container mx-auto text-center">
-             <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
-              Our Virtual Assistant Services
-            </h2>
-            <p className="text-lg text-foreground/80 mb-12 max-w-3xl mx-auto">
-              Comprehensive VA solutions designed to streamline your business operations, manage your tasks effectively, and free up your valuable time so you can focus on strategic growth.
-            </p>
-            {/* The "Expert VA Support Tailored For You" AiImageSection is now part of the main loop above */}
+             {/* services-intro title/text is now handled by the CMS loop above */}
             <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
               {services.map((service) => (
                 <ServiceCard
@@ -323,10 +302,10 @@ export default async function HomePage() {
             <div className="text-center mb-12 md:mb-16">
               <BotMessageSquare className="h-12 w-12 text-accent mx-auto mb-4" />
               <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
-                {toolsDataStatic.title}
+                {getDynamicOrStaticContent('tools', 'title', staticSectionsConfig.find(s=>s.id==='tools')!) as string || toolsDataStatic.title}
               </h2>
               <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
-                {toolsDataStatic.description}
+                 {getDynamicOrStaticContent('tools', 'text', staticSectionsConfig.find(s=>s.id==='tools')!) as string || toolsDataStatic.description}
               </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
@@ -347,7 +326,6 @@ export default async function HomePage() {
                 </div>
               ))}
             </div>
-            {/* The AiImageSection for "tools" is handled in the main loop */}
           </div>
         </section>
 
@@ -356,10 +334,10 @@ export default async function HomePage() {
             <div className="text-center mb-12 md:mb-16">
               <Lightbulb className="h-12 w-12 text-accent mx-auto mb-4" />
               <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
-                {pricingDataStatic.title}
+                 {getDynamicOrStaticContent('pricing', 'title', staticSectionsConfig.find(s=>s.id==='pricing')!) as string || pricingDataStatic.title}
               </h2>
               <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
-                {pricingDataStatic.description}
+                 {getDynamicOrStaticContent('pricing', 'text', staticSectionsConfig.find(s=>s.id==='pricing')!) as string || pricingDataStatic.description}
               </p>
             </div>
             <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
@@ -375,7 +353,6 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-             {/* The AiImageSection for "pricing" is handled in the main loop */}
           </div>
         </section>
 
@@ -384,10 +361,10 @@ export default async function HomePage() {
             <div className="text-center mb-12 md:mb-16">
               <Users2 className="h-12 w-12 text-accent mx-auto mb-4" />
               <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
-                {testimonialsDataStatic.title}
+                {getDynamicOrStaticContent('testimonials', 'title', staticSectionsConfig.find(s=>s.id==='testimonials')!) as string || testimonialsDataStatic.title}
               </h2>
               <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
-                {testimonialsDataStatic.description}
+                {getDynamicOrStaticContent('testimonials', 'text', staticSectionsConfig.find(s=>s.id==='testimonials')!) as string || testimonialsDataStatic.description}
               </p>
             </div>
             <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
@@ -402,14 +379,13 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            {/* The AiImageSection for "testimonials" is handled in the main loop */}
           </div>
         </section>
 
         <section id="blog-intro-wrapper" className="py-16 md:py-24 bg-secondary/30">
           <div className="container mx-auto">
-             {/* The AiImageSection for "blog-intro" is handled in the main loop */}
-            <div className="text-center md:text-left mt-8 md:mt-0"> {/* Adjustments for layout if AiImageSection handles text */}
+            {/* The AiImageSection for "blog-intro" is rendered by the main loop if visible */}
+            <div className="text-center md:text-left mt-8 md:mt-0">
                  <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
                   <Link href="/blog">
                     Explore Our Blog <Rocket className="ml-2 h-5 w-5" />
@@ -418,24 +394,9 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
-
-
-        <section id="cta-wrapper" className="py-20 md:py-28 bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
-          <div className="container mx-auto">
-            <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                <div>
-                    {/* Title and Text for CTA are now rendered by AiImageSection from the loop */}
-                    <ContactForm />
-                </div>
-                <div className="hidden md:flex justify-center items-center">
-                     {/* The AiImageSection for "cta" is handled in the main loop, no need to repeat image logic here, only text if not part of AiImageSection */}
-                </div>
-            </div>
-          </div>
-        </section>
-
       </main>
       <Footer />
     </div>
   );
 }
+

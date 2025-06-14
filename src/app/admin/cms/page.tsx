@@ -9,10 +9,11 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch'; // Import Switch
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images } from 'lucide-react';
+import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -45,23 +46,24 @@ interface ManagedSection {
   newTitle: string;
   currentText: string | null;
   newText: string;
+  currentIsVisible: boolean; // Added
+  newIsVisible: boolean;     // Added
   isLoading: boolean;
   placeholderHint?: string;
 }
 
 const initialStaticSectionsData = [
-  { id: 'hero', name: 'Hero Section', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant' },
-  { id: 'onboarding-overview', name: 'Onboarding Overview Section', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps' },
-  { id: 'services-intro', name: 'Services Introduction', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services' },
-  { id: 'tools', name: 'Tools We Master Section', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage' },
-  { id: 'pricing', name: 'Pricing Section Image & Intro', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES' },
-  { id: 'testimonials', name: 'Testimonials Section Image & Intro', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients' },
-  { id: 'blog-intro', name: 'Blog Introduction Image & Text', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas' },
-  { id: 'cta', name: 'Call to Action Section Image & Text', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration' },
+  { id: 'hero', name: 'Hero Section', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant', defaultIsVisible: true },
+  { id: 'onboarding-overview', name: 'Onboarding Overview Section', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps', defaultIsVisible: true },
+  { id: 'services-intro', name: 'Services Introduction', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services', defaultIsVisible: true },
+  { id: 'tools', name: 'Tools We Master Section', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage', defaultIsVisible: true },
+  { id: 'pricing', name: 'Pricing Section Image & Intro', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES', defaultIsVisible: true },
+  { id: 'testimonials', name: 'Testimonials Section Image & Intro', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients', defaultIsVisible: true },
+  { id: 'blog-intro', name: 'Blog Introduction Image & Text', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas', defaultIsVisible: true },
+  { id: 'cta', name: 'Call to Action Section Image & Text', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration', defaultIsVisible: true },
 ];
 
 
-// Helper to convert various timestamp formats to ISO string or null (for CMS page blog listing)
 const convertDbTimestampToISOForCms = (dbTimestamp: any): string | null => {
   if (!dbTimestamp) return null;
   if (dbTimestamp instanceof Timestamp) { return dbTimestamp.toDate().toISOString(); }
@@ -75,7 +77,7 @@ const convertDbTimestampToISOForCms = (dbTimestamp: any): string | null => {
       const dateObj = dbTimestamp.toDate();
       if (dateObj instanceof Date && !isNaN(dateObj.getTime())) { return dateObj.toISOString(); }
       console.warn("toDate() did not return valid Date for CMS:", dbTimestamp);
-      return new Date().toISOString(); // Fallback for uncommitted server timestamps
+      return new Date().toISOString();
     } catch (e) { console.warn("Failed to convert object with toDate method for CMS:", e, dbTimestamp); return null; }
   }
   if (typeof dbTimestamp === 'string') {
@@ -99,8 +101,9 @@ const CmsPage: FC = () => {
     initialStaticSectionsData.map(s => ({ 
       ...s, 
       currentImageUrl: null, newImageUrl: '', 
-      currentTitle: s.defaultTitle, newTitle: s.defaultTitle, // Initialize with defaults
-      currentText: s.defaultText, newText: s.defaultText,     // Initialize with defaults
+      currentTitle: s.defaultTitle, newTitle: s.defaultTitle,
+      currentText: s.defaultText, newText: s.defaultText,
+      currentIsVisible: s.defaultIsVisible, newIsVisible: s.defaultIsVisible, // Initialize visibility
       isLoading: true 
     }))
   );
@@ -113,9 +116,10 @@ const CmsPage: FC = () => {
         currentImageUrl: null, newImageUrl: '',
         currentTitle: s.defaultTitle, newTitle: s.defaultTitle,
         currentText: s.defaultText, newText: s.defaultText,
+        currentIsVisible: s.defaultIsVisible, newIsVisible: s.defaultIsVisible,
         isLoading: true,
     }));
-    setManagedSections(initialData); // Set loading state immediately
+    setManagedSections(initialData); 
 
     const updates = await Promise.all(
       initialStaticSectionsData.map(async (staticSection) => {
@@ -124,10 +128,12 @@ const CmsPage: FC = () => {
           ...staticSection,
           currentImageUrl: fetchedData?.imageUrl || null,
           newImageUrl: fetchedData?.imageUrl || '',
-          currentTitle: fetchedData?.title || staticSection.defaultTitle,
-          newTitle: fetchedData?.title || staticSection.defaultTitle,
-          currentText: fetchedData?.text || staticSection.defaultText,
-          newText: fetchedData?.text || staticSection.defaultText,
+          currentTitle: fetchedData?.title ?? staticSection.defaultTitle,
+          newTitle: fetchedData?.title ?? staticSection.defaultTitle,
+          currentText: fetchedData?.text ?? staticSection.defaultText,
+          newText: fetchedData?.text ?? staticSection.defaultText,
+          currentIsVisible: fetchedData?.isVisible ?? staticSection.defaultIsVisible,
+          newIsVisible: fetchedData?.isVisible ?? staticSection.defaultIsVisible,
           isLoading: false,
         };
       })
@@ -163,7 +169,7 @@ const CmsPage: FC = () => {
           createdAt: convertDbTimestampToISOForCms(data.createdAt),
           updatedAt: convertDbTimestampToISOForCms(data.updatedAt),
           publishedAt: data.publishedAt ? convertDbTimestampToISOForCms(data.publishedAt) : null,
-        } as BlogPost); // Added 'as BlogPost' for stricter type checking
+        } as BlogPost);
       });
       setBlogPosts(posts);
       setIsLoadingPosts(false);
@@ -203,6 +209,9 @@ const CmsPage: FC = () => {
   const handleTextChange = (sectionId: string, value: string) => {
     setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newText: value } : s));
   };
+  const handleIsVisibleChange = (sectionId: string, checked: boolean) => {
+    setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newIsVisible: checked } : s));
+  };
 
   const handleSaveSectionData = async (sectionId: string) => {
     if (!firebaseUser?.uid) {
@@ -214,8 +223,9 @@ const CmsPage: FC = () => {
 
     setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, isLoading: true } : s));
     
-    const dataToUpdate: { imageUrl?: string | null; title?: string | null; text?: string | null } = {};
+    const dataToUpdate: { imageUrl?: string | null; title?: string | null; text?: string | null; isVisible?: boolean } = {};
     let changed = false;
+
     if (section.newImageUrl !== section.currentImageUrl) {
       dataToUpdate.imageUrl = section.newImageUrl.trim() === '' ? null : section.newImageUrl.trim();
       changed = true;
@@ -226,6 +236,10 @@ const CmsPage: FC = () => {
     }
     if (section.newText !== section.currentText) {
       dataToUpdate.text = section.newText.trim() === '' ? null : section.newText.trim();
+      changed = true;
+    }
+    if (section.newIsVisible !== section.currentIsVisible) {
+      dataToUpdate.isVisible = section.newIsVisible;
       changed = true;
     }
     
@@ -249,6 +263,8 @@ const CmsPage: FC = () => {
             newTitle: result.sectionData!.hasOwnProperty('title') ? (result.sectionData!.title || s.defaultTitle) : s.newTitle,
             currentText: result.sectionData!.hasOwnProperty('text') ? result.sectionData!.text : s.currentText,
             newText: result.sectionData!.hasOwnProperty('text') ? (result.sectionData!.text || s.defaultText) : s.newText,
+            currentIsVisible: result.sectionData!.hasOwnProperty('isVisible') ? (result.sectionData!.isVisible ?? true) : s.currentIsVisible,
+            newIsVisible: result.sectionData!.hasOwnProperty('isVisible') ? (result.sectionData!.isVisible ?? true) : s.newIsVisible,
             isLoading: false 
           };
         }
@@ -287,16 +303,31 @@ const CmsPage: FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Content</CardTitle>
             <CardDescription>
-              Update images and text for key sections of your public website. 
-              For images, use direct links (e.g., ending in .jpg, .png from sources like Unsplash direct image URLs), not links to web pages like `unsplash.com/photos/...`.
+              Update images (use direct links: .jpg, .png), text, and visibility for key sections of your public website. 
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {managedSections.map((section) => (
               <Card key={section.id} className="p-4 shadow-md">
                 <CardHeader className="p-0 pb-3">
-                  <CardTitle className="text-lg font-semibold text-primary">{section.name}</CardTitle>
-                  <CardDescription className="text-xs">{section.description}</CardDescription>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg font-semibold text-primary">{section.name}</CardTitle>
+                      <CardDescription className="text-xs">{section.description}</CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2 pt-1">
+                        <Switch
+                            id={`isVisible-${section.id}`}
+                            checked={section.newIsVisible}
+                            onCheckedChange={(checked) => handleIsVisibleChange(section.id, checked)}
+                            disabled={section.isLoading || !firebaseUser}
+                        />
+                        <Label htmlFor={`isVisible-${section.id}`} className="text-sm">
+                            {section.newIsVisible ? <Eye className="h-4 w-4 inline mr-1"/> : <EyeOff className="h-4 w-4 inline mr-1"/>}
+                            {section.newIsVisible ? "Visible" : "Hidden"}
+                        </Label>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-0 grid md:grid-cols-2 gap-6">
                   <div className="space-y-3">
@@ -308,7 +339,7 @@ const CmsPage: FC = () => {
                           fill 
                           style={{ objectFit: 'contain' }}
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          priority={section.id === 'hero'}
+                          priority={section.id === 'hero'} 
                         />
                       ) : (
                         <Image 
@@ -328,10 +359,10 @@ const CmsPage: FC = () => {
                           </div>
                       )}
                     </div>
-                    <Label htmlFor={`imageUrl-${section.id}`}>Image URL</Label>
+                    <Label htmlFor={`imageUrl-${section.id}`}>Image URL (direct link: .jpg, .png)</Label>
                     <Input
                       id={`imageUrl-${section.id}`}
-                      placeholder="Paste direct image URL (e.g., .jpg, .png)"
+                      placeholder="Paste direct image URL (e.g., from images.unsplash.com)"
                       value={section.newImageUrl}
                       onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
                       disabled={section.isLoading || !firebaseUser}
@@ -381,7 +412,8 @@ const CmsPage: FC = () => {
                         !firebaseUser ||
                         (section.newImageUrl === section.currentImageUrl && 
                          section.newTitle === section.currentTitle &&
-                         section.newText === section.currentText)
+                         section.newText === section.currentText &&
+                         section.newIsVisible === section.currentIsVisible) // Check visibility change
                     }
                   >
                     {section.isLoading && <LottieLoader className="mr-1" size={16}/>}
