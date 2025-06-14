@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Save, PlusCircle, Trash2, FileText, Edit } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, Trash2, FileText, Edit, UserCircle2, Building } from 'lucide-react';
 
 import { getInvoiceAction, updateInvoiceAction, type InvoiceOperationResult } from '../../actions';
 import { CreateInvoiceFormSchema, type CreateInvoiceFormValues, type InvoiceItem, type Invoice } from '../../schema';
@@ -33,7 +33,7 @@ const EditInvoicePage: FC = () => {
   const router = useRouter();
   const params = useParams();
   const invoiceId = params.invoiceId as string;
-  const { user: adminFirebaseUser } = useAdminAuth();
+  const { user: adminFirebaseUser, userData: adminUserData } = useAdminAuth();
 
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +42,11 @@ const EditInvoicePage: FC = () => {
 
   const form = useForm<CreateInvoiceFormValues>({
     resolver: zodResolver(CreateInvoiceFormSchema),
-    defaultValues: { // Will be overwritten by fetched data
+    defaultValues: { 
+      senderName: adminUserData?.displayName || '',
+      senderEmail: adminUserData?.email || '',
+      senderPhone: adminUserData?.phone || '',
+      senderAddress: '', // Needs to be fetched from invoice or defaulted
       clientId: '',
       clientName: '',
       clientEmail: '',
@@ -88,9 +92,13 @@ const EditInvoicePage: FC = () => {
       if (fetchedInvoice) {
         form.reset({
           ...fetchedInvoice,
+          senderName: fetchedInvoice.senderName || adminUserData?.displayName || '',
+          senderEmail: fetchedInvoice.senderEmail || adminUserData?.email || '',
+          senderPhone: fetchedInvoice.senderPhone || adminUserData?.phone || '',
+          senderAddress: fetchedInvoice.senderAddress || '',
           issueDate: fetchedInvoice.issueDate ? parseISO(fetchedInvoice.issueDate) : new Date(),
           dueDate: fetchedInvoice.dueDate ? parseISO(fetchedInvoice.dueDate) : add(new Date(), { weeks: 2 }),
-          items: fetchedInvoice.items.map(item => ({ // Ensure items are plain objects
+          items: fetchedInvoice.items.map(item => ({ 
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice
@@ -110,7 +118,7 @@ const EditInvoicePage: FC = () => {
     } finally {
       setIsLoadingInvoice(false);
     }
-  }, [invoiceId, toast, router, form]);
+  }, [invoiceId, toast, router, form, adminUserData]);
 
   useEffect(() => {
     fetchInvoiceData();
@@ -121,8 +129,8 @@ const EditInvoicePage: FC = () => {
       if (name === 'clientId' && value.clientId) {
         const selectedClient = clients.find(c => c.id === value.clientId);
         if (selectedClient) {
-          form.setValue('clientName', selectedClient.name);
-          form.setValue('clientEmail', selectedClient.email || '');
+          form.setValue('clientName', selectedClient.name, { shouldDirty: true });
+          form.setValue('clientEmail', selectedClient.email || '', { shouldDirty: true });
         }
       }
     });
@@ -131,7 +139,7 @@ const EditInvoicePage: FC = () => {
 
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === 'issueDate' && value.issueDate && !form.formState.dirtyFields.dueDate) { // Only auto-update if due date wasn't manually changed
+      if (name === 'issueDate' && value.issueDate && !form.formState.dirtyFields.dueDate) { 
         form.setValue('dueDate', add(value.issueDate, { weeks: 2 }));
       }
     });
@@ -203,45 +211,102 @@ const EditInvoicePage: FC = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleUpdateInvoice)} className="space-y-8">
               
-              <div className="grid md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="clientId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Client *</FormLabel>
-                      <Select 
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          const selectedClient = clients.find(c => c.id === value);
-                          if (selectedClient) {
-                            form.setValue('clientName', selectedClient.name, { shouldDirty: true });
-                            form.setValue('clientEmail', selectedClient.email || '', { shouldDirty: true });
-                          }
-                        }} 
-                        value={field.value} 
-                        disabled={isLoadingClients || isSubmitting}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={isLoadingClients ? "Loading clients..." : "Select a client"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name} ({client.email})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <input type="hidden" {...form.register('clientName')} />
-                <input type="hidden" {...form.register('clientEmail')} />
-              </div>
+            <section className="space-y-4 p-4 border rounded-lg bg-secondary/20">
+                <h3 className="text-xl font-semibold text-primary flex items-center"><UserCircle2 className="mr-2 h-5 w-5" />Your Company Details (Sender)</h3>
+                 <div className="grid md:grid-cols-2 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="senderName"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Company/Your Name *</FormLabel>
+                            <FormControl><Input placeholder="Your Company LLC" {...field} disabled={isSubmitting} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="senderEmail"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Email Address *</FormLabel>
+                            <FormControl><Input type="email" placeholder="yourcompany@example.com" {...field} disabled={isSubmitting} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="senderPhone"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Phone Number</FormLabel>
+                            <FormControl><Input type="tel" placeholder="+1 234 567 8900" {...field} value={field.value ?? ''} disabled={isSubmitting} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="senderAddress"
+                        render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                            <FormLabel>Address</FormLabel>
+                            <FormControl><Textarea placeholder="123 Main St, City, Country" {...field} value={field.value ?? ''} rows={2} disabled={isSubmitting} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                 </div>
+              </section>
+
+              <Separator />
+
+              <section className="space-y-4 p-4 border rounded-lg">
+                <h3 className="text-xl font-semibold text-primary flex items-center"><Building className="mr-2 h-5 w-5" />Client Details (Bill To)</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <FormField
+                    control={form.control}
+                    name="clientId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Client *</FormLabel>
+                        <Select 
+                            onValueChange={(value) => {
+                            field.onChange(value);
+                            const selectedClient = clients.find(c => c.id === value);
+                            if (selectedClient) {
+                                form.setValue('clientName', selectedClient.name, { shouldDirty: true });
+                                form.setValue('clientEmail', selectedClient.email || '', { shouldDirty: true });
+                            }
+                            }} 
+                            value={field.value} 
+                            disabled={isLoadingClients || isSubmitting}
+                        >
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder={isLoadingClients ? "Loading clients..." : "Select a client"} />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {clients.map((client) => (
+                                <SelectItem key={client.id} value={client.id}>
+                                {client.name} ({client.email})
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <input type="hidden" {...form.register('clientName')} />
+                    <input type="hidden" {...form.register('clientEmail')} />
+                </div>
+              </section>
+
+              <Separator />
 
               <div className="grid md:grid-cols-2 gap-6">
                 <FormField
@@ -438,3 +503,4 @@ const EditInvoicePage: FC = () => {
 };
 
 export default EditInvoicePage;
+

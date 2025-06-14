@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
+import { useState, useEffect, useCallback, useMemo } from 'react'; 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller, type SubmitHandler } from 'react-hook-form';
@@ -22,16 +22,16 @@ import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Save, PlusCircle, Trash2, FileText } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, Trash2, FileText, UserCircle2, Building } from 'lucide-react';
 
 import { addInvoiceAction, type InvoiceOperationResult } from '../actions';
 import { CreateInvoiceFormSchema, type CreateInvoiceFormValues, type InvoiceItem } from '../schema';
-import { getAllClientsAction, type Client } from '../../clients/actions'; // To fetch clients
+import { getAllClientsAction, type Client } from '../../clients/actions'; 
 
 const CreateInvoicePage: FC = () => {
   const { toast } = useToast();
   const router = useRouter();
-  const { user: adminFirebaseUser } = useAdminAuth();
+  const { user: adminFirebaseUser, userData: adminUserData } = useAdminAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
@@ -39,9 +39,13 @@ const CreateInvoicePage: FC = () => {
   const form = useForm<CreateInvoiceFormValues>({
     resolver: zodResolver(CreateInvoiceFormSchema),
     defaultValues: {
+      senderName: adminUserData?.displayName || '',
+      senderEmail: adminUserData?.email || '',
+      senderPhone: adminUserData?.phone || '', // Assuming adminUserData might have phone
+      senderAddress: '', // No typical address field in adminUserData yet
       clientId: '',
-      clientName: '',
-      clientEmail: '',
+      clientName: '', // Will be set on client selection
+      clientEmail: '', // Will be set on client selection
       issueDate: new Date(),
       dueDate: add(new Date(), { weeks: 2 }),
       items: [{ description: '', quantity: 1, unitPrice: 0 }],
@@ -73,6 +77,15 @@ const CreateInvoicePage: FC = () => {
     fetchClientsCallback();
   }, [fetchClientsCallback]);
   
+  useEffect(() => {
+    // Pre-fill sender info if admin data changes
+    if (adminUserData) {
+        form.setValue('senderName', adminUserData.displayName || '');
+        form.setValue('senderEmail', adminUserData.email || '');
+        // Add other fields if available, e.g. form.setValue('senderPhone', adminUserData.phone || '');
+    }
+  }, [adminUserData, form]);
+
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === 'clientId' && value.clientId) {
@@ -150,34 +163,91 @@ const CreateInvoicePage: FC = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSaveInvoice)} className="space-y-8">
               
-              <div className="grid md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="clientId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Client *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingClients || isSubmitting}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={isLoadingClients ? "Loading clients..." : "Select a client"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name} ({client.email})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <input type="hidden" {...form.register('clientName')} />
-                <input type="hidden" {...form.register('clientEmail')} />
-              </div>
+              <section className="space-y-4 p-4 border rounded-lg bg-secondary/20">
+                <h3 className="text-xl font-semibold text-primary flex items-center"><UserCircle2 className="mr-2 h-5 w-5" />Your Company Details (Sender)</h3>
+                 <div className="grid md:grid-cols-2 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="senderName"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Company/Your Name *</FormLabel>
+                            <FormControl><Input placeholder="Your Company LLC" {...field} disabled={isSubmitting} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="senderEmail"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Email Address *</FormLabel>
+                            <FormControl><Input type="email" placeholder="yourcompany@example.com" {...field} disabled={isSubmitting} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="senderPhone"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Phone Number</FormLabel>
+                            <FormControl><Input type="tel" placeholder="+1 234 567 8900" {...field} value={field.value ?? ''} disabled={isSubmitting} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="senderAddress"
+                        render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                            <FormLabel>Address</FormLabel>
+                            <FormControl><Textarea placeholder="123 Main St, City, Country" {...field} value={field.value ?? ''} rows={2} disabled={isSubmitting} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                 </div>
+              </section>
+
+              <Separator />
+
+              <section className="space-y-4 p-4 border rounded-lg">
+                <h3 className="text-xl font-semibold text-primary flex items-center"><Building className="mr-2 h-5 w-5" />Client Details (Bill To)</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <FormField
+                    control={form.control}
+                    name="clientId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Client *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingClients || isSubmitting}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder={isLoadingClients ? "Loading clients..." : "Select a client"} />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {clients.map((client) => (
+                                <SelectItem key={client.id} value={client.id}>
+                                {client.name} ({client.email})
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <input type="hidden" {...form.register('clientName')} />
+                    <input type="hidden" {...form.register('clientEmail')} />
+                </div>
+              </section>
+              
+              <Separator />
 
               <div className="grid md:grid-cols-2 gap-6">
                 <FormField
@@ -376,3 +446,4 @@ const CreateInvoicePage: FC = () => {
 };
 
 export default CreateInvoicePage;
+

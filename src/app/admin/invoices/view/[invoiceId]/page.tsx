@@ -12,8 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import { getInvoiceAction } from '../../actions'; // Corrected import path
-import type { Invoice, InvoiceStatus } from '../../schema'; // Corrected import path
+import { getInvoiceAction } from '../../actions'; 
+import type { Invoice, InvoiceStatus } from '../../schema'; 
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { ArrowLeft, Printer, Edit, Send, Trash2, DollarSign, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -92,7 +92,6 @@ const ViewInvoicePage: FC = () => {
                     <Edit className="mr-2 h-4 w-4" /> Edit
                 </Link>
             </Button>
-             {/* More actions like 'Send Invoice' can be added here */}
         </div>
       </div>
 
@@ -104,10 +103,10 @@ const ViewInvoicePage: FC = () => {
               <p className="text-muted-foreground">Invoice #: {invoice.invoiceNumber}</p>
             </div>
             <div className="text-left sm:text-right mt-4 sm:mt-0">
-              <h2 className="text-xl font-semibold text-primary">Tiny Tasks VA Services</h2>
-              <p className="text-sm text-muted-foreground">yourcompany@example.com</p>
-              <p className="text-sm text-muted-foreground">+254 700 000 000</p>
-              <p className="text-sm text-muted-foreground">Nairobi, Kenya</p>
+              <h2 className="text-xl font-semibold text-primary">{invoice.senderName || 'Your Company Name'}</h2>
+              <p className="text-sm text-muted-foreground">{invoice.senderEmail || 'yourcompany@example.com'}</p>
+              {invoice.senderPhone && <p className="text-sm text-muted-foreground">{invoice.senderPhone}</p>}
+              {invoice.senderAddress && <p className="text-sm text-muted-foreground whitespace-pre-line">{invoice.senderAddress}</p>}
             </div>
           </div>
           <Separator className="my-4 print:hidden" />
@@ -116,7 +115,6 @@ const ViewInvoicePage: FC = () => {
                     <p className="font-semibold text-muted-foreground">Bill To:</p>
                     <p className="text-primary font-medium">{invoice.clientName}</p>
                     <p>{invoice.clientEmail}</p>
-                    {/* Add client address if available */}
                 </div>
                 <div className="text-left sm:text-right mt-4 sm:mt-0">
                     <p><span className="font-semibold text-muted-foreground">Issue Date:</span> {format(parseISO(invoice.issueDate), 'PPP')}</p>

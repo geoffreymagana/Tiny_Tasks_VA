@@ -52,8 +52,6 @@ async function generateInvoiceNumber(): Promise<string> {
   const prefix = "TTVA"; // Tiny Tasks Virtual Assistant
   const datePart = format(new Date(), "yyyyMM"); // Year and Month
   
-  // Get count of invoices for the current month to create a sequential number
-  // This is a simple approach; for high concurrency, a Firestore transaction counter is better.
   const invoicesRef = collection(db, 'invoices');
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const monthEnd = add(monthStart, { months: 1 });
@@ -63,7 +61,7 @@ async function generateInvoiceNumber(): Promise<string> {
                 where('createdAt', '<', Timestamp.fromDate(monthEnd))
               );
   const snapshot = await getDocs(q);
-  const count = snapshot.size + 1; // Next number in sequence for this month
+  const count = snapshot.size + 1; 
   
   return `${prefix}-${datePart}-${String(count).padStart(4, '0')}`;
 }
@@ -73,9 +71,9 @@ const convertDbTimestamp = (timestamp: any): string | null => {
   if (timestamp instanceof Timestamp) {
     return timestamp.toDate().toISOString();
   }
-  if (typeof timestamp === 'string') return timestamp; // Already a string
-  if (timestamp && typeof timestamp.toDate === 'function') { // Handle Firestore ServerTimestamp placeholder
-      return new Date().toISOString(); // Fallback to current date if it's a pending server timestamp
+  if (typeof timestamp === 'string') return timestamp; 
+  if (timestamp && typeof timestamp.toDate === 'function') { 
+      return new Date().toISOString(); 
   }
   return null;
 };
@@ -84,8 +82,14 @@ const convertDbTimestamp = (timestamp: any): string | null => {
 // ----- Server Actions -----
 
 export async function addInvoiceAction(
-  // Use CreateInvoiceFormValues but expect dates as strings from client, as server actions don't directly handle Date objects from JSON payload
-  formData: Omit<CreateInvoiceFormValues, 'issueDate' | 'dueDate'> & { issueDate: string; dueDate: string; },
+  formData: Omit<CreateInvoiceFormValues, 'issueDate' | 'dueDate'> & { 
+    issueDate: string; 
+    dueDate: string;
+    senderName?: string | null;
+    senderEmail?: string | null;
+    senderPhone?: string | null;
+    senderAddress?: string | null;
+  },
   adminId: string
 ): Promise<InvoiceOperationResult> {
   if (!(await verifyAdmin(adminId))) {
@@ -93,7 +97,6 @@ export async function addInvoiceAction(
   }
 
   try {
-    // Server-side recalculation and validation
     const subTotalAmount = calculateSubTotalAmount(formData.items);
     const totalAmount = calculateTotalAmount(subTotalAmount, formData.taxAmount, formData.discountAmount);
     
@@ -105,15 +108,18 @@ export async function addInvoiceAction(
       subTotalAmount,
       totalAmount,
       adminId,
-      // Ensure dates are correctly formatted if they came as strings
-      issueDate: formData.issueDate, // Assuming it's already an ISO string
-      dueDate: formData.dueDate,     // Assuming it's already an ISO string
+      issueDate: formData.issueDate, 
+      dueDate: formData.dueDate,     
       paidAt: formData.status === 'paid' ? serverTimestamp() : null,
-      createdAt: serverTimestamp(), // Add these here for the final object
+      // Sender details passed from formData
+      senderName: formData.senderName || null,
+      senderEmail: formData.senderEmail || null,
+      senderPhone: formData.senderPhone || null,
+      senderAddress: formData.senderAddress || null,
+      createdAt: serverTimestamp(), 
       updatedAt: serverTimestamp(),
     };
     
-    // Validate the complete object against the main InvoiceSchema before saving
     const validatedData = InvoiceSchema.omit({id: true, createdAt: true, updatedAt: true}).safeParse(dataToSave);
     if (!validatedData.success) {
         console.error("Server-side validation errors:", validatedData.error.flatten().fieldErrors);
@@ -182,7 +188,14 @@ export async function getInvoiceAction(invoiceId: string): Promise<Invoice | nul
 
 export async function updateInvoiceAction(
   invoiceId: string,
-  updateData: Partial<Omit<Invoice, 'id' | 'invoiceNumber' | 'adminId' | 'createdAt' | 'updatedAt' | 'issueDate' | 'dueDate'>> & { issueDate?: string; dueDate?: string },
+  updateData: Partial<Omit<Invoice, 'id' | 'invoiceNumber' | 'adminId' | 'createdAt' | 'updatedAt' | 'issueDate' | 'dueDate'>> & { 
+    issueDate?: string; 
+    dueDate?: string;
+    senderName?: string | null;
+    senderEmail?: string | null;
+    senderPhone?: string | null;
+    senderAddress?: string | null;
+  },
   adminId: string
 ): Promise<InvoiceOperationResult> {
   if (!(await verifyAdmin(adminId))) {
@@ -197,7 +210,6 @@ export async function updateInvoiceAction(
     }
     const currentData = currentDocSnap.data() as Invoice;
 
-    // Prepare data for update, including recalculations if items change
     const items = updateData.items || currentData.items;
     const subTotalAmount = calculateSubTotalAmount(items);
     const taxAmount = updateData.taxAmount !== undefined ? updateData.taxAmount : currentData.taxAmount;
@@ -205,8 +217,8 @@ export async function updateInvoiceAction(
     const totalAmount = calculateTotalAmount(subTotalAmount, taxAmount, discountAmount);
     
     const dataToUpdate: any = {
-      ...updateData,
-      items, // ensure items are included
+      ...updateData, // includes client details, status, notes, and new sender details
+      items,
       subTotalAmount,
       taxAmount,
       discountAmount,
@@ -214,10 +226,8 @@ export async function updateInvoiceAction(
       updatedAt: serverTimestamp(),
     };
 
-    // Handle date string conversion if dates are part of updateData
     if (updateData.issueDate) dataToUpdate.issueDate = updateData.issueDate;
     if (updateData.dueDate) dataToUpdate.dueDate = updateData.dueDate;
-
 
     if (updateData.status === 'paid' && currentData.status !== 'paid') {
       dataToUpdate.paidAt = serverTimestamp();
@@ -267,7 +277,6 @@ export async function sendInvoiceAction(
   // Placeholder for actual email sending logic
   console.log(`Simulating sending invoice ${invoice.invoiceNumber} to ${invoice.clientEmail || invoice.clientName}`);
   
-  // If invoice is a draft, update its status to 'pending'
   let updateMessage = '';
   if (invoice.status === 'draft') {
     const updateResult = await updateInvoiceAction(invoiceId, { status: 'pending' }, adminId);
@@ -280,3 +289,4 @@ export async function sendInvoiceAction(
 
   return { success: true, message: `Invoice ${invoice.invoiceNumber} has been marked for sending (simulation).${updateMessage}` };
 }
+
