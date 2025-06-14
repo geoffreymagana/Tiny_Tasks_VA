@@ -17,8 +17,8 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { format } from 'date-fns';
-import { InvoiceSchema, type InvoiceItem, type Invoice, type InvoiceStatus } from './schema';
+import { format, add } from 'date-fns';
+import { InvoiceSchema, type InvoiceItem, type Invoice, type InvoiceStatus, type CreateInvoiceFormValues } from './schema';
 
 export interface InvoiceOperationResult {
   success: boolean;
@@ -35,18 +35,37 @@ async function verifyAdmin(adminId: string): Promise<boolean> {
   return adminDoc.exists() && adminDoc.data()?.role === 'admin';
 }
 
-function calculateTotalAmount(items: InvoiceItem[]): number {
-  return items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+function calculateItemTotal(item: InvoiceItem): number {
+  return item.quantity * item.unitPrice;
 }
 
-// Simple invoice number generator. For production, consider a more robust sequential or UUID-based approach.
+function calculateSubTotalAmount(items: InvoiceItem[]): number {
+  return items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+}
+
+function calculateTotalAmount(subTotal: number, tax: number = 0, discount: number = 0): number {
+    return subTotal + tax - discount;
+}
+
+
 async function generateInvoiceNumber(): Promise<string> {
-  const prefix = "INV";
-  const datePart = format(new Date(), "yyyyMMdd");
+  const prefix = "TTVA"; // Tiny Tasks Virtual Assistant
+  const datePart = format(new Date(), "yyyyMM"); // Year and Month
   
-  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  // Get count of invoices for the current month to create a sequential number
+  // This is a simple approach; for high concurrency, a Firestore transaction counter is better.
+  const invoicesRef = collection(db, 'invoices');
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const monthEnd = add(monthStart, { months: 1 });
+
+  const q = query(invoicesRef, 
+                where('createdAt', '>=', Timestamp.fromDate(monthStart)),
+                where('createdAt', '<', Timestamp.fromDate(monthEnd))
+              );
+  const snapshot = await getDocs(q);
+  const count = snapshot.size + 1; // Next number in sequence for this month
   
-  return `${prefix}-${datePart}-${randomSuffix}`;
+  return `${prefix}-${datePart}-${String(count).padStart(4, '0')}`;
 }
 
 const convertDbTimestamp = (timestamp: any): string | null => {
@@ -54,9 +73,9 @@ const convertDbTimestamp = (timestamp: any): string | null => {
   if (timestamp instanceof Timestamp) {
     return timestamp.toDate().toISOString();
   }
-  if (typeof timestamp === 'string') return timestamp;
-  if (timestamp && typeof timestamp.toDate === 'function') {
-    return new Date().toISOString(); 
+  if (typeof timestamp === 'string') return timestamp; // Already a string
+  if (timestamp && typeof timestamp.toDate === 'function') { // Handle Firestore ServerTimestamp placeholder
+      return new Date().toISOString(); // Fallback to current date if it's a pending server timestamp
   }
   return null;
 };
@@ -65,7 +84,8 @@ const convertDbTimestamp = (timestamp: any): string | null => {
 // ----- Server Actions -----
 
 export async function addInvoiceAction(
-  invoiceData: Omit<Invoice, 'invoiceNumber' | 'totalAmount' | 'id' | 'createdAt' | 'updatedAt'>,
+  // Use CreateInvoiceFormValues but expect dates as strings from client, as server actions don't directly handle Date objects from JSON payload
+  formData: Omit<CreateInvoiceFormValues, 'issueDate' | 'dueDate'> & { issueDate: string; dueDate: string; },
   adminId: string
 ): Promise<InvoiceOperationResult> {
   if (!(await verifyAdmin(adminId))) {
@@ -73,31 +93,38 @@ export async function addInvoiceAction(
   }
 
   try {
-    const validatedData = InvoiceSchema.omit({ 
-        id: true, invoiceNumber: true, totalAmount: true, createdAt: true, updatedAt: true, adminId: true 
-    }).safeParse(invoiceData);
-
-    if (!validatedData.success) {
-        console.error("Validation errors:", validatedData.error.flatten().fieldErrors);
-        return { success: false, message: `Validation failed: ${JSON.stringify(validatedData.error.flatten().fieldErrors)}` };
-    }
+    // Server-side recalculation and validation
+    const subTotalAmount = calculateSubTotalAmount(formData.items);
+    const totalAmount = calculateTotalAmount(subTotalAmount, formData.taxAmount, formData.discountAmount);
     
-    const dataToSave = validatedData.data;
-
     const invoiceNumber = await generateInvoiceNumber();
-    const totalAmount = calculateTotalAmount(dataToSave.items);
 
-    const newInvoice: Omit<Invoice, 'id'> = {
-      ...dataToSave,
+    const dataToSave: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
+      ...formData,
       invoiceNumber,
+      subTotalAmount,
       totalAmount,
       adminId,
-      createdAt: serverTimestamp(),
+      // Ensure dates are correctly formatted if they came as strings
+      issueDate: formData.issueDate, // Assuming it's already an ISO string
+      dueDate: formData.dueDate,     // Assuming it's already an ISO string
+      paidAt: formData.status === 'paid' ? serverTimestamp() : null,
+      createdAt: serverTimestamp(), // Add these here for the final object
       updatedAt: serverTimestamp(),
-      paidAt: dataToSave.status === 'paid' ? serverTimestamp() : null,
     };
+    
+    // Validate the complete object against the main InvoiceSchema before saving
+    const validatedData = InvoiceSchema.omit({id: true, createdAt: true, updatedAt: true}).safeParse(dataToSave);
+    if (!validatedData.success) {
+        console.error("Server-side validation errors:", validatedData.error.flatten().fieldErrors);
+        return { success: false, message: `Server-side validation failed: ${JSON.stringify(validatedData.error.flatten().fieldErrors)}` };
+    }
 
-    const docRef = await addDoc(collection(db, 'invoices'), newInvoice);
+    const docRef = await addDoc(collection(db, 'invoices'), {
+        ...validatedData.data, 
+        createdAt: serverTimestamp(), 
+        updatedAt: serverTimestamp()
+    });
     return { success: true, message: 'Invoice created successfully!', invoiceId: docRef.id, invoiceNumber };
   } catch (error: any) {
     console.error('Error creating invoice:', error);
@@ -108,7 +135,7 @@ export async function addInvoiceAction(
 export async function getAllInvoicesAction(): Promise<Invoice[]> {
   try {
     const invoicesRef = collection(db, 'invoices');
-    const q = query(invoicesRef, orderBy('issueDate', 'desc')); // Sort by issue date, newest first
+    const q = query(invoicesRef, orderBy('issueDate', 'desc')); 
     const querySnapshot = await getDocs(q);
     
     return querySnapshot.docs.map(doc => {
@@ -155,7 +182,7 @@ export async function getInvoiceAction(invoiceId: string): Promise<Invoice | nul
 
 export async function updateInvoiceAction(
   invoiceId: string,
-  updateData: Partial<Omit<Invoice, 'id' | 'invoiceNumber' | 'adminId' | 'createdAt' | 'updatedAt'>>, // Allow partial updates
+  updateData: Partial<Omit<Invoice, 'id' | 'invoiceNumber' | 'adminId' | 'createdAt' | 'updatedAt' | 'issueDate' | 'dueDate'>> & { issueDate?: string; dueDate?: string },
   adminId: string
 ): Promise<InvoiceOperationResult> {
   if (!(await verifyAdmin(adminId))) {
@@ -164,27 +191,38 @@ export async function updateInvoiceAction(
 
   const invoiceRef = doc(db, 'invoices', invoiceId);
   try {
-    const currentDoc = await getDoc(invoiceRef);
-    if (!currentDoc.exists()) {
+    const currentDocSnap = await getDoc(invoiceRef);
+    if (!currentDocSnap.exists()) {
       return { success: false, message: 'Invoice not found for update.' };
     }
+    const currentData = currentDocSnap.data() as Invoice;
 
-    // Recalculate total if items are part of the update
-    let totalAmount = currentDoc.data()?.totalAmount;
-    if (updateData.items) {
-      totalAmount = calculateTotalAmount(updateData.items);
-    }
+    // Prepare data for update, including recalculations if items change
+    const items = updateData.items || currentData.items;
+    const subTotalAmount = calculateSubTotalAmount(items);
+    const taxAmount = updateData.taxAmount !== undefined ? updateData.taxAmount : currentData.taxAmount;
+    const discountAmount = updateData.discountAmount !== undefined ? updateData.discountAmount : currentData.discountAmount;
+    const totalAmount = calculateTotalAmount(subTotalAmount, taxAmount, discountAmount);
     
     const dataToUpdate: any = {
       ...updateData,
+      items, // ensure items are included
+      subTotalAmount,
+      taxAmount,
+      discountAmount,
       totalAmount,
       updatedAt: serverTimestamp(),
     };
 
-    if (updateData.status === 'paid' && currentDoc.data()?.status !== 'paid') {
+    // Handle date string conversion if dates are part of updateData
+    if (updateData.issueDate) dataToUpdate.issueDate = updateData.issueDate;
+    if (updateData.dueDate) dataToUpdate.dueDate = updateData.dueDate;
+
+
+    if (updateData.status === 'paid' && currentData.status !== 'paid') {
       dataToUpdate.paidAt = serverTimestamp();
-    } else if (updateData.status && updateData.status !== 'paid') {
-      dataToUpdate.paidAt = null; // Remove paidAt if status changes from paid
+    } else if (updateData.status && updateData.status !== 'paid' && currentData.status === 'paid') {
+      dataToUpdate.paidAt = null; 
     }
     
     await updateDoc(invoiceRef, dataToUpdate);
@@ -229,9 +267,16 @@ export async function sendInvoiceAction(
   // Placeholder for actual email sending logic
   console.log(`Simulating sending invoice ${invoice.invoiceNumber} to ${invoice.clientEmail || invoice.clientName}`);
   
+  // If invoice is a draft, update its status to 'pending'
+  let updateMessage = '';
   if (invoice.status === 'draft') {
-    await updateInvoiceAction(invoiceId, { status: 'pending' }, adminId);
+    const updateResult = await updateInvoiceAction(invoiceId, { status: 'pending' }, adminId);
+    if (updateResult.success) {
+      updateMessage = " Status updated to 'Pending'.";
+    } else {
+      updateMessage = " Failed to update status to 'Pending'.";
+    }
   }
 
-  return { success: true, message: `Invoice ${invoice.invoiceNumber} has been marked for sending (simulation).` };
+  return { success: true, message: `Invoice ${invoice.invoiceNumber} has been marked for sending (simulation).${updateMessage}` };
 }

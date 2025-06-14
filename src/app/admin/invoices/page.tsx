@@ -22,9 +22,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import { getAllInvoicesAction, deleteInvoiceAction, sendInvoiceAction, type Invoice, type InvoiceStatus, type InvoiceOperationResult } from './actions';
+import { getAllInvoicesAction, deleteInvoiceAction, sendInvoiceAction } from './actions'; // Removed type Invoice, InvoiceStatus from here
+import type { Invoice, InvoiceStatus, InvoiceOperationResult } from './schema'; // Import types from schema
 import { LottieLoader } from '@/components/ui/lottie-loader';
-import { PlusCircle, Receipt, Edit3, Trash2, Send, MoreVertical, Circle, EyeIcon } from 'lucide-react';
+import { PlusCircle, Receipt, Edit3, Trash2, Send, MoreVertical, Circle, EyeIcon, ShieldAlert } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,14 @@ const statusColors: Record<InvoiceStatus, string> = {
   overdue: 'bg-red-600',
   void: 'bg-neutral-500',
 };
+
+const statusTextColors: Record<InvoiceStatus, string> = {
+  draft: 'text-gray-800',
+  pending: 'text-yellow-800',
+  paid: 'text-white',
+  overdue: 'text-white',
+  void: 'text-white',
+}
 
 const statusTooltips: Record<InvoiceStatus, string> = {
   draft: 'Invoice is a draft and not yet sent.',
@@ -184,10 +193,9 @@ const InvoicesHubPage: FC = () => {
                       <TableCell>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="flex items-center">
-                              <Circle className={cn("h-3 w-3 rounded-full mr-2", statusColors[invoice.status])} />
-                              <span className="capitalize">{invoice.status}</span>
-                            </div>
+                            <Badge className={cn("capitalize border text-xs", statusColors[invoice.status], statusTextColors[invoice.status])}>
+                                {invoice.status}
+                            </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>{statusTooltips[invoice.status]}</p>
@@ -241,7 +249,10 @@ const InvoicesHubPage: FC = () => {
           <AlertDialog open={!!invoiceToProcess} onOpenChange={(isOpen) => {if (!isOpen) {setInvoiceToProcess(null); setDialogActionType(null);}}}>
               <AlertDialogContent>
               <AlertDialogHeader>
-                  <AlertDialogTitle>{dialogTitle}</AlertDialogTitle>
+                  <AlertDialogTitle className="flex items-center">
+                    <ShieldAlert className={cn("mr-2 h-5 w-5", dialogActionVariant === "destructive" ? "text-destructive" : "text-primary" )}/> 
+                    {dialogTitle}
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
                       {dialogDescription}
                   </AlertDialogDescription>
