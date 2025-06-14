@@ -189,7 +189,6 @@ const CreateContractPage: FC = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
                           {clients.map((client) => (
                             <SelectItem key={client.id} value={client.id}>
                               {client.name} ({client.email})
@@ -320,3 +319,4 @@ const CreateContractPage: FC = () => {
 };
 
 export default CreateContractPage;
+
