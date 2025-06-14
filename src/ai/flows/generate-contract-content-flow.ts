@@ -35,7 +35,10 @@ export async function generateContractContent(input: GenerateContractContentInpu
 
 const prompt = ai.definePrompt({
   name: 'generateContractContentPrompt',
-  input: {schema: GenerateContractContentInputSchema},
+  input: {schema: GenerateContractContentInputSchema.extend({
+    // Ensure desiredTone is part of the input schema for the prompt, as it will be provided
+    desiredTone: z.string().describe('The desired tone for the contract (e.g., "Formal", "Standard Legal", "Simple").'),
+  })},
   output: {schema: GenerateContractContentOutputSchema},
   prompt: `You are an expert legal assistant AI specialized in drafting business contracts.
   Your task is to generate a draft contract based on the provided details.
@@ -49,7 +52,7 @@ const prompt = ai.definePrompt({
   {{#if keyClauses}}
   - Key Clauses to Emphasize: {{#each keyClauses}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
   {{/if}}
-  - Desired Tone: {{{desiredTone_or_default 'Standard Legal'}}}
+  - Desired Tone: {{{desiredTone}}}
 
 
   Instructions:
@@ -63,11 +66,6 @@ const prompt = ai.definePrompt({
   `,
 });
 
-// Helper to provide default value for optional prompt parameters
-Handlebars.registerHelper('desiredTone_or_default', function (value: string, defaultValue: string) {
-  return value || defaultValue;
-});
-
 
 const generateContractContentFlow = ai.defineFlow(
   {
@@ -76,7 +74,12 @@ const generateContractContentFlow = ai.defineFlow(
     outputSchema: GenerateContractContentOutputSchema,
   },
   async (input) => {
-    const {output} = await prompt(input);
+    // Preprocess input to ensure desiredTone has a default value
+    const processedInput = {
+      ...input,
+      desiredTone: input.desiredTone || 'Standard Legal',
+    };
+    const {output} = await prompt(processedInput);
     if (!output) {
       throw new Error('AI did not return an output for contract content generation.');
     }
@@ -84,19 +87,6 @@ const generateContractContentFlow = ai.defineFlow(
   }
 );
 
-// Hack for Handlebars not being available in the global scope for the AI prompt block
-// This is a common workaround for using Handlebars helpers within Genkit prompts
-// if they are not automatically picked up.
-declare var Handlebars: any;
-if (typeof Handlebars === 'undefined' && typeof require !== 'undefined') {
-  try {
-    Handlebars = require('handlebars');
-  } catch (e) {
-    // Handlebars not available
-  }
-}
-if (typeof Handlebars !== 'undefined' && Handlebars.registerHelper) {
-    Handlebars.registerHelper('desiredTone_or_default', function (value: string, defaultValue: string) {
-        return value || defaultValue;
-    });
-}
+// Removed custom Handlebars helper and related workaround code
+
+    
