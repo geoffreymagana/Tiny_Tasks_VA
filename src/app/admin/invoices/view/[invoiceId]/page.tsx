@@ -12,7 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import { getInvoiceAction, type Invoice, type InvoiceStatus } from '../actions';
+import { getInvoiceAction } from '../../actions'; // Corrected import path
+import type { Invoice, InvoiceStatus } from '../../schema'; // Corrected import path
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { ArrowLeft, Printer, Edit, Send, Trash2, DollarSign, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -76,7 +77,7 @@ const ViewInvoicePage: FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex justify-between items-center print:hidden">
         <Button variant="outline" asChild>
           <Link href="/admin/invoices">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Invoices Hub
@@ -211,19 +212,19 @@ const ViewInvoicePage: FC = () => {
             border: none;
             box-shadow: none;
           }
-          .print\:hidden {
+          .print\\:hidden {
             display: none !important;
           }
-          .print\:bg-transparent {
+          .print\\:bg-transparent {
             background-color: transparent !important;
           }
-           .print\:bg-gray-100 {
+           .print\\:bg-gray-100 {
             background-color: #f3f4f6 !important; /* Example gray for print header consistency */
           }
-           .print\:border-none {
+           .print\\:border-none {
             border: none !important;
           }
-           .print\:border-t {
+           .print\\:border-t {
             border-top-width: 1px !important;
           }
         }
@@ -233,3 +234,4 @@ const ViewInvoicePage: FC = () => {
 };
 
 export default ViewInvoicePage;
+
