@@ -140,6 +140,18 @@ const ViewContractPage: FC = () => {
             )}
           </div>
 
+          {contract.executiveSummary && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Executive Summary</h3>
+                <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md">
+                  <ReactMarkdown>{contract.executiveSummary}</ReactMarkdown>
+                </div>
+              </div>
+            </>
+          )}
+
           <Separator />
 
           <div>
@@ -160,7 +172,7 @@ const ViewContractPage: FC = () => {
 
           <div>
             <h3 className="text-lg font-semibold text-primary mb-2">Terms & Conditions</h3>
-            <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md h-96 overflow-y-auto border">
+            <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md border">
               <ReactMarkdown>{contract.termsAndConditions}</ReactMarkdown>
             </div>
           </div>
@@ -196,7 +208,7 @@ const ViewContractPage: FC = () => {
           .print\\:bg-transparent { background-color: transparent !important; }
           .print\\:border-none { border: none !important; }
           .print\\:border-t { border-top-width: 1px !important; }
-          .prose { font-size: 10pt !important; } /* Example to adjust print font size */
+          .prose { font-size: 10pt !important; } 
           .prose h3 { font-size: 12pt !important; }
         }
       `}</style>

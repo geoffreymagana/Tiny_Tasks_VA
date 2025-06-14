@@ -60,6 +60,7 @@ const CreateContractPage: FC = () => {
     defaultValues: {
       title: '',
       clientId: '',
+      executiveSummary: '', // Added default
       effectiveDate: new Date(),
       expirationDate: null,
       serviceDescription: '',
@@ -112,6 +113,7 @@ const CreateContractPage: FC = () => {
         effectiveDate: formatISO(data.effectiveDate), 
         expirationDate: data.expirationDate ? formatISO(data.expirationDate) : null,
         templateName: data.isTemplate ? data.templateName : null,
+        executiveSummary: data.executiveSummary || null,
     };
     const result: ContractOperationResult = await addContractAction(dataForServerAction, adminFirebaseUser.uid);
     if (result.success && result.contractId) {
@@ -135,6 +137,7 @@ const CreateContractPage: FC = () => {
       };
       const output = await generateContractContent(input);
       form.setValue('title', output.suggestedTitle);
+      // AI flow doesn't currently generate executive summary, so it's not set here.
       form.setValue('serviceDescription', output.serviceDescriptionMarkdown);
       form.setValue('termsAndConditions', output.termsAndConditionsMarkdown);
       form.setValue('paymentTerms', output.paymentTermsMarkdown);
@@ -151,16 +154,19 @@ const CreateContractPage: FC = () => {
   const handleImproveWithAi = async () => {
     setIsImprovingAiContent(true);
     const currentData = form.getValues();
-    if (!currentData.termsAndConditions.trim()) {
-      toast({ title: 'Missing Content', description: 'Terms and Conditions are needed to improve with AI.', variant: 'destructive' });
+    if (!currentData.termsAndConditions.trim() && !currentData.serviceDescription.trim() && !currentData.executiveSummary?.trim()) {
+      toast({ title: 'Missing Content', description: 'Key content sections (Terms, Services, or Summary) are needed to improve with AI.', variant: 'destructive' });
       setIsImprovingAiContent(false);
       return;
     }
     try {
+      // Note: improveContractContentInput currently doesn't include executiveSummary.
+      // This would require an update to the flow's input schema if direct improvement of summary is desired.
+      // For now, improvement will focus on existing fields.
       const input: ImproveContractContentInput = {
         currentTitle: currentData.title || "Untitled Contract",
         currentServiceDescription: currentData.serviceDescription || "Not specified",
-        currentTermsAndConditions: currentData.termsAndConditions,
+        currentTermsAndConditions: currentData.termsAndConditions || "Not specified",
         currentPaymentTerms: currentData.paymentTerms || "Not specified",
       };
       const output = await improveContractContent(input);
@@ -290,6 +296,14 @@ const CreateContractPage: FC = () => {
                 )} />
               )}
 
+              <FormField control={form.control} name="executiveSummary" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Executive Summary (Optional, Markdown supported)</FormLabel>
+                    <FormControl><Textarea placeholder="A brief overview of the contract's purpose and key terms..." {...field} value={field.value ?? ''} rows={4} disabled={isSubmitting} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+              )} />
+
               <div className="grid md:grid-cols-2 gap-6">
                 <FormField control={form.control} name="effectiveDate" render={({ field }) => (
                     <FormItem className="flex flex-col"><FormLabel>Effective Date *</FormLabel><DatePicker date={field.value} setDate={field.onChange} disabled={isSubmitting} /><FormMessage /></FormItem>
@@ -300,12 +314,12 @@ const CreateContractPage: FC = () => {
               </div>
               
               <FormField control={form.control} name="serviceDescription" render={({ field }) => (
-                  <FormItem><FormLabel>Scope of Services / Description *</FormLabel><FormControl><Textarea placeholder="Detailed description of services to be provided..." {...field} rows={5} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Scope of Services / Description * (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Detailed description of services to be provided..." {...field} rows={8} disabled={isSubmitting} className="min-h-[200px]" /></FormControl><FormMessage /></FormItem>
               )} />
               
               <div className="space-y-2 relative">
-                <Label htmlFor="termsAndConditions">Main Terms & Conditions *</Label>
-                <Textarea id="termsAndConditions" placeholder="Enter the full terms and conditions of the contract here... (Markdown supported)" {...form.register('termsAndConditions')} rows={15} className="min-h-[300px] pr-12" disabled={isSubmitting} />
+                <Label htmlFor="termsAndConditions">Main Terms & Conditions * (Markdown supported)</Label>
+                <Textarea id="termsAndConditions" placeholder="Enter the full terms and conditions of the contract here..." {...form.register('termsAndConditions')} rows={15} className="min-h-[300px] pr-12" disabled={isSubmitting} />
                 {form.formState.errors.termsAndConditions && <p className="text-sm text-destructive">{form.formState.errors.termsAndConditions.message}</p>}
                 
                 <div className="absolute top-0 right-0 flex flex-col space-y-2 pt-1 pr-1">
@@ -330,7 +344,7 @@ const CreateContractPage: FC = () => {
               </div>
 
               <FormField control={form.control} name="paymentTerms" render={({ field }) => (
-                  <FormItem><FormLabel>Payment Terms (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Net 30 days, 50% upfront, specific milestones... (Markdown supported)" {...field} value={field.value ?? ''} rows={3} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Payment Terms (Optional, Markdown supported)</FormLabel><FormControl><Textarea placeholder="e.g., Net 30 days, 50% upfront, specific milestones..." {...field} value={field.value ?? ''} rows={5} disabled={isSubmitting} className="min-h-[150px]" /></FormControl><FormMessage /></FormItem>
               )} />
 
               {!isTemplate && (

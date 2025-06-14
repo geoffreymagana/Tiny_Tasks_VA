@@ -2,11 +2,11 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useEffect, useCallback } from 'react'; // Added imports
+import { useState, useEffect, useCallback } from 'react'; 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation'; // Added useRouter
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'; // Added CardFooter
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ArrowLeft, Edit } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
@@ -71,6 +71,7 @@ const EditContractPage: FC = () => {
     defaultValues: {
       title: '',
       clientId: '',
+      executiveSummary: '', // Added default
       effectiveDate: new Date(),
       expirationDate: null,
       serviceDescription: '',
@@ -126,12 +127,13 @@ const EditContractPage: FC = () => {
             form.reset({
                 title: fetchedContract.title,
                 clientId: fetchedContract.clientId || '',
+                executiveSummary: fetchedContract.executiveSummary || '', // Populate executive summary
                 effectiveDate: fetchedContract.effectiveDate ? parseISO(fetchedContract.effectiveDate) : new Date(),
                 expirationDate: fetchedContract.expirationDate ? parseISO(fetchedContract.expirationDate) : null,
                 serviceDescription: fetchedContract.serviceDescription,
                 termsAndConditions: fetchedContract.termsAndConditions,
                 paymentTerms: fetchedContract.paymentTerms || '',
-                status: fetchedContract.status as Exclude<ContractStatus, 'template'>, // Type assertion
+                status: fetchedContract.status as Exclude<ContractStatus, 'template'>, 
                 isTemplate: fetchedContract.isTemplate,
                 templateName: fetchedContract.templateName || '',
             });
@@ -165,12 +167,12 @@ const EditContractPage: FC = () => {
     if (selectedTemplateId) {
         const template = contractTemplates.find(t => t.id === selectedTemplateId);
         if (template) {
-            form.setValue('title', template.title);
-            form.setValue('serviceDescription', template.serviceDescription);
-            form.setValue('termsAndConditions', template.termsAndConditions);
-            form.setValue('paymentTerms', template.paymentTerms || '');
-            // Do not set isTemplate or templateName, as this new contract is based on a template, not a template itself
-            toast({ title: "Template Applied", description: `Content from "${template.templateName || 'template'}" loaded.`});
+            form.setValue('title', template.title, { shouldDirty: true });
+            form.setValue('executiveSummary', template.executiveSummary || '', { shouldDirty: true });
+            form.setValue('serviceDescription', template.serviceDescription, { shouldDirty: true });
+            form.setValue('termsAndConditions', template.termsAndConditions, { shouldDirty: true });
+            form.setValue('paymentTerms', template.paymentTerms || '', { shouldDirty: true });
+            toast({ title: "Template Applied", description: `Content from "${template.templateName || template.title}" loaded.`});
         }
     }
   }, [selectedTemplateId, contractTemplates, form, toast]);
@@ -188,6 +190,7 @@ const EditContractPage: FC = () => {
         effectiveDate: formatISO(data.effectiveDate), 
         expirationDate: data.expirationDate ? formatISO(data.expirationDate) : null,
         templateName: data.isTemplate ? data.templateName : null,
+        executiveSummary: data.executiveSummary || null,
     };
     const result: ContractOperationResult = await updateContractAction(contractId, dataForServerAction, adminFirebaseUser.uid);
     if (result.success && result.contractId) {
@@ -227,8 +230,8 @@ const EditContractPage: FC = () => {
   const handleImproveWithAi = async () => {
     setIsImprovingAiContent(true);
     const currentData = form.getValues();
-    if (!currentData.termsAndConditions.trim()) {
-      toast({ title: 'Missing Content', description: 'Terms and Conditions are needed to improve with AI.', variant: 'destructive' });
+    if (!currentData.termsAndConditions.trim() && !currentData.serviceDescription.trim() && !currentData.executiveSummary?.trim()) {
+      toast({ title: 'Missing Content', description: 'Key content sections are needed to improve with AI.', variant: 'destructive' });
       setIsImprovingAiContent(false);
       return;
     }
@@ -236,7 +239,7 @@ const EditContractPage: FC = () => {
       const input: ImproveContractContentInput = {
         currentTitle: currentData.title || "Untitled Contract",
         currentServiceDescription: currentData.serviceDescription || "Not specified",
-        currentTermsAndConditions: currentData.termsAndConditions,
+        currentTermsAndConditions: currentData.termsAndConditions || "Not specified",
         currentPaymentTerms: currentData.paymentTerms || "Not specified",
       };
       const output = await improveContractContent(input);
@@ -378,14 +381,29 @@ const EditContractPage: FC = () => {
 
                     <FormItem>
                         <FormLabel>Or Use Template Content</FormLabel>
-                        <Select onValueChange={(value) => setSelectedTemplateId(value)} disabled={isLoadingTemplates || isSubmitting || isTemplate}>
-                            <SelectTrigger><SelectValue placeholder={isLoadingTemplates ? "Loading templates..." : "Load from template"} /></SelectTrigger>
-                            <SelectContent>{contractTemplates.map((template) => (<SelectItem key={template.id} value={template.id!}>{template.templateName || template.title}</SelectItem>))}</SelectContent>
+                        <Select onValueChange={(value) => setSelectedTemplateId(value)} disabled={isLoadingTemplates || isSubmitting || isTemplate || contractTemplates.length === 0}>
+                            <SelectTrigger><SelectValue placeholder={isLoadingTemplates ? "Loading templates..." : (contractTemplates.length === 0 ? "No templates available" : "Load from template")} /></SelectTrigger>
+                            <SelectContent>
+                                {contractTemplates.map((template) => (
+                                    <SelectItem key={template.id} value={template.id!}> 
+                                        {template.templateName || template.title}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
                         </Select>
                          <FormDescription>Select a template to populate content fields. Does not link to client.</FormDescription>
                     </FormItem>
                 </div>
               )}
+
+              <FormField control={form.control} name="executiveSummary" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Executive Summary (Optional, Markdown supported)</FormLabel>
+                    <FormControl><Textarea placeholder="A brief overview of the contract's purpose and key terms..." {...field} value={field.value ?? ''} rows={4} disabled={isSubmitting} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+              )} />
+
 
               <div className="grid md:grid-cols-2 gap-6">
                 <FormField control={form.control} name="effectiveDate" render={({ field }) => (
@@ -397,12 +415,12 @@ const EditContractPage: FC = () => {
               </div>
               
               <FormField control={form.control} name="serviceDescription" render={({ field }) => (
-                  <FormItem><FormLabel>Scope of Services / Description *</FormLabel><FormControl><Textarea placeholder="Detailed description of services to be provided..." {...field} rows={5} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Scope of Services / Description * (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Detailed description of services to be provided..." {...field} rows={8} disabled={isSubmitting} className="min-h-[200px]" /></FormControl><FormMessage /></FormItem>
               )} />
               
               <div className="space-y-2 relative">
-                <Label htmlFor="termsAndConditions">Main Terms & Conditions *</Label>
-                <Textarea id="termsAndConditions" placeholder="Enter the full terms and conditions of the contract here... (Markdown supported)" {...form.register('termsAndConditions')} rows={15} className="min-h-[300px] pr-12" disabled={isSubmitting} />
+                <Label htmlFor="termsAndConditions">Main Terms & Conditions * (Markdown supported)</Label>
+                <Textarea id="termsAndConditions" placeholder="Enter the full terms and conditions of the contract here..." {...form.register('termsAndConditions')} rows={15} className="min-h-[300px] pr-12" disabled={isSubmitting} />
                 {form.formState.errors.termsAndConditions && <p className="text-sm text-destructive">{form.formState.errors.termsAndConditions.message}</p>}
                 
                 <div className="absolute top-0 right-0 flex flex-col space-y-2 pt-1 pr-1">
@@ -427,7 +445,7 @@ const EditContractPage: FC = () => {
               </div>
 
               <FormField control={form.control} name="paymentTerms" render={({ field }) => (
-                  <FormItem><FormLabel>Payment Terms (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Net 30 days, 50% upfront, specific milestones... (Markdown supported)" {...field} value={field.value ?? ''} rows={3} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Payment Terms (Optional, Markdown supported)</FormLabel><FormControl><Textarea placeholder="e.g., Net 30 days, 50% upfront, specific milestones..." {...field} value={field.value ?? ''} rows={5} disabled={isSubmitting} className="min-h-[150px]" /></FormControl><FormMessage /></FormItem>
               )} />
 
               {!isTemplate && (
@@ -471,4 +489,3 @@ const EditContractPage: FC = () => {
 };
 
 export default EditContractPage;
-
