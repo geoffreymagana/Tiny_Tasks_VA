@@ -176,6 +176,25 @@ const ViewContractPage: FC = () => {
               <ReactMarkdown>{contract.termsAndConditions}</ReactMarkdown>
             </div>
           </div>
+
+          {contract.additionalClauses && (
+            <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Additional Clauses</h3>
+                <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md border">
+                <ReactMarkdown>{contract.additionalClauses}</ReactMarkdown>
+                </div>
+            </div>
+          )}
+
+          {contract.signatorySectionText && (
+            <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Signatory Section</h3>
+                <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md border">
+                <ReactMarkdown>{contract.signatorySectionText}</ReactMarkdown>
+                </div>
+            </div>
+          )}
+
         </CardContent>
         
         <CardFooter className="p-6 border-t bg-muted/30 print:border-t print:bg-transparent print:hidden">
@@ -210,6 +229,8 @@ const ViewContractPage: FC = () => {
           .print\\:border-t { border-top-width: 1px !important; }
           .prose { font-size: 10pt !important; } 
           .prose h3 { font-size: 12pt !important; }
+          .prose table { width: 100%; border-collapse: collapse; }
+          .prose th, .prose td { border: 1px solid #ccc; padding: 0.5em; }
         }
       `}</style>
     </div>

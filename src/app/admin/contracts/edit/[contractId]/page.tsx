@@ -71,12 +71,14 @@ const EditContractPage: FC = () => {
     defaultValues: {
       title: '',
       clientId: '',
-      executiveSummary: '', // Added default
+      executiveSummary: '',
       effectiveDate: new Date(),
       expirationDate: null,
       serviceDescription: '',
       termsAndConditions: '',
       paymentTerms: '',
+      additionalClauses: '',
+      signatorySectionText: '',
       status: 'draft',
       isTemplate: false,
       templateName: '',
@@ -127,12 +129,14 @@ const EditContractPage: FC = () => {
             form.reset({
                 title: fetchedContract.title,
                 clientId: fetchedContract.clientId || '',
-                executiveSummary: fetchedContract.executiveSummary || '', // Populate executive summary
+                executiveSummary: fetchedContract.executiveSummary || '',
                 effectiveDate: fetchedContract.effectiveDate ? parseISO(fetchedContract.effectiveDate) : new Date(),
                 expirationDate: fetchedContract.expirationDate ? parseISO(fetchedContract.expirationDate) : null,
                 serviceDescription: fetchedContract.serviceDescription,
                 termsAndConditions: fetchedContract.termsAndConditions,
                 paymentTerms: fetchedContract.paymentTerms || '',
+                additionalClauses: fetchedContract.additionalClauses || '',
+                signatorySectionText: fetchedContract.signatorySectionText || '',
                 status: fetchedContract.status as Exclude<ContractStatus, 'template'>, 
                 isTemplate: fetchedContract.isTemplate,
                 templateName: fetchedContract.templateName || '',
@@ -172,6 +176,8 @@ const EditContractPage: FC = () => {
             form.setValue('serviceDescription', template.serviceDescription, { shouldDirty: true });
             form.setValue('termsAndConditions', template.termsAndConditions, { shouldDirty: true });
             form.setValue('paymentTerms', template.paymentTerms || '', { shouldDirty: true });
+            form.setValue('additionalClauses', template.additionalClauses || '', { shouldDirty: true });
+            form.setValue('signatorySectionText', template.signatorySectionText || '', { shouldDirty: true });
             toast({ title: "Template Applied", description: `Content from "${template.templateName || template.title}" loaded.`});
         }
     }
@@ -191,6 +197,8 @@ const EditContractPage: FC = () => {
         expirationDate: data.expirationDate ? formatISO(data.expirationDate) : null,
         templateName: data.isTemplate ? data.templateName : null,
         executiveSummary: data.executiveSummary || null,
+        additionalClauses: data.additionalClauses || null,
+        signatorySectionText: data.signatorySectionText || null,
     };
     const result: ContractOperationResult = await updateContractAction(contractId, dataForServerAction, adminFirebaseUser.uid);
     if (result.success && result.contractId) {
@@ -214,9 +222,12 @@ const EditContractPage: FC = () => {
       };
       const output = await generateContractContent(input);
       form.setValue('title', output.suggestedTitle, { shouldDirty: true });
+      if (output.executiveSummaryMarkdown) form.setValue('executiveSummary', output.executiveSummaryMarkdown, { shouldDirty: true });
       form.setValue('serviceDescription', output.serviceDescriptionMarkdown, { shouldDirty: true });
       form.setValue('termsAndConditions', output.termsAndConditionsMarkdown, { shouldDirty: true });
       form.setValue('paymentTerms', output.paymentTermsMarkdown, { shouldDirty: true });
+      if (output.additionalClausesMarkdown) form.setValue('additionalClauses', output.additionalClausesMarkdown, { shouldDirty: true });
+      if (output.signatoryBlockMarkdown) form.setValue('signatorySectionText', output.signatoryBlockMarkdown, { shouldDirty: true });
       toast({ title: 'AI Content Generated', description: 'Contract fields populated with draft content.' });
       setAiDialogGenerateOpen(false); 
       aiGenerateForm.reset();
@@ -238,15 +249,21 @@ const EditContractPage: FC = () => {
     try {
       const input: ImproveContractContentInput = {
         currentTitle: currentData.title || "Untitled Contract",
+        currentExecutiveSummary: currentData.executiveSummary || undefined,
         currentServiceDescription: currentData.serviceDescription || "Not specified",
         currentTermsAndConditions: currentData.termsAndConditions || "Not specified",
         currentPaymentTerms: currentData.paymentTerms || "Not specified",
+        currentAdditionalClauses: currentData.additionalClauses || undefined,
+        currentSignatoryBlock: currentData.signatorySectionText || undefined,
       };
       const output = await improveContractContent(input);
       form.setValue('title', output.improvedTitle, { shouldDirty: true });
+      if(output.improvedExecutiveSummaryMarkdown) form.setValue('executiveSummary', output.improvedExecutiveSummaryMarkdown, { shouldDirty: true });
       form.setValue('serviceDescription', output.improvedServiceDescriptionMarkdown, { shouldDirty: true });
       form.setValue('termsAndConditions', output.improvedTermsAndConditionsMarkdown, { shouldDirty: true });
       form.setValue('paymentTerms', output.improvedPaymentTermsMarkdown, { shouldDirty: true });
+      if(output.improvedAdditionalClausesMarkdown) form.setValue('additionalClauses', output.improvedAdditionalClausesMarkdown, { shouldDirty: true });
+      if(output.improvedSignatoryBlockMarkdown) form.setValue('signatorySectionText', output.improvedSignatoryBlockMarkdown, { shouldDirty: true });
       toast({ title: 'AI Content Improved', description: 'Contract content has been refined.' });
     } catch (error: any) {
       console.error("AI Contract Improvement Error:", error);
@@ -446,6 +463,14 @@ const EditContractPage: FC = () => {
 
               <FormField control={form.control} name="paymentTerms" render={({ field }) => (
                   <FormItem><FormLabel>Payment Terms (Optional, Markdown supported)</FormLabel><FormControl><Textarea placeholder="e.g., Net 30 days, 50% upfront, specific milestones..." {...field} value={field.value ?? ''} rows={5} disabled={isSubmitting} className="min-h-[150px]" /></FormControl><FormMessage /></FormItem>
+              )} />
+
+              <FormField control={form.control} name="additionalClauses" render={({ field }) => (
+                  <FormItem><FormLabel>Additional Clauses (Optional, Markdown supported)</FormLabel><FormControl><Textarea placeholder="Any other specific clauses for this contract..." {...field} value={field.value ?? ''} rows={6} disabled={isSubmitting} className="min-h-[180px]" /></FormControl><FormMessage /></FormItem>
+              )} />
+
+              <FormField control={form.control} name="signatorySectionText" render={({ field }) => (
+                  <FormItem><FormLabel>Signatory Section Text (Optional, Markdown supported)</FormLabel><FormControl><Textarea placeholder="Draft the signatory block, e.g., names, titles, date lines..." {...field} value={field.value ?? ''} rows={4} disabled={isSubmitting} className="min-h-[120px]" /></FormControl><FormMessage /></FormItem>
               )} />
 
               {!isTemplate && (

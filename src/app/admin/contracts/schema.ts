@@ -20,7 +20,7 @@ export const ContractSchema = z.object({
   clientId: z.string().optional().nullable(), 
   clientName: z.string().optional().nullable(), 
   
-  executiveSummary: z.string().max(10000, "Executive summary too long.").optional().nullable(), // New field
+  executiveSummary: z.string().max(10000, "Executive summary too long.").optional().nullable(),
   
   effectiveDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), "Invalid effective date"),
   expirationDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), "Invalid expiration date").optional().nullable(),
@@ -28,6 +28,8 @@ export const ContractSchema = z.object({
   serviceDescription: z.string().min(10, "Service description is required.").max(50000, "Service description too long."),
   termsAndConditions: z.string().min(50, "Terms and conditions are required.").max(100000, "Terms and conditions too long."),
   paymentTerms: z.string().max(50000, "Payment terms too long.").optional().nullable(),
+  additionalClauses: z.string().max(20000, "Additional clauses text too long.").optional().nullable(),
+  signatorySectionText: z.string().max(5000, "Signatory section text too long.").optional().nullable(),
   
   status: ContractStatusSchema,
   isTemplate: z.boolean().default(false),
@@ -53,7 +55,9 @@ export const CreateContractFormSchema = ContractSchema.omit({
   status: z.enum(['draft', 'pending_signature', 'active', 'expired', 'terminated'], {
     required_error: "Status is required.",
   }),
-  executiveSummary: z.string().max(10000, "Executive summary is too long.").optional(), // Ensure optional in form
+  executiveSummary: z.string().max(10000, "Executive summary is too long.").optional(),
+  additionalClauses: z.string().max(20000, "Additional clauses text too long.").optional(),
+  signatorySectionText: z.string().max(5000, "Signatory section text too long.").optional(),
 });
 
 export type CreateContractFormValues = z.infer<typeof CreateContractFormSchema>;

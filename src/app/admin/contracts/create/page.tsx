@@ -60,12 +60,14 @@ const CreateContractPage: FC = () => {
     defaultValues: {
       title: '',
       clientId: '',
-      executiveSummary: '', // Added default
+      executiveSummary: '',
       effectiveDate: new Date(),
       expirationDate: null,
       serviceDescription: '',
       termsAndConditions: '',
       paymentTerms: '',
+      additionalClauses: '',
+      signatorySectionText: '',
       status: 'draft',
       isTemplate: false,
       templateName: '',
@@ -114,6 +116,8 @@ const CreateContractPage: FC = () => {
         expirationDate: data.expirationDate ? formatISO(data.expirationDate) : null,
         templateName: data.isTemplate ? data.templateName : null,
         executiveSummary: data.executiveSummary || null,
+        additionalClauses: data.additionalClauses || null,
+        signatorySectionText: data.signatorySectionText || null,
     };
     const result: ContractOperationResult = await addContractAction(dataForServerAction, adminFirebaseUser.uid);
     if (result.success && result.contractId) {
@@ -137,10 +141,12 @@ const CreateContractPage: FC = () => {
       };
       const output = await generateContractContent(input);
       form.setValue('title', output.suggestedTitle);
-      // AI flow doesn't currently generate executive summary, so it's not set here.
+      if (output.executiveSummaryMarkdown) form.setValue('executiveSummary', output.executiveSummaryMarkdown);
       form.setValue('serviceDescription', output.serviceDescriptionMarkdown);
       form.setValue('termsAndConditions', output.termsAndConditionsMarkdown);
       form.setValue('paymentTerms', output.paymentTermsMarkdown);
+      if (output.additionalClausesMarkdown) form.setValue('additionalClauses', output.additionalClausesMarkdown);
+      if (output.signatoryBlockMarkdown) form.setValue('signatorySectionText', output.signatoryBlockMarkdown);
       toast({ title: 'AI Content Generated', description: 'Contract fields populated with draft content.' });
       setAiDialogGenerateOpen(false); 
       aiGenerateForm.reset();
@@ -160,20 +166,23 @@ const CreateContractPage: FC = () => {
       return;
     }
     try {
-      // Note: improveContractContentInput currently doesn't include executiveSummary.
-      // This would require an update to the flow's input schema if direct improvement of summary is desired.
-      // For now, improvement will focus on existing fields.
       const input: ImproveContractContentInput = {
         currentTitle: currentData.title || "Untitled Contract",
+        currentExecutiveSummary: currentData.executiveSummary || undefined,
         currentServiceDescription: currentData.serviceDescription || "Not specified",
         currentTermsAndConditions: currentData.termsAndConditions || "Not specified",
         currentPaymentTerms: currentData.paymentTerms || "Not specified",
+        currentAdditionalClauses: currentData.additionalClauses || undefined,
+        currentSignatoryBlock: currentData.signatorySectionText || undefined,
       };
       const output = await improveContractContent(input);
       form.setValue('title', output.improvedTitle);
+      if (output.improvedExecutiveSummaryMarkdown) form.setValue('executiveSummary', output.improvedExecutiveSummaryMarkdown);
       form.setValue('serviceDescription', output.improvedServiceDescriptionMarkdown);
       form.setValue('termsAndConditions', output.improvedTermsAndConditionsMarkdown);
       form.setValue('paymentTerms', output.improvedPaymentTermsMarkdown);
+      if (output.improvedAdditionalClausesMarkdown) form.setValue('additionalClauses', output.improvedAdditionalClausesMarkdown);
+      if (output.improvedSignatoryBlockMarkdown) form.setValue('signatorySectionText', output.improvedSignatoryBlockMarkdown);
       toast({ title: 'AI Content Improved', description: 'Contract content has been refined.' });
     } catch (error: any) {
       console.error("AI Contract Improvement Error:", error);
@@ -345,6 +354,14 @@ const CreateContractPage: FC = () => {
 
               <FormField control={form.control} name="paymentTerms" render={({ field }) => (
                   <FormItem><FormLabel>Payment Terms (Optional, Markdown supported)</FormLabel><FormControl><Textarea placeholder="e.g., Net 30 days, 50% upfront, specific milestones..." {...field} value={field.value ?? ''} rows={5} disabled={isSubmitting} className="min-h-[150px]" /></FormControl><FormMessage /></FormItem>
+              )} />
+
+              <FormField control={form.control} name="additionalClauses" render={({ field }) => (
+                  <FormItem><FormLabel>Additional Clauses (Optional, Markdown supported)</FormLabel><FormControl><Textarea placeholder="Any other specific clauses for this contract..." {...field} value={field.value ?? ''} rows={6} disabled={isSubmitting} className="min-h-[180px]" /></FormControl><FormMessage /></FormItem>
+              )} />
+
+              <FormField control={form.control} name="signatorySectionText" render={({ field }) => (
+                  <FormItem><FormLabel>Signatory Section Text (Optional, Markdown supported)</FormLabel><FormControl><Textarea placeholder="Draft the signatory block, e.g., names, titles, date lines..." {...field} value={field.value ?? ''} rows={4} disabled={isSubmitting} className="min-h-[120px]" /></FormControl><FormMessage /></FormItem>
               )} />
 
               {!isTemplate && (

@@ -23,9 +23,12 @@ export type GenerateContractContentInput = z.infer<typeof GenerateContractConten
 
 const GenerateContractContentOutputSchema = z.object({
   suggestedTitle: z.string().describe('A suggested title for the contract based on the inputs.'),
+  executiveSummaryMarkdown: z.string().optional().describe('A draft executive summary in Markdown format.'),
   serviceDescriptionMarkdown: z.string().describe('A detailed service description or scope of work in Markdown format.'),
   termsAndConditionsMarkdown: z.string().describe('A comprehensive draft of the terms and conditions in Markdown format. This should be the main body of the contract.'),
   paymentTermsMarkdown: z.string().describe('A detailed breakdown of payment terms in Markdown format.'),
+  additionalClausesMarkdown: z.string().optional().describe('Any additional clauses in Markdown format.'),
+  signatoryBlockMarkdown: z.string().optional().describe('A draft signatory block in Markdown format.'),
 });
 export type GenerateContractContentOutput = z.infer<typeof GenerateContractContentOutputSchema>;
 
@@ -36,7 +39,6 @@ export async function generateContractContent(input: GenerateContractContentInpu
 const prompt = ai.definePrompt({
   name: 'generateContractContentPrompt',
   input: {schema: GenerateContractContentInputSchema.extend({
-    // Ensure desiredTone is part of the input schema for the prompt, as it will be provided
     desiredTone: z.string().describe('The desired tone for the contract (e.g., "Formal", "Standard Legal", "Simple").'),
   })},
   output: {schema: GenerateContractContentOutputSchema},
@@ -57,10 +59,13 @@ const prompt = ai.definePrompt({
 
   Instructions:
   1.  Generate a 'suggestedTitle' for the contract.
-  2.  Develop a 'serviceDescriptionMarkdown' section, expanding on the service summary.
-  3.  Create a comprehensive 'termsAndConditionsMarkdown' section. This is the main body. Include standard clauses relevant to the contract type and inputs. If key clauses are specified, ensure they are well-integrated.
-  4.  Formulate a 'paymentTermsMarkdown' section based on the payment details provided.
-  5.  Ensure all Markdown content is well-structured, clear, and professionally worded according to the desired tone.
+  2.  Optionally, create an 'executiveSummaryMarkdown'.
+  3.  Develop a 'serviceDescriptionMarkdown' section, expanding on the service summary.
+  4.  Create a comprehensive 'termsAndConditionsMarkdown' section. This is the main body. Include standard clauses relevant to the contract type and inputs. If key clauses are specified, ensure they are well-integrated.
+  5.  Formulate a 'paymentTermsMarkdown' section based on the payment details provided.
+  6.  Optionally, generate 'additionalClausesMarkdown' if appropriate for the contract type or details provided.
+  7.  Optionally, generate a standard 'signatoryBlockMarkdown'.
+  8.  Ensure all Markdown content is well-structured, clear, and professionally worded according to the desired tone.
 
   Return the output in the specified JSON format.
   `,
@@ -74,7 +79,6 @@ const generateContractContentFlow = ai.defineFlow(
     outputSchema: GenerateContractContentOutputSchema,
   },
   async (input) => {
-    // Preprocess input to ensure desiredTone has a default value
     const processedInput = {
       ...input,
       desiredTone: input.desiredTone || 'Standard Legal',
@@ -86,7 +90,4 @@ const generateContractContentFlow = ai.defineFlow(
     return output;
   }
 );
-
-// Removed custom Handlebars helper and related workaround code
-
     

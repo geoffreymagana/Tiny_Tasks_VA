@@ -13,17 +13,23 @@ import {z} from 'genkit';
 
 const ImproveContractContentInputSchema = z.object({
   currentTitle: z.string().describe('The current title of the contract.'),
+  currentExecutiveSummary: z.string().optional().describe('The current executive summary of the contract.'),
   currentServiceDescription: z.string().describe('The current service description or scope of work.'),
   currentTermsAndConditions: z.string().describe('The current main terms and conditions of the contract.'),
   currentPaymentTerms: z.string().describe('The current payment terms section.'),
+  currentAdditionalClauses: z.string().optional().describe('The current additional clauses section.'),
+  currentSignatoryBlock: z.string().optional().describe('The current signatory block section.'),
 });
 export type ImproveContractContentInput = z.infer<typeof ImproveContractContentInputSchema>;
 
 const ImproveContractContentOutputSchema = z.object({
   improvedTitle: z.string().describe('An improved and more professional title for the contract.'),
+  improvedExecutiveSummaryMarkdown: z.string().optional().describe('The improved executive summary in Markdown format.'),
   improvedServiceDescriptionMarkdown: z.string().describe('The improved service description in Markdown format.'),
   improvedTermsAndConditionsMarkdown: z.string().describe('The improved terms and conditions in Markdown format, with better structure and clarity.'),
   improvedPaymentTermsMarkdown: z.string().describe('The improved payment terms in Markdown format.'),
+  improvedAdditionalClausesMarkdown: z.string().optional().describe('The improved additional clauses in Markdown format.'),
+  improvedSignatoryBlockMarkdown: z.string().optional().describe('The improved signatory block in Markdown format.'),
 });
 export type ImproveContractContentOutput = z.infer<typeof ImproveContractContentOutputSchema>;
 
@@ -42,15 +48,21 @@ const prompt = ai.definePrompt({
 
   Current Contract Sections:
   - Title: {{{currentTitle}}}
+  {{#if currentExecutiveSummary}}- Executive Summary: {{{currentExecutiveSummary}}}{{/if}}
   - Service Description: {{{currentServiceDescription}}}
   - Terms and Conditions: {{{currentTermsAndConditions}}}
   - Payment Terms: {{{currentPaymentTerms}}}
+  {{#if currentAdditionalClauses}}- Additional Clauses: {{{currentAdditionalClauses}}}{{/if}}
+  {{#if currentSignatoryBlock}}- Signatory Block: {{{currentSignatoryBlock}}}{{/if}}
 
   Instructions:
   1.  Generate an 'improvedTitle' that is clear and professional.
-  2.  Provide 'improvedServiceDescriptionMarkdown', enhancing clarity and ensuring Markdown format.
-  3.  Revise 'currentTermsAndConditions' into 'improvedTermsAndConditionsMarkdown'. Improve structure, readability, and legal phrasing (general best practices, not specific legal advice). Ensure it is well-formatted Markdown.
-  4.  Refine 'currentPaymentTerms' into 'improvedPaymentTermsMarkdown', ensuring clarity and Markdown format.
+  2.  If 'currentExecutiveSummary' is provided, generate 'improvedExecutiveSummaryMarkdown'.
+  3.  Provide 'improvedServiceDescriptionMarkdown', enhancing clarity and ensuring Markdown format.
+  4.  Revise 'currentTermsAndConditions' into 'improvedTermsAndConditionsMarkdown'. Improve structure, readability, and legal phrasing (general best practices, not specific legal advice). Ensure it is well-formatted Markdown.
+  5.  Refine 'currentPaymentTerms' into 'improvedPaymentTermsMarkdown', ensuring clarity and Markdown format.
+  6.  If 'currentAdditionalClauses' is provided, revise into 'improvedAdditionalClausesMarkdown'.
+  7.  If 'currentSignatoryBlock' is provided, revise into 'improvedSignatoryBlockMarkdown'.
 
   Return the output in the specified JSON format.
   `,
@@ -70,3 +82,4 @@ const improveContractContentFlow = ai.defineFlow(
     return output;
   }
 );
+
