@@ -60,31 +60,49 @@ export async function addContractAction(
   }
 
   let clientName: string | null = null;
-  if (formData.clientId) {
-    const clientDocRef = doc(db, 'users', formData.clientId); // Assuming clients are in 'users' collection
-    const clientDocSnap = await getDoc(clientDocRef);
-    if (clientDocSnap.exists()) {
-      clientName = clientDocSnap.data()?.displayName || clientDocSnap.data()?.email || null;
+  let finalClientId: string | null = formData.clientId || null;
+  let finalStatus: ContractStatus = formData.status;
+  let finalTemplateName: string | null = formData.templateName || null;
+
+  if (formData.isTemplate) {
+    finalStatus = 'template';
+    finalClientId = null; // Templates are not tied to specific clients
+    // templateName is already set from formData or will be null if empty
+  } else {
+    finalTemplateName = null; // Not a template, so no template name
+    if (finalClientId) {
+      const clientDocRef = doc(db, 'users', finalClientId); // Assuming clients are in 'users' collection with role 'client'
+      const clientDocSnap = await getDoc(clientDocRef);
+      if (clientDocSnap.exists() && clientDocSnap.data()?.role === 'client') {
+        clientName = clientDocSnap.data()?.displayName || clientDocSnap.data()?.email || null;
+      } else {
+        // If client ID is provided but client not found or not a client, this is an issue for non-templates.
+        return { success: false, message: 'Selected client not found or is not a valid client.' };
+      }
     } else {
-      return { success: false, message: 'Selected client not found.' };
+      // For non-templates, clientId might be considered mandatory depending on business rules.
+      // Current schema allows clientId to be optional/nullable. If required for non-templates, add validation here.
+      // For now, we proceed, clientName will be null.
     }
   }
 
   try {
     const contractNumber = generateContractNumberSync();
     
-    // Determine actual status, considering isTemplate
-    const actualStatus: ContractStatus = formData.isTemplate ? 'template' : formData.status;
-
     const dataToSave: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'> = {
-      ...formData,
+      title: formData.title,
       contractNumber,
-      clientName: clientName, // Use fetched client name
+      clientId: finalClientId,
+      clientName: clientName,
       effectiveDate: formData.effectiveDate,
       expirationDate: formData.expirationDate || null,
-      status: actualStatus,
+      serviceDescription: formData.serviceDescription,
+      termsAndConditions: formData.termsAndConditions,
+      paymentTerms: formData.paymentTerms || null,
+      status: finalStatus,
+      isTemplate: formData.isTemplate,
+      templateName: finalTemplateName,
       adminId,
-      // isTemplate and templateName are already in formData
     };
     
     const validatedData = ContractSchema.omit({id: true, createdAt: true, updatedAt: true}).safeParse(dataToSave);
@@ -98,7 +116,7 @@ export async function addContractAction(
         createdAt: serverTimestamp(), 
         updatedAt: serverTimestamp()
     });
-    return { success: true, message: 'Contract created successfully!', contractId: docRef.id, contractNumber };
+    return { success: true, message: formData.isTemplate ? 'Contract template created successfully!' : 'Contract created successfully!', contractId: docRef.id, contractNumber };
   } catch (error: any) {
     console.error('Error creating contract:', error);
     return { success: false, message: error.message || 'Failed to create contract.' };
@@ -108,8 +126,6 @@ export async function addContractAction(
 export async function getAllContractsAction(): Promise<Contract[]> {
   try {
     const contractsRef = collection(db, 'contracts');
-    // Optional: Filter out templates from main list, or handle display differently
-    // const q = query(contractsRef, where('isTemplate', '==', false), orderBy('effectiveDate', 'desc'));
     const q = query(contractsRef, orderBy('effectiveDate', 'desc'));
     const querySnapshot = await getDocs(q);
     
@@ -173,35 +189,47 @@ export async function updateContractAction(
     }
     
     let clientName: string | null = null;
-    if (formData.clientId) {
-        const clientDocRef = doc(db, 'users', formData.clientId);
-        const clientDocSnap = await getDoc(clientDocRef);
-        if (clientDocSnap.exists()) {
-            clientName = clientDocSnap.data()?.displayName || clientDocSnap.data()?.email || null;
-        } else {
-            // If client ID is provided but client not found, this might be an issue unless it's optional.
-            // For now, we'll allow updating other fields even if client is not found, but clientName might become null.
-            console.warn(`Client with ID ${formData.clientId} not found during contract update.`);
+    let finalClientId: string | null = formData.clientId || null;
+    let finalStatus: ContractStatus = formData.status;
+    let finalTemplateName: string | null = formData.templateName || null;
+
+    if (formData.isTemplate) {
+        finalStatus = 'template';
+        finalClientId = null;
+    } else {
+        finalTemplateName = null;
+        if (finalClientId) {
+            const clientDocRef = doc(db, 'users', finalClientId);
+            const clientDocSnap = await getDoc(clientDocRef);
+            if (clientDocSnap.exists() && clientDocSnap.data()?.role === 'client') {
+                clientName = clientDocSnap.data()?.displayName || clientDocSnap.data()?.email || null;
+            } else {
+                 return { success: false, message: 'Selected client not found or is not a valid client for update.' };
+            }
         }
     }
 
-    const actualStatus: ContractStatus = formData.isTemplate ? 'template' : formData.status;
 
     const dataToUpdate: Partial<Contract> = {
       title: formData.title,
-      clientId: formData.clientId,
+      clientId: finalClientId,
       clientName: clientName,
       effectiveDate: formData.effectiveDate,
       expirationDate: formData.expirationDate || null,
       serviceDescription: formData.serviceDescription,
       termsAndConditions: formData.termsAndConditions,
-      paymentTerms: formData.paymentTerms,
-      status: actualStatus,
+      paymentTerms: formData.paymentTerms || null,
+      status: finalStatus,
       isTemplate: formData.isTemplate,
-      templateName: formData.isTemplate ? formData.templateName : null, // Only set templateName if it's a template
+      templateName: finalTemplateName,
+      // adminId is not updated, contractNumber is not updated
       updatedAt: serverTimestamp(),
     };
     
+    // Optionally, re-validate the shape before updating, though Firestore rules should also handle consistency.
+    // const validatedUpdateData = ContractSchema.partial().safeParse(dataToUpdate);
+    // if (!validatedUpdateData.success) { ... }
+
     await updateDoc(contractRef, dataToUpdate);
     return { success: true, message: 'Contract updated successfully!', contractId };
   } catch (error: any) {
@@ -227,7 +255,6 @@ export async function deleteContractAction(
   }
 }
 
-// Placeholder for "send contract" - might involve email, signing service integration, etc.
 export async function sendContractAction(
   contractId: string,
   adminId: string
@@ -240,24 +267,28 @@ export async function sendContractAction(
   if (!contract) {
     return { success: false, message: 'Contract not found.' };
   }
+  if (contract.isTemplate) {
+    return { success: false, message: 'Cannot send a template directly. Create a contract from this template first.' };
+  }
 
-  // Simulate sending
+
   console.log(`Simulating sending contract ${contract.contractNumber} to ${contract.clientName || 'client'}`);
   
   let updateMessage = '';
+  // Update status to 'pending_signature' if it's currently 'draft'
   if (contract.status === 'draft') {
-    // Convert dates back to ISO strings for the update action
     const updatePayload: Omit<CreateContractFormValues, 'effectiveDate' | 'expirationDate'> & { effectiveDate: string; expirationDate?: string | null; } = {
       title: contract.title,
       clientId: contract.clientId,
-      effectiveDate: contract.effectiveDate, // Already ISO string from getContractAction
-      expirationDate: contract.expirationDate, // Already ISO string or null
+      // clientName is handled by updateContractAction
+      effectiveDate: contract.effectiveDate, 
+      expirationDate: contract.expirationDate, 
       serviceDescription: contract.serviceDescription,
       termsAndConditions: contract.termsAndConditions,
       paymentTerms: contract.paymentTerms,
       status: 'pending_signature', // Update status
-      isTemplate: contract.isTemplate,
-      templateName: contract.templateName,
+      isTemplate: contract.isTemplate, // Should be false
+      templateName: contract.templateName, // Should be null
     };
     const result = await updateContractAction(contractId, updatePayload, adminId);
     if (result.success) {
@@ -269,7 +300,6 @@ export async function sendContractAction(
   return { success: true, message: `Contract ${contract.contractNumber} marked for sending (simulation).${updateMessage}` };
 }
 
-// Action to get all contract templates
 export async function getAllContractTemplatesAction(): Promise<Contract[]> {
   try {
     const contractsRef = collection(db, 'contracts');
