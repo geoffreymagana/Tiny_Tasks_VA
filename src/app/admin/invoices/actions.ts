@@ -17,40 +17,8 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { z } from 'zod';
 import { format } from 'date-fns';
-
-// ----- Data Structures -----
-export const InvoiceItemSchema = z.object({
-  id: z.string().optional(), // For client-side keying, not necessarily stored in Firestore if items are subcollection
-  description: z.string().min(1, "Item description is required."),
-  quantity: z.number().min(0.01, "Quantity must be greater than 0."),
-  unitPrice: z.number().min(0, "Unit price cannot be negative."),
-  // total will be calculated: quantity * unitPrice
-});
-export type InvoiceItem = z.infer<typeof InvoiceItemSchema>;
-
-export const InvoiceStatusSchema = z.enum(['draft', 'pending', 'paid', 'overdue', 'void']);
-export type InvoiceStatus = z.infer<typeof InvoiceStatusSchema>;
-
-export const InvoiceSchema = z.object({
-  id: z.string().optional(),
-  invoiceNumber: z.string(),
-  clientId: z.string().min(1, "Client selection is required."),
-  clientName: z.string().min(1, "Client name is required."), // Denormalized for display
-  clientEmail: z.string().email("Invalid client email.").optional().nullable(), // Denormalized for display/sending
-  issueDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), "Invalid issue date"),
-  dueDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), "Invalid due date"),
-  items: z.array(InvoiceItemSchema).min(1, "At least one item is required."),
-  totalAmount: z.number(),
-  status: InvoiceStatusSchema,
-  notes: z.string().optional().nullable(),
-  adminId: z.string(), // UID of the admin who created/manages it
-  createdAt: z.any().optional(),
-  updatedAt: z.any().optional(),
-  paidAt: z.any().optional().nullable(),
-});
-export type Invoice = z.infer<typeof InvoiceSchema>;
+import { InvoiceSchema, type InvoiceItem, type Invoice, type InvoiceStatus } from './schema';
 
 export interface InvoiceOperationResult {
   success: boolean;
@@ -76,16 +44,8 @@ async function generateInvoiceNumber(): Promise<string> {
   const prefix = "INV";
   const datePart = format(new Date(), "yyyyMMdd");
   
-  // This is a simplified approach. A truly unique sequence number per day/month
-  // would require a transaction or a dedicated counter in Firestore.
-  // For now, using a timestamp-based suffix for simplicity, but it's not guaranteed unique under high concurrency.
   const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
   
-  // A better approach would be to query the last invoice number and increment.
-  // For this prototype, we'll use a slightly less robust method.
-  // const counter = (await getDocs(collection(db, 'invoices'))).size + 1;
-  // const sequence = counter.toString().padStart(4, '0');
-  // return `${prefix}-${datePart}-${sequence}`;
   return `${prefix}-${datePart}-${randomSuffix}`;
 }
 
@@ -119,7 +79,7 @@ export async function addInvoiceAction(
 
     if (!validatedData.success) {
         console.error("Validation errors:", validatedData.error.flatten().fieldErrors);
-        return { success: false, message: `Validation failed: ${validatedData.error.flatten().fieldErrors}` };
+        return { success: false, message: `Validation failed: ${JSON.stringify(validatedData.error.flatten().fieldErrors)}` };
     }
     
     const dataToSave = validatedData.data;
@@ -227,9 +187,6 @@ export async function updateInvoiceAction(
       dataToUpdate.paidAt = null; // Remove paidAt if status changes from paid
     }
     
-    // Optional: Validate updateData against a partial schema if needed
-    // For simplicity, direct update for now.
-
     await updateDoc(invoiceRef, dataToUpdate);
     return { success: true, message: 'Invoice updated successfully!', invoiceId };
   } catch (error: any) {
@@ -270,10 +227,8 @@ export async function sendInvoiceAction(
   }
 
   // Placeholder for actual email sending logic
-  // In a real app, this would call a Cloud Function or use an email service (SendGrid, Mailgun, etc.)
   console.log(`Simulating sending invoice ${invoice.invoiceNumber} to ${invoice.clientEmail || invoice.clientName}`);
   
-  // Optionally update invoice status to 'pending' if it was 'draft'
   if (invoice.status === 'draft') {
     await updateInvoiceAction(invoiceId, { status: 'pending' }, adminId);
   }
