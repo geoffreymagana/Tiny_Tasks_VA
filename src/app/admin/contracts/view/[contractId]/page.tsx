@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useEffect, useCallback } from 'react'; // Added imports
+import { useState, useEffect, useCallback } from 'react'; 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -205,4 +205,3 @@ const ViewContractPage: FC = () => {
 };
 
 export default ViewContractPage;
-
