@@ -91,7 +91,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     { href: "/admin/clients", icon: <Users />, label: "Client Hub", tooltip: "Client Management" },
     { href: "/admin/projects", icon: <Briefcase />, label: "Project Hub", tooltip: "Project Hub (coming soon)" },
     { href: "/admin/contracts", icon: <FileTextIconLucide />, label: "Contracts", tooltip: "Contracts (coming soon)" },
-    { href: "/admin/invoices", icon: <Receipt />, label: "Invoices", tooltip: "Invoices (coming soon)" },
+    { href: "/admin/invoices", icon: <Receipt />, label: "Invoices", tooltip: "Invoices Hub" },
     { href: "/admin/communication", icon: <MessageSquareText />, label: "Communication Hub", tooltip: "Communication Hub (coming soon)" },
     { href: "/admin/staff", icon: <UsersRound />, label: "Staff", tooltip: "Staff Management" },
     { href: "/admin/file-manager", icon: <FolderKanban />, label: "File Manager", tooltip: "File Manager (coming soon)" },
