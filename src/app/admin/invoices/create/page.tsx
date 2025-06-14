@@ -41,14 +41,14 @@ const CreateInvoicePage: FC = () => {
     defaultValues: {
       senderName: adminUserData?.displayName || '',
       senderEmail: adminUserData?.email || '',
-      senderPhone: adminUserData?.phone || '', // Assuming adminUserData might have phone
-      senderAddress: '', // No typical address field in adminUserData yet
+      senderPhone: adminUserData?.phone || '', 
+      senderAddress: '', 
       clientId: '',
-      clientName: '', // Will be set on client selection
-      clientEmail: '', // Will be set on client selection
+      clientName: '', 
+      clientEmail: '', 
       issueDate: new Date(),
       dueDate: add(new Date(), { weeks: 2 }),
-      items: [{ description: '', quantity: 1, unitPrice: 0 }],
+      items: [{ description: '', quantity: 1, unitOfMeasure: '', unitPrice: 0 }],
       status: 'draft',
       notes: '',
       taxAmount: 0,
@@ -78,11 +78,9 @@ const CreateInvoicePage: FC = () => {
   }, [fetchClientsCallback]);
   
   useEffect(() => {
-    // Pre-fill sender info if admin data changes
     if (adminUserData) {
         form.setValue('senderName', adminUserData.displayName || '');
         form.setValue('senderEmail', adminUserData.email || '');
-        // Add other fields if available, e.g. form.setValue('senderPhone', adminUserData.phone || '');
     }
   }, [adminUserData, form]);
 
@@ -279,12 +277,12 @@ const CreateInvoicePage: FC = () => {
               <div>
                 <h3 className="text-lg font-medium text-primary mb-4">Invoice Items</h3>
                 {fields.map((item, index) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-x-4 gap-y-2 items-start mb-4 p-3 border rounded-md bg-secondary/30">
+                  <div key={item.id} className="grid grid-cols-12 gap-x-2 gap-y-2 items-start mb-4 p-3 border rounded-md bg-secondary/30">
                     <FormField
                       control={form.control}
                       name={`items.${index}.description`}
                       render={({ field }) => (
-                        <FormItem className="col-span-12 md:col-span-5">
+                        <FormItem className="col-span-12 md:col-span-4">
                           {index === 0 && <FormLabel className="text-xs md:hidden">Description</FormLabel>}
                           <FormControl>
                             <Input placeholder="Item description" {...field} disabled={isSubmitting} />
@@ -297,10 +295,23 @@ const CreateInvoicePage: FC = () => {
                       control={form.control}
                       name={`items.${index}.quantity`}
                       render={({ field }) => (
-                        <FormItem className="col-span-4 md:col-span-2">
+                        <FormItem className="col-span-3 md:col-span-2">
                            {index === 0 && <FormLabel className="text-xs md:hidden">Qty</FormLabel>}
                           <FormControl>
                             <Input type="number" placeholder="Qty" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} disabled={isSubmitting} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={form.control}
+                      name={`items.${index}.unitOfMeasure`}
+                      render={({ field }) => (
+                        <FormItem className="col-span-4 md:col-span-2">
+                           {index === 0 && <FormLabel className="text-xs md:hidden">Unit</FormLabel>}
+                          <FormControl>
+                            <Input placeholder="Unit (e.g. hrs, pcs)" {...field} value={field.value ?? ''} disabled={isSubmitting} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -310,7 +321,7 @@ const CreateInvoicePage: FC = () => {
                       control={form.control}
                       name={`items.${index}.unitPrice`}
                       render={({ field }) => (
-                        <FormItem className="col-span-5 md:col-span-2">
+                        <FormItem className="col-span-3 md:col-span-2">
                           {index === 0 && <FormLabel className="text-xs md:hidden">Unit Price</FormLabel>}
                           <FormControl>
                             <Input type="number" placeholder="Unit Price" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} disabled={isSubmitting} />
@@ -319,9 +330,9 @@ const CreateInvoicePage: FC = () => {
                         </FormItem>
                       )}
                     />
-                    <div className="col-span-3 md:col-span-2 flex items-center pt-1 md:pt-0">
+                    <div className="col-span-2 md:col-span-1 flex items-center pt-1 md:pt-0">
                        {index === 0 && <FormLabel className="text-xs md:hidden invisible">Total</FormLabel>}
-                      <p className="text-sm font-medium w-full text-right pr-2">
+                      <p className="text-sm font-medium w-full text-right pr-1">
                         KES {( (form.getValues(`items.${index}.quantity`) || 0) * (form.getValues(`items.${index}.unitPrice`) || 0) ).toFixed(2)}
                       </p>
                     </div>
@@ -337,7 +348,7 @@ const CreateInvoicePage: FC = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}
+                  onClick={() => append({ description: '', quantity: 1, unitOfMeasure: '', unitPrice: 0 })}
                   disabled={isSubmitting}
                   className="mt-2"
                 >
@@ -446,4 +457,3 @@ const CreateInvoicePage: FC = () => {
 };
 
 export default CreateInvoicePage;
-

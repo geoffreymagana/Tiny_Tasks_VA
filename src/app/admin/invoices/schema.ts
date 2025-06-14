@@ -6,6 +6,7 @@ export const InvoiceItemSchema = z.object({
   id: z.string().optional(), // For client-side keying if needed, not strictly for Firestore subcollection items
   description: z.string().min(1, "Item description is required.").max(200, "Description too long."),
   quantity: z.number().min(0.01, "Quantity must be greater than 0.").max(10000, "Quantity too large."),
+  unitOfMeasure: z.string().max(20, "Unit of measure too long.").optional().or(z.literal('')), // New field
   unitPrice: z.number().min(0, "Unit price cannot be negative.").max(1000000, "Unit price too large."),
   // total will be calculated: quantity * unitPrice
 });
@@ -69,6 +70,11 @@ export const CreateInvoiceFormSchema = InvoiceSchema.omit({
   senderEmail: z.string().email("A valid sender email is required.").max(100),
   senderPhone: z.string().max(30).optional().or(z.literal('')),
   senderAddress: z.string().max(200, "Sender address too long.").optional().or(z.literal('')),
+  items: z.array(
+    InvoiceItemSchema.extend({
+        unitOfMeasure: z.string().max(20, "Unit too long").optional().default(''), // Ensure default for form
+    })
+  ).min(1, "At least one item is required.").max(50, "Maximum 50 items per invoice."),
 });
 
 export type CreateInvoiceFormValues = z.infer<typeof CreateInvoiceFormSchema>;

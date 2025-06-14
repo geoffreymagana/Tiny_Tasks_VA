@@ -129,17 +129,17 @@ const ViewInvoicePage: FC = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-secondary/50 print:bg-gray-100">
-                <TableHead className="w-[50%]">Description</TableHead>
-                <TableHead className="text-center">Quantity</TableHead>
-                <TableHead className="text-right">Unit Price (KES)</TableHead>
-                <TableHead className="text-right">Total (KES)</TableHead>
+                <TableHead className="w-[45%]">Description</TableHead>
+                <TableHead className="text-center w-[15%]">Quantity</TableHead>
+                <TableHead className="text-right w-[20%]">Unit Price (KES)</TableHead>
+                <TableHead className="text-right w-[20%]">Total (KES)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {invoice.items.map((item, index) => (
                 <TableRow key={item.id || index}>
                   <TableCell className="font-medium">{item.description}</TableCell>
-                  <TableCell className="text-center">{item.quantity}</TableCell>
+                  <TableCell className="text-center">{item.quantity} {item.unitOfMeasure || ''}</TableCell>
                   <TableCell className="text-right">{item.unitPrice.toFixed(2)}</TableCell>
                   <TableCell className="text-right">{(item.quantity * item.unitPrice).toFixed(2)}</TableCell>
                 </TableRow>
@@ -232,4 +232,3 @@ const ViewInvoicePage: FC = () => {
 };
 
 export default ViewInvoicePage;
-
