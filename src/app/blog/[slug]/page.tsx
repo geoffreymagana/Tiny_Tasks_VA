@@ -1,5 +1,5 @@
 
-import { use } from 'react'; // Import React.use
+import { use } from 'react'; 
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -7,19 +7,68 @@ import Link from 'next/link';
 import { ArrowLeft, CalendarDays, Tag, UserCircle } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { BlogPost } from '@/app/admin/blog/actions';
+import type { BlogPost } from '@/app/admin/blog/actions'; // Ensure this path is correct and BlogPost has refined date types
 import ReactMarkdown from 'react-markdown';
 import { notFound } from 'next/navigation';
 
-// This interface describes the shape of the params object *after* unwrapping.
 interface ResolvedPageParams {
   slug: string;
 }
 
-// This interface describes the props object as received by the page component.
 interface BlogSlugPageServerProps {
   params: any; 
 }
+
+// Helper to convert various timestamp formats to ISO string or null
+const convertDbTimestampToISO = (dbTimestamp: any): string | null => {
+  if (!dbTimestamp) return null;
+  
+  if (dbTimestamp instanceof Timestamp) { // Firebase v9 Timestamp
+    return dbTimestamp.toDate().toISOString();
+  }
+  if (dbTimestamp instanceof Date) { // Plain JS Date
+    return dbTimestamp.toISOString();
+  }
+  // Handle cases where timestamp might be an object with seconds/nanoseconds (e.g. after JSON stringify/parse)
+  if (typeof dbTimestamp === 'object' && dbTimestamp !== null && 
+      typeof dbTimestamp.seconds === 'number' && typeof dbTimestamp.nanoseconds === 'number') {
+    try {
+        return new Timestamp(dbTimestamp.seconds, dbTimestamp.nanoseconds).toDate().toISOString();
+    } catch(e) {
+        console.warn("Error converting object with sec/ns to Timestamp:", e, dbTimestamp);
+        return null;
+    }
+  }
+  // Handle Firestore ServerTimestamp placeholder or other objects with toDate()
+  // This handles cases where toDate might exist but isn't a standard Timestamp or Date
+  if (typeof dbTimestamp === 'object' && dbTimestamp !== null && typeof dbTimestamp.toDate === 'function') {
+    try {
+        const dateObj = dbTimestamp.toDate();
+        if (dateObj instanceof Date && !isNaN(dateObj.getTime())) {
+             return dateObj.toISOString();
+        }
+        // If toDate() doesn't return a valid Date, it might be an uncommitted ServerTimestamp
+        // For ServerTimestamp placeholders, we might return null or current time as a fallback
+        console.warn("toDate() did not return a valid Date. It might be an uncommitted ServerTimestamp:", dbTimestamp);
+        return new Date().toISOString(); // Or return null if preferred for uncommitted timestamps
+    } catch (e) {
+        console.warn("Failed to convert object with toDate method:", e, dbTimestamp);
+        return null; 
+    }
+  }
+  // If it's already a string, try to parse it to ensure it's valid, then re-stringify to ISO
+  if (typeof dbTimestamp === 'string') {
+    const d = new Date(dbTimestamp);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString();
+    }
+    console.warn("Invalid date string encountered in getBlogPostBySlug:", dbTimestamp);
+    return null; 
+  }
+  console.warn("Unparseable timestamp format encountered in getBlogPostBySlug:", dbTimestamp);
+  return null; 
+};
+
 
 async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
   try {
@@ -34,60 +83,16 @@ async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
     const doc = querySnapshot.docs[0];
     const data = doc.data();
     
-    // More robust timestamp conversion
-    const convertDbTimestampToISO = (dbTimestamp: any): string | null => {
-      if (!dbTimestamp) return null;
-      
-      if (dbTimestamp instanceof Timestamp) { // Firebase v9 Timestamp
-        return dbTimestamp.toDate().toISOString();
-      }
-      if (dbTimestamp instanceof Date) { // Plain JS Date
-        return dbTimestamp.toISOString();
-      }
-      // Handle cases where timestamp might be an object with seconds/nanoseconds (e.g. after JSON stringify/parse)
-      if (typeof dbTimestamp === 'object' && dbTimestamp !== null && 
-          typeof dbTimestamp.seconds === 'number' && typeof dbTimestamp.nanoseconds === 'number') {
-        try {
-            return new Timestamp(dbTimestamp.seconds, dbTimestamp.nanoseconds).toDate().toISOString();
-        } catch(e) {
-            console.warn("Error converting object with sec/ns to Timestamp:", e, dbTimestamp);
-            return null;
-        }
-      }
-      // Handle Firestore ServerTimestamp placeholder or other objects with toDate()
-      if (typeof dbTimestamp === 'object' && dbTimestamp !== null && typeof dbTimestamp.toDate === 'function') {
-        try {
-            return dbTimestamp.toDate().toISOString();
-        } catch (e) {
-            console.warn("Failed to convert object with toDate method:", e, dbTimestamp);
-            // Fallback for uncommitted server timestamps or problematic objects
-            return null; 
-        }
-      }
-      // If it's already a string, try to parse it to ensure it's valid, then re-stringify to ISO
-      if (typeof dbTimestamp === 'string') {
-        const d = new Date(dbTimestamp);
-        if (!isNaN(d.getTime())) {
-          return d.toISOString();
-        }
-        console.warn("Invalid date string encountered in getBlogPostBySlug:", dbTimestamp);
-        return null; 
-      }
-      console.warn("Unparseable timestamp format encountered in getBlogPostBySlug:", dbTimestamp);
-      return null; 
-    };
-
-    // Ensure all fields from BlogPost interface are mapped, even if some are from data directly.
     const postData: BlogPost = {
       id: doc.id,
-      title: data.title,
-      content: data.content,
-      category: data.category,
-      excerpt: data.excerpt,
-      slug: data.slug,
-      status: data.status,
-      authorId: data.authorId,
-      authorName: data.authorName,
+      title: data.title || '',
+      content: data.content || '',
+      category: data.category || '',
+      excerpt: data.excerpt || '',
+      slug: data.slug || '',
+      status: data.status || 'draft', // Should always be 'published' due to query, but good fallback
+      authorId: data.authorId || '',
+      authorName: data.authorName || null,
       createdAt: convertDbTimestampToISO(data.createdAt),
       updatedAt: convertDbTimestampToISO(data.updatedAt),
       publishedAt: data.publishedAt ? convertDbTimestampToISO(data.publishedAt) : null,

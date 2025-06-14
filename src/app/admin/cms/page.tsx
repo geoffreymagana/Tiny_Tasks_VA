@@ -30,15 +30,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getSectionDataAction, updateSectionDataAction, type SectionData, type SectionOperationResult } from './actions';
+import { getSectionDataAction, updateSectionDataAction, type SectionData } from './actions';
 import { cn } from '@/lib/utils';
 
 interface ManagedSection {
   id: string;
   name: string;
-  description: string; // For CMS UI
-  defaultText: string; // Default static text from homepage
-  defaultTitle: string; // Default static title from homepage
+  description: string;
+  defaultTitle: string;
+  defaultText: string;
   currentImageUrl: string | null;
   newImageUrl: string;
   currentTitle: string | null;
@@ -49,8 +49,6 @@ interface ManagedSection {
   placeholderHint?: string;
 }
 
-// Define the sections that appear on the homepage or other key public pages
-// These provide default text if nothing is in CMS and also UI descriptions
 const initialStaticSectionsData = [
   { id: 'hero', name: 'Hero Section', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant' },
   { id: 'onboarding-overview', name: 'Onboarding Overview Section', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps' },
@@ -61,6 +59,32 @@ const initialStaticSectionsData = [
   { id: 'blog-intro', name: 'Blog Introduction Image & Text', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas' },
   { id: 'cta', name: 'Call to Action Section Image & Text', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration' },
 ];
+
+
+// Helper to convert various timestamp formats to ISO string or null (for CMS page blog listing)
+const convertDbTimestampToISOForCms = (dbTimestamp: any): string | null => {
+  if (!dbTimestamp) return null;
+  if (dbTimestamp instanceof Timestamp) { return dbTimestamp.toDate().toISOString(); }
+  if (dbTimestamp instanceof Date) { return dbTimestamp.toISOString(); }
+  if (typeof dbTimestamp === 'object' && dbTimestamp !== null && typeof dbTimestamp.seconds === 'number' && typeof dbTimestamp.nanoseconds === 'number') {
+    try { return new Timestamp(dbTimestamp.seconds, dbTimestamp.nanoseconds).toDate().toISOString(); }
+    catch (e) { console.warn("Error converting object with sec/ns to Timestamp for CMS:", e, dbTimestamp); return null; }
+  }
+  if (typeof dbTimestamp === 'object' && dbTimestamp !== null && typeof dbTimestamp.toDate === 'function') {
+    try {
+      const dateObj = dbTimestamp.toDate();
+      if (dateObj instanceof Date && !isNaN(dateObj.getTime())) { return dateObj.toISOString(); }
+      console.warn("toDate() did not return valid Date for CMS:", dbTimestamp);
+      return new Date().toISOString(); // Fallback for uncommitted server timestamps
+    } catch (e) { console.warn("Failed to convert object with toDate method for CMS:", e, dbTimestamp); return null; }
+  }
+  if (typeof dbTimestamp === 'string') {
+    const d = new Date(dbTimestamp);
+    if (!isNaN(d.getTime())) { return d.toISOString(); }
+    console.warn("Invalid date string for CMS:", dbTimestamp); return null;
+  }
+  console.warn("Unparseable timestamp for CMS:", dbTimestamp); return null;
+};
 
 
 const CmsPage: FC = () => {
@@ -75,8 +99,8 @@ const CmsPage: FC = () => {
     initialStaticSectionsData.map(s => ({ 
       ...s, 
       currentImageUrl: null, newImageUrl: '', 
-      currentTitle: null, newTitle: s.defaultTitle,
-      currentText: null, newText: s.defaultText,
+      currentTitle: s.defaultTitle, newTitle: s.defaultTitle, // Initialize with defaults
+      currentText: s.defaultText, newText: s.defaultText,     // Initialize with defaults
       isLoading: true 
     }))
   );
@@ -91,7 +115,7 @@ const CmsPage: FC = () => {
         currentText: s.defaultText, newText: s.defaultText,
         isLoading: true,
     }));
-    setManagedSections(initialData);
+    setManagedSections(initialData); // Set loading state immediately
 
     const updates = await Promise.all(
       initialStaticSectionsData.map(async (staticSection) => {
@@ -111,6 +135,7 @@ const CmsPage: FC = () => {
     setManagedSections(updates);
   }, [firebaseUser]);
 
+
   useEffect(() => {
     fetchAllSectionData();
   }, [fetchAllSectionData]);
@@ -127,11 +152,18 @@ const CmsPage: FC = () => {
         const data = doc.data();
         posts.push({
           id: doc.id,
-          ...data,
-          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
-          publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt.toDate().toISOString() : data.publishedAt,
-        } as BlogPost);
+          title: data.title || '',
+          content: data.content || '',
+          category: data.category || '',
+          excerpt: data.excerpt || '',
+          slug: data.slug || '',
+          status: data.status || 'draft',
+          authorId: data.authorId || '',
+          authorName: data.authorName || null,
+          createdAt: convertDbTimestampToISOForCms(data.createdAt),
+          updatedAt: convertDbTimestampToISOForCms(data.updatedAt),
+          publishedAt: data.publishedAt ? convertDbTimestampToISOForCms(data.publishedAt) : null,
+        } as BlogPost); // Added 'as BlogPost' for stricter type checking
       });
       setBlogPosts(posts);
       setIsLoadingPosts(false);
@@ -182,13 +214,22 @@ const CmsPage: FC = () => {
 
     setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, isLoading: true } : s));
     
-    const dataToUpdate: Partial<SectionData> = {};
-    if (section.newImageUrl !== section.currentImageUrl) dataToUpdate.imageUrl = section.newImageUrl;
-    if (section.newTitle !== section.currentTitle) dataToUpdate.title = section.newTitle;
-    if (section.newText !== section.currentText) dataToUpdate.text = section.newText;
+    const dataToUpdate: { imageUrl?: string | null; title?: string | null; text?: string | null } = {};
+    let changed = false;
+    if (section.newImageUrl !== section.currentImageUrl) {
+      dataToUpdate.imageUrl = section.newImageUrl.trim() === '' ? null : section.newImageUrl.trim();
+      changed = true;
+    }
+    if (section.newTitle !== section.currentTitle) {
+      dataToUpdate.title = section.newTitle.trim() === '' ? null : section.newTitle.trim();
+      changed = true;
+    }
+    if (section.newText !== section.currentText) {
+      dataToUpdate.text = section.newText.trim() === '' ? null : section.newText.trim();
+      changed = true;
+    }
     
-    // Only update if there are actual changes to image, title, or text
-    if (Object.keys(dataToUpdate).length === 0) {
+    if (!changed) {
         toast({ title: "No Changes", description: "No changes detected to save for this section." });
         setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, isLoading: false } : s));
         return;
@@ -247,7 +288,7 @@ const CmsPage: FC = () => {
             <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Content</CardTitle>
             <CardDescription>
               Update images and text for key sections of your public website. 
-              For images, use direct links (e.g., ending in .jpg, .png from sources like Unsplash direct image URLs), not links to web pages.
+              For images, use direct links (e.g., ending in .jpg, .png from sources like Unsplash direct image URLs), not links to web pages like `unsplash.com/photos/...`.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -258,7 +299,6 @@ const CmsPage: FC = () => {
                   <CardDescription className="text-xs">{section.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0 grid md:grid-cols-2 gap-6">
-                  {/* Column 1: Image Management */}
                   <div className="space-y-3">
                     <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
                       {section.currentImageUrl ? (
@@ -307,7 +347,6 @@ const CmsPage: FC = () => {
                     </Button>
                   </div>
 
-                  {/* Column 2: Text Content Management */}
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor={`title-${section.id}`}>Section Title</Label>

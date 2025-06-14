@@ -14,10 +14,10 @@ export interface BlogPost {
   slug: string;
   status: 'draft' | 'published';
   authorId: string;
-  authorName?: string;
-  createdAt: any; 
-  updatedAt: any; 
-  publishedAt?: any; 
+  authorName?: string | null; // Can be optional
+  createdAt: string | null; 
+  updatedAt: string | null; 
+  publishedAt?: string | null; 
 }
 
 export interface BlogOperationResult {
@@ -64,6 +64,46 @@ async function generateUniqueSlug(title: string, currentPostId?: string): Promis
   return uniqueSlug;
 }
 
+// Helper to convert various timestamp formats to ISO string or null
+const convertDbTimestampToISO = (dbTimestamp: any): string | null => {
+  if (!dbTimestamp) return null;
+  
+  if (dbTimestamp instanceof Timestamp) {
+    return dbTimestamp.toDate().toISOString();
+  }
+  if (dbTimestamp instanceof Date) {
+    return dbTimestamp.toISOString();
+  }
+  if (typeof dbTimestamp === 'object' && dbTimestamp !== null && 
+      typeof dbTimestamp.seconds === 'number' && typeof dbTimestamp.nanoseconds === 'number') {
+    try {
+        return new Timestamp(dbTimestamp.seconds, dbTimestamp.nanoseconds).toDate().toISOString();
+    } catch(e) {
+        console.warn("Error converting object with sec/ns to Timestamp:", e, dbTimestamp);
+        return null;
+    }
+  }
+  if (typeof dbTimestamp === 'object' && dbTimestamp !== null && typeof dbTimestamp.toDate === 'function') {
+    try {
+        return dbTimestamp.toDate().toISOString();
+    } catch (e) {
+        console.warn("Failed to convert object with toDate method:", e, dbTimestamp);
+        return new Date().toISOString(); // Fallback if toDate exists but fails (e.g. uncommitted server ts)
+    }
+  }
+  if (typeof dbTimestamp === 'string') {
+    const d = new Date(dbTimestamp);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString();
+    }
+    console.warn("Invalid date string encountered:", dbTimestamp);
+    return null; 
+  }
+  console.warn("Unparseable timestamp format encountered:", dbTimestamp);
+  return null; 
+};
+
+
 export async function getBlogPostAction(postId: string): Promise<BlogPost | null> {
   try {
     const postDocRef = doc(db, 'blogPosts', postId);
@@ -74,23 +114,20 @@ export async function getBlogPostAction(postId: string): Promise<BlogPost | null
     }
 
     const data = postDocSnap.data();
-    const convertTimestamp = (timestamp: any) => {
-        if (timestamp instanceof Timestamp) {
-          return timestamp.toDate().toISOString();
-        }
-        if (typeof timestamp === 'string') return timestamp; // Already a string
-        if (timestamp && typeof timestamp.toDate === 'function') { // Handle Firestore ServerTimestamp placeholder
-            return new Date().toISOString(); // Fallback to current date if it's a pending server timestamp
-        }
-        return timestamp; // Or null/undefined
-    };
     
     return {
       id: postDocSnap.id,
-      ...data,
-      createdAt: convertTimestamp(data.createdAt),
-      updatedAt: convertTimestamp(data.updatedAt),
-      publishedAt: data.publishedAt ? convertTimestamp(data.publishedAt) : null,
+      title: data.title || '',
+      content: data.content || '',
+      category: data.category || '',
+      excerpt: data.excerpt || '',
+      slug: data.slug || '',
+      status: data.status || 'draft',
+      authorId: data.authorId || '',
+      authorName: data.authorName || null,
+      createdAt: convertDbTimestampToISO(data.createdAt),
+      updatedAt: convertDbTimestampToISO(data.updatedAt),
+      publishedAt: data.publishedAt ? convertDbTimestampToISO(data.publishedAt) : null,
     } as BlogPost;
 
   } catch (error) {
@@ -120,7 +157,8 @@ export async function saveBlogPostAction(
   try {
     const slug = await generateUniqueSlug(serverData.title);
 
-    const newPost: Omit<BlogPost, 'id'> = {
+    // Fields that are part of BlogPost but not directly in SaveBlogPostServerData
+    const newPostData = {
       title: serverData.title,
       content: serverData.content,
       category: serverData.category,
@@ -129,16 +167,13 @@ export async function saveBlogPostAction(
       slug,
       authorId: authorId,
       authorName: userData.displayName || userData.email || 'Admin',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp(), // Firestore will handle this
+      updatedAt: serverTimestamp(), // Firestore will handle this
+      publishedAt: serverData.status === 'published' ? serverTimestamp() : null, // Firestore will handle this
     };
 
-    if (serverData.status === 'published') {
-      newPost.publishedAt = serverTimestamp();
-    }
-
-    const docRef = await addDoc(collection(db, 'blogPosts'), newPost);
-    return { success: true, message: 'Blog post saved successfully!', postId: docRef.id, slug: newPost.slug };
+    const docRef = await addDoc(collection(db, 'blogPosts'), newPostData);
+    return { success: true, message: 'Blog post saved successfully!', postId: docRef.id, slug: newPostData.slug };
   } catch (error: any) {
     console.error('Error saving blog post:', error);
     return { success: false, message: error.message || 'Failed to save blog post.' };
@@ -169,14 +204,14 @@ export async function updateBlogPostAction(
   }
 
   try {
-    const existingPostData = postSnap.data() as BlogPost;
+    const existingPostData = postSnap.data() as Omit<BlogPost, 'id'>; // Use Omit as id is not in data()
     let slug = existingPostData.slug;
 
     if (serverData.title !== existingPostData.title) {
       slug = await generateUniqueSlug(serverData.title, postId);
     }
 
-    const updatedPostData: Partial<BlogPost> = {
+    const updatedPostData: Partial<Omit<BlogPost, 'id'>> = { // Use Partial<Omit<...>>
       title: serverData.title,
       content: serverData.content,
       category: serverData.category,
@@ -189,7 +224,8 @@ export async function updateBlogPostAction(
     if (serverData.status === 'published' && existingPostData.status !== 'published') {
       updatedPostData.publishedAt = serverTimestamp();
     } else if (serverData.status === 'draft' && existingPostData.status === 'published') {
-      updatedPostData.publishedAt = null; // Or keep existing, depends on logic. Let's make it null to reflect draft status.
+      // Set to null if moving from published to draft
+      updatedPostData.publishedAt = null;
     }
     
     await updateDoc(postRef, updatedPostData);
