@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller, type SubmitHandler } from 'react-hook-form';
@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { DatePicker } from '@/components/ui/date-picker'; // New component
+import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { LottieLoader } from '@/components/ui/lottie-loader';
@@ -73,7 +73,6 @@ const CreateInvoicePage: FC = () => {
     fetchClientsCallback();
   }, [fetchClientsCallback]);
   
-  // Update clientName and clientEmail when clientId changes
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === 'clientId' && value.clientId) {
@@ -87,7 +86,6 @@ const CreateInvoicePage: FC = () => {
     return () => subscription.unsubscribe();
   }, [form, clients]);
 
-  // Auto-update due date when issue date changes
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === 'issueDate' && value.issueDate) {
@@ -101,11 +99,11 @@ const CreateInvoicePage: FC = () => {
   const watchedTax = form.watch('taxAmount') || 0;
   const watchedDiscount = form.watch('discountAmount') || 0;
 
-  const subTotal = React.useMemo(() => {
+  const subTotal = useMemo(() => {
     return watchedItems.reduce((acc, item) => acc + (item.quantity || 0) * (item.unitPrice || 0), 0);
   }, [watchedItems]);
 
-  const totalAmount = React.useMemo(() => {
+  const totalAmount = useMemo(() => {
     return subTotal + (watchedTax || 0) - (watchedDiscount || 0);
   }, [subTotal, watchedTax, watchedDiscount]);
 
@@ -120,8 +118,8 @@ const CreateInvoicePage: FC = () => {
 
     const dataForServerAction = {
         ...data,
-        issueDate: formatISO(data.issueDate), // Convert Date to ISO string
-        dueDate: formatISO(data.dueDate),     // Convert Date to ISO string
+        issueDate: formatISO(data.issueDate), 
+        dueDate: formatISO(data.dueDate),     
     };
 
     const result: InvoiceOperationResult = await addInvoiceAction(dataForServerAction, adminFirebaseUser.uid);
@@ -177,7 +175,6 @@ const CreateInvoicePage: FC = () => {
                     </FormItem>
                   )}
                 />
-                 {/* Hidden fields for clientName and clientEmail, populated by clientID change */}
                 <input type="hidden" {...form.register('clientName')} />
                 <input type="hidden" {...form.register('clientEmail')} />
               </div>
