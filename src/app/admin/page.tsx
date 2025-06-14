@@ -96,7 +96,7 @@ const sampleAiSuggestions = [
 
 const AdminDashboardPage: FC = () => {
   return (
-    <div className="flex flex-col lg:flex-row lg:gap-x-8 h-full">
+    <div className="flex flex-col lg:flex-row lg:gap-x-4 h-full"> {/* Reduced gap-x */}
       {/* Middle Section: Primary Workspace */}
       <div className="lg:w-0 lg:flex-1 h-full overflow-y-auto p-6 md:p-8 space-y-8">
         <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Admin Dashboard</h1>
@@ -324,7 +324,7 @@ const AdminDashboardPage: FC = () => {
       </div>
 
       {/* Right Panel: Utility/Assistance Zone */}
-      <div className="lg:w-[16rem] shrink-0 h-full overflow-y-auto px-3 md:px-4 py-6 md:py-8 space-y-6">
+      <div className="lg:w-[20rem] shrink-0 h-full overflow-y-auto px-3 md:px-4 py-6 md:py-8 space-y-6"> {/* Increased width */}
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center text-lg"><Bell className="mr-2 h-5 w-5 text-accent" /> Real-Time Notifications</CardTitle>
@@ -451,4 +451,6 @@ const AdminDashboardPage: FC = () => {
 };
 
 export default AdminDashboardPage;
+    
+
     
