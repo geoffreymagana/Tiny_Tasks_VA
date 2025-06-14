@@ -15,7 +15,7 @@ import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { getInvoiceAction } from '../../actions'; 
 import type { Invoice, InvoiceStatus } from '../../schema'; 
 import { LottieLoader } from '@/components/ui/lottie-loader';
-import { ArrowLeft, Printer, Edit, Send, Trash2, DollarSign, Info } from 'lucide-react';
+import { ArrowLeft, Printer, Edit, Send, Trash2, DollarSign, Info, Percent } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +26,13 @@ const statusColors: Record<InvoiceStatus, string> = {
   overdue: 'bg-red-500 text-white border-red-600',
   void: 'bg-neutral-500 text-white border-neutral-600',
 };
+
+const KESFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'KES',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 const ViewInvoicePage: FC = () => {
   const params = useParams();
@@ -62,6 +69,7 @@ const ViewInvoicePage: FC = () => {
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
+      document.title = `TTVA-${invoice?.invoiceNumber || 'invoice'}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
       window.print();
     }
   };
@@ -74,6 +82,9 @@ const ViewInvoicePage: FC = () => {
       </div>
     );
   }
+  
+  const effectiveTaxRate = invoice.subTotalAmount > 0 ? (invoice.taxAmount / invoice.subTotalAmount) * 100 : 0;
+
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -130,9 +141,9 @@ const ViewInvoicePage: FC = () => {
             <TableHeader>
               <TableRow className="bg-secondary/50 print:bg-gray-100">
                 <TableHead className="w-[45%]">Description</TableHead>
-                <TableHead className="text-center w-[15%]">Quantity</TableHead>
-                <TableHead className="text-right w-[20%]">Unit Price (KES)</TableHead>
-                <TableHead className="text-right w-[20%]">Total (KES)</TableHead>
+                <TableHead className="text-center w-[15%]">Quantity / Unit</TableHead>
+                <TableHead className="text-right w-[20%]">Unit Price</TableHead>
+                <TableHead className="text-right w-[20%]">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -140,8 +151,8 @@ const ViewInvoicePage: FC = () => {
                 <TableRow key={item.id || index}>
                   <TableCell className="font-medium">{item.description}</TableCell>
                   <TableCell className="text-center">{item.quantity} {item.unitOfMeasure || ''}</TableCell>
-                  <TableCell className="text-right">{item.unitPrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">{(item.quantity * item.unitPrice).toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{KESFormatter.format(item.unitPrice)}</TableCell>
+                  <TableCell className="text-right">{KESFormatter.format(item.quantity * item.unitPrice)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -151,24 +162,26 @@ const ViewInvoicePage: FC = () => {
             <div className="w-full max-w-xs space-y-2 text-sm">
                 <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="font-medium">KES {invoice.subTotalAmount.toFixed(2)}</span>
+                    <span className="font-medium">{KESFormatter.format(invoice.subTotalAmount)}</span>
                 </div>
                 {invoice.taxAmount > 0 && (
                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tax:</span>
-                        <span className="font-medium">KES {invoice.taxAmount.toFixed(2)}</span>
+                        <span className="text-muted-foreground">
+                            Tax {effectiveTaxRate > 0 ? `(${effectiveTaxRate.toFixed(2)}%)` : ''}:
+                        </span>
+                        <span className="font-medium">{KESFormatter.format(invoice.taxAmount)}</span>
                     </div>
                 )}
                 {invoice.discountAmount > 0 && (
                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Discount:</span>
-                        <span className="font-medium text-destructive">- KES {invoice.discountAmount.toFixed(2)}</span>
+                        <span className="font-medium text-destructive">- {KESFormatter.format(invoice.discountAmount)}</span>
                     </div>
                 )}
                 <Separator />
                 <div className="flex justify-between text-lg font-bold text-primary">
                     <span>Total Amount Due:</span>
-                    <span>KES {invoice.totalAmount.toFixed(2)}</span>
+                    <span>{KESFormatter.format(invoice.totalAmount)}</span>
                 </div>
             </div>
           </div>
@@ -217,7 +230,7 @@ const ViewInvoicePage: FC = () => {
             background-color: transparent !important;
           }
            .print\\:bg-gray-100 {
-            background-color: #f3f4f6 !important; /* Example gray for print header consistency */
+            background-color: #f3f4f6 !important; 
           }
            .print\\:border-none {
             border: none !important;

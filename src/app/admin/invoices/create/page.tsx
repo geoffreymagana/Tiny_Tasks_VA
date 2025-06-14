@@ -22,11 +22,18 @@ import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Save, PlusCircle, Trash2, FileText, UserCircle2, Building } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, Trash2, FileText, UserCircle2, Building, Percent } from 'lucide-react';
 
 import { addInvoiceAction, type InvoiceOperationResult } from '../actions';
 import { CreateInvoiceFormSchema, type CreateInvoiceFormValues, type InvoiceItem } from '../schema';
 import { getAllClientsAction, type Client } from '../../clients/actions'; 
+
+const KESFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'KES',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 const CreateInvoicePage: FC = () => {
   const { toast } = useToast();
@@ -51,7 +58,7 @@ const CreateInvoicePage: FC = () => {
       items: [{ description: '', quantity: 1, unitOfMeasure: '', unitPrice: 0 }],
       status: 'draft',
       notes: '',
-      taxAmount: 0,
+      taxRate: 0,
       discountAmount: 0,
     },
   });
@@ -107,16 +114,20 @@ const CreateInvoicePage: FC = () => {
   }, [form]);
 
   const watchedItems = form.watch('items');
-  const watchedTax = form.watch('taxAmount') || 0;
+  const watchedTaxRate = form.watch('taxRate') || 0;
   const watchedDiscount = form.watch('discountAmount') || 0;
 
   const subTotal = useMemo(() => {
     return watchedItems.reduce((acc, item) => acc + (item.quantity || 0) * (item.unitPrice || 0), 0);
   }, [watchedItems]);
 
+  const calculatedTaxAmount = useMemo(() => {
+    return subTotal * (watchedTaxRate / 100);
+  }, [subTotal, watchedTaxRate]);
+
   const totalAmount = useMemo(() => {
-    return subTotal + (watchedTax || 0) - (watchedDiscount || 0);
-  }, [subTotal, watchedTax, watchedDiscount]);
+    return subTotal + calculatedTaxAmount - watchedDiscount;
+  }, [subTotal, calculatedTaxAmount, watchedDiscount]);
 
 
   const handleSaveInvoice: SubmitHandler<CreateInvoiceFormValues> = async (data) => {
@@ -333,7 +344,7 @@ const CreateInvoicePage: FC = () => {
                     <div className="col-span-2 md:col-span-1 flex items-center pt-1 md:pt-0">
                        {index === 0 && <FormLabel className="text-xs md:hidden invisible">Total</FormLabel>}
                       <p className="text-sm font-medium w-full text-right pr-1">
-                        KES {( (form.getValues(`items.${index}.quantity`) || 0) * (form.getValues(`items.${index}.unitPrice`) || 0) ).toFixed(2)}
+                         {KESFormatter.format((form.getValues(`items.${index}.quantity`) || 0) * (form.getValues(`items.${index}.unitPrice`) || 0))}
                       </p>
                     </div>
                     <div className="col-span-12 md:col-span-1 flex justify-end md:justify-center items-center pt-1 md:pt-0">
@@ -407,20 +418,29 @@ const CreateInvoicePage: FC = () => {
                 <Card className="md:col-span-1 p-4 space-y-3 bg-secondary/50">
                     <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Subtotal:</span>
-                        <span className="font-medium">KES {subTotal.toFixed(2)}</span>
+                        <span className="font-medium">{KESFormatter.format(subTotal)}</span>
                     </div>
+
                     <FormField
                         control={form.control}
-                        name="taxAmount"
+                        name="taxRate"
                         render={({ field }) => (
-                        <FormItem className="flex justify-between items-center text-sm">
-                            <FormLabel className="text-muted-foreground mb-0">Tax (KES):</FormLabel>
-                            <FormControl>
-                                <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8 w-24 text-right" placeholder="0.00" disabled={isSubmitting}/>
-                            </FormControl>
+                        <FormItem className="space-y-1 text-sm">
+                            <div className="flex justify-between items-center">
+                                <FormLabel className="text-muted-foreground mb-0">Tax Rate (%):</FormLabel>
+                                <div className="flex items-center">
+                                    <FormControl>
+                                        <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8 w-20 text-right" placeholder="0" disabled={isSubmitting}/>
+                                    </FormControl>
+                                    <Percent className="h-4 w-4 ml-1 text-muted-foreground" />
+                                </div>
+                            </div>
+                             {field.value > 0 && <p className="text-xs text-right text-muted-foreground">Tax Amount: {KESFormatter.format(calculatedTaxAmount)}</p>}
+                            <FormMessage />
                         </FormItem>
                         )}
                     />
+                    
                     <FormField
                         control={form.control}
                         name="discountAmount"
@@ -436,7 +456,7 @@ const CreateInvoicePage: FC = () => {
                     <Separator />
                     <div className="flex justify-between text-lg font-bold text-primary">
                         <span>Total:</span>
-                        <span>KES {totalAmount.toFixed(2)}</span>
+                        <span>{KESFormatter.format(totalAmount)}</span>
                     </div>
                 </Card>
               </div>

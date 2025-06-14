@@ -43,14 +43,18 @@ function calculateSubTotalAmount(items: InvoiceItem[]): number {
   return items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
 }
 
-function calculateTotalAmount(subTotal: number, tax: number = 0, discount: number = 0): number {
-    return subTotal + tax - discount;
+function calculateTaxAmount(subTotal: number, taxRate: number = 0): number {
+    return subTotal * (taxRate / 100);
+}
+
+function calculateTotalAmount(subTotal: number, taxAmount: number = 0, discount: number = 0): number {
+    return subTotal + taxAmount - discount;
 }
 
 
 async function generateInvoiceNumber(): Promise<string> {
-  const prefix = "TTVA"; // Tiny Tasks Virtual Assistant
-  const datePart = format(new Date(), "yyyyMM"); // Year and Month
+  const prefix = "TTVA"; 
+  const datePart = format(new Date(), "yyyyMM"); 
   
   const invoicesRef = collection(db, 'invoices');
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -58,9 +62,14 @@ async function generateInvoiceNumber(): Promise<string> {
 
   const q = query(invoicesRef, 
                 where('createdAt', '>=', Timestamp.fromDate(monthStart)),
-                where('createdAt', '<', Timestamp.fromDate(monthEnd))
+                where('createdAt', '<', Timestamp.fromDate(monthEnd)),
+                orderBy('createdAt', 'desc') // Order to potentially get the latest for sequence
               );
   const snapshot = await getDocs(q);
+  
+  // A more robust way to get the next sequence number if invoice numbers are strictly sequential per month.
+  // This current approach just counts existing invoices for the month.
+  // If strict "TTVA-YYYYMM-0001, TTVA-YYYYMM-0002" is needed, one might need a separate counter doc.
   const count = snapshot.size + 1; 
   
   return `${prefix}-${datePart}-${String(count).padStart(4, '0')}`;
@@ -85,10 +94,6 @@ export async function addInvoiceAction(
   formData: Omit<CreateInvoiceFormValues, 'issueDate' | 'dueDate'> & { 
     issueDate: string; 
     dueDate: string;
-    senderName?: string | null;
-    senderEmail?: string | null;
-    senderPhone?: string | null;
-    senderAddress?: string | null;
   },
   adminId: string
 ): Promise<InvoiceOperationResult> {
@@ -98,24 +103,22 @@ export async function addInvoiceAction(
 
   try {
     const subTotalAmount = calculateSubTotalAmount(formData.items);
-    const totalAmount = calculateTotalAmount(subTotalAmount, formData.taxAmount, formData.discountAmount);
+    const taxAmount = calculateTaxAmount(subTotalAmount, formData.taxRate);
+    const totalAmount = calculateTotalAmount(subTotalAmount, taxAmount, formData.discountAmount);
     
     const invoiceNumber = await generateInvoiceNumber();
 
     const dataToSave: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
-      ...formData,
+      ...formData, // contains senderName, senderEmail, senderPhone, senderAddress, clientId, clientName, clientEmail, items, status, notes, discountAmount
       invoiceNumber,
-      subTotalAmount,
-      totalAmount,
-      adminId,
       issueDate: formData.issueDate, 
       dueDate: formData.dueDate,     
+      subTotalAmount,
+      taxAmount, // Calculated actual tax amount
+      discountAmount: formData.discountAmount || 0,
+      totalAmount,
+      adminId,
       paidAt: formData.status === 'paid' ? serverTimestamp() : null,
-      // Sender details passed from formData
-      senderName: formData.senderName || null,
-      senderEmail: formData.senderEmail || null,
-      senderPhone: formData.senderPhone || null,
-      senderAddress: formData.senderAddress || null,
       createdAt: serverTimestamp(), 
       updatedAt: serverTimestamp(),
     };
@@ -188,13 +191,10 @@ export async function getInvoiceAction(invoiceId: string): Promise<Invoice | nul
 
 export async function updateInvoiceAction(
   invoiceId: string,
-  updateData: Partial<Omit<Invoice, 'id' | 'invoiceNumber' | 'adminId' | 'createdAt' | 'updatedAt' | 'issueDate' | 'dueDate'>> & { 
-    issueDate?: string; 
-    dueDate?: string;
-    senderName?: string | null;
-    senderEmail?: string | null;
-    senderPhone?: string | null;
-    senderAddress?: string | null;
+  // The form will send CreateInvoiceFormValues structure, but with date strings
+  updateDataFromForm: Omit<CreateInvoiceFormValues, 'issueDate' | 'dueDate'> & { 
+    issueDate: string; 
+    dueDate: string;
   },
   adminId: string
 ): Promise<InvoiceOperationResult> {
@@ -210,28 +210,39 @@ export async function updateInvoiceAction(
     }
     const currentData = currentDocSnap.data() as Invoice;
 
-    const items = updateData.items || currentData.items;
+    const items = updateDataFromForm.items || currentData.items;
     const subTotalAmount = calculateSubTotalAmount(items);
-    const taxAmount = updateData.taxAmount !== undefined ? updateData.taxAmount : currentData.taxAmount;
-    const discountAmount = updateData.discountAmount !== undefined ? updateData.discountAmount : currentData.discountAmount;
+    
+    const taxRate = updateDataFromForm.taxRate !== undefined ? updateDataFromForm.taxRate : (currentData.taxAmount && currentData.subTotalAmount > 0 ? (currentData.taxAmount / currentData.subTotalAmount) * 100 : 0);
+    const taxAmount = calculateTaxAmount(subTotalAmount, taxRate);
+    
+    const discountAmount = updateDataFromForm.discountAmount !== undefined ? updateDataFromForm.discountAmount : currentData.discountAmount;
     const totalAmount = calculateTotalAmount(subTotalAmount, taxAmount, discountAmount);
     
-    const dataToUpdate: any = {
-      ...updateData, // includes client details, status, notes, and new sender details
+    // Prepare the data that will be written to Firestore, matching InvoiceSchema
+    const dataToUpdate: Partial<Invoice> = {
+      senderName: updateDataFromForm.senderName,
+      senderEmail: updateDataFromForm.senderEmail,
+      senderPhone: updateDataFromForm.senderPhone,
+      senderAddress: updateDataFromForm.senderAddress,
+      clientId: updateDataFromForm.clientId,
+      clientName: updateDataFromForm.clientName,
+      clientEmail: updateDataFromForm.clientEmail,
+      issueDate: updateDataFromForm.issueDate,
+      dueDate: updateDataFromForm.dueDate,
       items,
       subTotalAmount,
-      taxAmount,
+      taxAmount, // Store the calculated flat tax amount
       discountAmount,
       totalAmount,
+      status: updateDataFromForm.status,
+      notes: updateDataFromForm.notes,
       updatedAt: serverTimestamp(),
     };
 
-    if (updateData.issueDate) dataToUpdate.issueDate = updateData.issueDate;
-    if (updateData.dueDate) dataToUpdate.dueDate = updateData.dueDate;
-
-    if (updateData.status === 'paid' && currentData.status !== 'paid') {
+    if (updateDataFromForm.status === 'paid' && currentData.status !== 'paid') {
       dataToUpdate.paidAt = serverTimestamp();
-    } else if (updateData.status && updateData.status !== 'paid' && currentData.status === 'paid') {
+    } else if (updateDataFromForm.status && updateDataFromForm.status !== 'paid' && currentData.status === 'paid') {
       dataToUpdate.paidAt = null; 
     }
     
@@ -279,14 +290,28 @@ export async function sendInvoiceAction(
   
   let updateMessage = '';
   if (invoice.status === 'draft') {
-    const updateResult = await updateInvoiceAction(invoiceId, { status: 'pending' }, adminId);
-    if (updateResult.success) {
+    // For update, send the necessary fields, specifically the new status.
+    // The updateInvoiceAction will handle recalculations if needed, but here we only change status.
+    // We need to pass the existing data structure expected by updateInvoiceAction,
+    // which means we need to derive taxRate if it's not directly available or relevant for status change.
+    const currentTaxRate = invoice.subTotalAmount > 0 ? (invoice.taxAmount / invoice.subTotalAmount) * 100 : 0;
+    
+    const updatePayload = {
+        ...invoice, // spread existing fields
+        status: 'pending' as InvoiceStatus, // new status
+        taxRate: currentTaxRate, // provide current/derived tax rate
+        // dates should be passed as strings if updateInvoiceAction expects them
+        issueDate: invoice.issueDate,
+        dueDate: invoice.dueDate,
+    };
+
+    const result = await updateInvoiceAction(invoiceId, updatePayload, adminId);
+    if (result.success) {
       updateMessage = " Status updated to 'Pending'.";
     } else {
-      updateMessage = " Failed to update status to 'Pending'.";
+      updateMessage = ` Failed to update status to 'Pending': ${result.message}`;
     }
   }
 
   return { success: true, message: `Invoice ${invoice.invoiceNumber} has been marked for sending (simulation).${updateMessage}` };
 }
-
