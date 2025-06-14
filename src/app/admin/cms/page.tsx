@@ -26,7 +26,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // Added AlertDialogTrigger here
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { getSectionImageAction, updateSectionImageAction, type SectionImageOperationResult } from './actions';
 
@@ -185,7 +185,7 @@ const CmsPage: FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Images</CardTitle>
-            <CardDescription>Update images for key sections of your public website by providing image URLs.</CardDescription>
+            <CardDescription>Update images for key sections of your public website by providing image URLs. Ensure you use direct image links (e.g., ending in .jpg, .png) for best results.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {managedSections.map((section) => (
@@ -197,9 +197,23 @@ const CmsPage: FC = () => {
                 <CardContent className="p-0 space-y-3">
                   <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
                     {section.currentImageUrl ? (
-                      <Image src={section.currentImageUrl} alt={`Current ${section.name} image`} layout="fill" objectFit="contain" />
+                      <Image 
+                        src={section.currentImageUrl} 
+                        alt={`Current ${section.name} image`} 
+                        fill 
+                        style={{ objectFit: 'contain' }}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes, adjust as needed
+                      />
                     ) : (
-                       <Image src={`https://placehold.co/300x200.png?text=${section.placeholderHint || 'Placeholder'}`} alt="Placeholder" width={300} height={200} className="opacity-50" data-ai-hint={section.placeholderHint || "website section"}/>
+                       <Image 
+                         src={`https://placehold.co/300x200.png?text=${section.placeholderHint || 'Placeholder'}`} 
+                         alt="Placeholder" 
+                         width={300} 
+                         height={200} 
+                         className="opacity-50" 
+                         data-ai-hint={section.placeholderHint || "website section"}
+                         style={{ objectFit: 'contain' }}
+                       />
                     )}
                      {section.isLoading && (
                         <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
@@ -208,7 +222,7 @@ const CmsPage: FC = () => {
                     )}
                   </div>
                   <Input
-                    placeholder="Paste image URL here (e.g., https://example.com/image.png)"
+                    placeholder="Paste direct image URL here (e.g., https://example.com/image.png)"
                     value={section.newImageUrl}
                     onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
                     disabled={section.isLoading || !firebaseUser}
