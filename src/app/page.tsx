@@ -10,13 +10,14 @@ import { TestimonialCard } from '@/components/ui/testimonial-card';
 import { ContactForm } from '@/components/ui/contact-form';
 import { Button } from '@/components/ui/button';
 import { 
-  Zap, Users2, Rocket, Palette as PaletteIconLucide, // Renamed Palette to avoid conflict
+  Zap, Users2, Rocket, Palette as PaletteIconLucide, 
   Briefcase, Mail, Plane, FileText as FileTextLucide, 
   Share2, BarChartBig, PenSquare, Megaphone,
   Image as ImageIconLucide, Presentation, BotMessageSquare, Lightbulb,
   CalendarDays, Users, Phone, Video, MessageSquare as MessageCircleIcon, FileTextIcon, ListChecks, CheckSquare, MonitorSmartphone, Slack, Trello, ThumbsUp, TrendingUp, Brush, LayoutGrid, Crop, ShoppingCart
 } from 'lucide-react';
 import Link from 'next/link';
+import { getSectionImageAction, type SectionImage } from '@/app/admin/cms/actions';
 
 interface SectionContent {
   id: string;
@@ -25,7 +26,7 @@ interface SectionContent {
   imagePlacement?: 'left' | 'right';
   cta?: { text: string; href: string };
   icon?: React.ReactNode;
-  imageDescriptionForHint: string; // Used for alt text and data-ai-hint for placeholder
+  imageDescriptionForHint: string; 
 }
 
 const sectionsData: SectionContent[] = [
@@ -35,7 +36,7 @@ const sectionsData: SectionContent[] = [
     text: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.",
     imagePlacement: 'right',
     cta: { text: 'Get Started', href: '/auth' },
-    imageDescriptionForHint: "Dynamic and modern illustration of a focused professional at a clean desk, with subtle digital icons representing virtual assistant tasks (calendar, email, charts) seamlessly integrated around them, conveying efficiency and support.",
+    imageDescriptionForHint: "professional virtual assistant",
   },
   {
     id: 'onboarding-overview',
@@ -43,7 +44,7 @@ const sectionsData: SectionContent[] = [
     text: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.",
     imagePlacement: 'left',
     cta: { text: 'View Detailed Onboarding', href: '/onboarding-steps' },
-    imageDescriptionForHint: "Illustration of a smooth, step-by-step onboarding process for virtual assistant services. Show icons for 'discovery call', 'matching', 'integration', and 'support', connected by a clear path.",
+    imageDescriptionForHint: "onboarding steps",
   },
 ];
 
@@ -117,7 +118,7 @@ const improvedCopyData = {
 const ctaSectionData = {
   title: "Ready to Delegate, Grow, and Thrive?",
   text: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!",
-  imageDescriptionForHint: "An inspiring image of diverse business professionals collaborating effectively, with subtle digital network lines connecting them, symbolizing teamwork and VA support fostering growth.",
+  imageDescriptionForHint: "business collaboration",
 };
 
 const toolsData = {
@@ -165,7 +166,7 @@ const toolsData = {
       ],
     },
   ],
-  imageDescriptionForHint: "A dynamic collage of popular business software logos (like Slack, Zoom, Google Calendar, Trello, Canva) arranged neatly, symbolizing a VA's toolkit.",
+  imageDescriptionForHint: "business tools collage",
 };
 
 const pricingData = {
@@ -197,7 +198,7 @@ const pricingData = {
       ctaLink: "/auth"
     },
   ],
-  imageDescriptionForHint: "Three distinct pricing plan cards with Kenyan Shilling currency symbols, showcasing different levels of virtual assistant services. Clean, modern, and trustworthy design.",
+  imageDescriptionForHint: "pricing plans KES",
 };
 
 const testimonialsData = {
@@ -208,27 +209,45 @@ const testimonialsData = {
     { name: "David M.", role: "Consultant, Peak Solutions", testimonial: "The onboarding was seamless, and my assistant got up to speed incredibly fast. I can finally focus on strategy instead of being bogged down in admin.", avatarFallback: "DM", rating: 5 },
     { name: "Sarah L.", role: "E-commerce Store Owner", testimonial: "From social media to customer support, my VA handles it all. Sales are up, and my stress levels are way down. Highly recommend!", avatarFallback: "SL", rating: 4 },
   ],
-  imageDescriptionForHint: "A diverse group of happy business professionals looking at a screen or interacting positively, with speech bubbles indicating positive feedback. Warm and trustworthy feel.",
+  imageDescriptionForHint: "happy clients",
 };
 
 const blogIntroData = {
   title: "Insights & Productivity Tips",
   description: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.",
-  imageDescriptionForHint: "An open notebook with a pen and a cup of coffee, with icons representing ideas and learning, symbolizing a blog or knowledge sharing.",
+  imageDescriptionForHint: "blog ideas",
 };
 
 
-export default function HomePage() {
-  
-  const sectionImageInfos: Record<string, AiImageInfo> = {
-    hero: { imageDataURI: null, description: sectionsData.find(s => s.id === 'hero')?.imageDescriptionForHint || "Hero section image" , placeholderHint: "professional virtual assistant"},
-    'onboarding-overview': { imageDataURI: null, description: sectionsData.find(s => s.id === 'onboarding-overview')?.imageDescriptionForHint || "Onboarding process", placeholderHint: "onboarding steps" },
-    'services-intro': { imageDataURI: null, description: services[0]?.imageDescriptionForHint || "VA services overview", placeholderHint: "virtual assistance" },
-    'tools': { imageDataURI: null, description: toolsData.imageDescriptionForHint, placeholderHint: "business tools collage" },
-    'pricing': { imageDataURI: null, description: pricingData.imageDescriptionForHint, placeholderHint: "pricing plans KES" },
-    'testimonials': { imageDataURI: null, description: testimonialsData.imageDescriptionForHint, placeholderHint: "happy clients" },
-    'blog-intro': { imageDataURI: null, description: blogIntroData.imageDescriptionForHint, placeholderHint: "blog ideas" },
-    'cta': { imageDataURI: null, description: ctaSectionData.imageDescriptionForHint, placeholderHint: "business collaboration" },
+export default async function HomePage() {
+  // Define which sections from your static data need dynamic images
+  const dynamicImageSectionIds = [
+    'hero', 
+    'onboarding-overview', 
+    // Add other IDs from sectionsData or other configurations as needed
+    // e.g., if services-intro image needs to be dynamic:
+    // 'services-intro', 
+    'tools',
+    'pricing',
+    'testimonials',
+    'blog-intro',
+    'cta'
+  ];
+
+  const fetchedImageUrls: Record<string, string | null> = {};
+
+  for (const sectionId of dynamicImageSectionIds) {
+    const imageSection: SectionImage | null = await getSectionImageAction(sectionId);
+    fetchedImageUrls[sectionId] = imageSection?.imageUrl || null;
+  }
+
+  // Helper function to get AiImageInfo for a section
+  const getAiImageInfoForSection = (sectionId: string, defaultDescription: string, defaultPlaceholderHint: string): AiImageInfo => {
+    return {
+      imageDataURI: fetchedImageUrls[sectionId] || null,
+      description: defaultDescription, // Alt text
+      placeholderHint: defaultPlaceholderHint // For placeholder.co if imageDataURI is null
+    };
   };
 
   return (
@@ -240,7 +259,7 @@ export default function HomePage() {
             key={section.id}
             title={section.title}
             text={section.text}
-            imageInfo={{ imageDataURI: null, description: section.imageDescriptionForHint, placeholderHint: section.imageDescriptionForHint }}
+            imageInfo={getAiImageInfoForSection(section.id, section.imageDescriptionForHint, section.imageDescriptionForHint)}
             imagePlacement={section.imagePlacement}
             className={section.id === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
             titleClassName={section.id === 'hero' ? 'text-5xl md:text-6xl lg:text-7xl' : ''}
@@ -288,7 +307,7 @@ export default function HomePage() {
               <AiImageSection
                 title="Expert VA Support Tailored For You"
                 text="Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges."
-                imageInfo={sectionImageInfos['services-intro']}
+                imageInfo={getAiImageInfoForSection('services-intro', services[0]?.imageDescriptionForHint || "VA services overview", 'virtual assistance services')}
                 imagePlacement="left" 
                 className="py-0 !pt-0 text-left"
                 titleClassName="text-3xl text-center md:text-left"
@@ -362,7 +381,7 @@ export default function HomePage() {
               <AiImageSection
                 title="Our Versatile Toolkit"
                 text="We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects."
-                imageInfo={sectionImageInfos['tools']}
+                imageInfo={getAiImageInfoForSection('tools', toolsData.imageDescriptionForHint, 'business tools collage')}
                 imagePlacement="right"
                 className="py-0"
                 titleClassName="text-3xl text-center md:text-left"
@@ -400,7 +419,7 @@ export default function HomePage() {
               <AiImageSection
                 title="Transparent VA Pricing"
                 text="Our clear pricing plans ensure you find the perfect fit for your business needs."
-                imageInfo={sectionImageInfos['pricing']}
+                imageInfo={getAiImageInfoForSection('pricing', pricingData.imageDescriptionForHint, 'pricing plans KES')}
                 imagePlacement="left"
                 className="py-0"
                 titleClassName="text-3xl text-center md:text-left"
@@ -437,7 +456,7 @@ export default function HomePage() {
               <AiImageSection
                 title="Client Success Stories"
                 text="Visually representing client satisfaction through placeholder imagery."
-                imageInfo={sectionImageInfos['testimonials']}
+                imageInfo={getAiImageInfoForSection('testimonials', testimonialsData.imageDescriptionForHint, 'happy clients')}
                 imagePlacement="right"
                 className="py-0"
                 titleClassName="text-3xl text-center md:text-left"
@@ -467,7 +486,7 @@ export default function HomePage() {
                 <AiImageSection
                   title="" 
                   text=""
-                  imageInfo={sectionImageInfos['blog-intro']}
+                  imageInfo={getAiImageInfoForSection('blog-intro', blogIntroData.imageDescriptionForHint, 'blog ideas')}
                   imagePlacement="right" 
                   className="py-0 !shadow-none"
                   titleClassName="hidden"
@@ -495,7 +514,7 @@ export default function HomePage() {
                      <AiImageSection
                         title=""
                         text=""
-                        imageInfo={sectionImageInfos['cta']}
+                        imageInfo={getAiImageInfoForSection('cta', ctaSectionData.imageDescriptionForHint, 'business collaboration')}
                         imagePlacement="right"
                         className="py-0 !bg-transparent !shadow-none"
                         titleClassName="hidden"
@@ -512,3 +531,4 @@ export default function HomePage() {
     </div>
   );
 }
+
