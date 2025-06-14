@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -28,29 +30,36 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getSectionImageAction, updateSectionImageAction, type SectionImageOperationResult, type SectionImage } from './actions';
+import { getSectionDataAction, updateSectionDataAction, type SectionData, type SectionOperationResult } from './actions';
+import { cn } from '@/lib/utils';
 
 interface ManagedSection {
   id: string;
   name: string;
-  description: string;
+  description: string; // For CMS UI
+  defaultText: string; // Default static text from homepage
+  defaultTitle: string; // Default static title from homepage
   currentImageUrl: string | null;
-  newImageUrl: string; // For input field
+  newImageUrl: string;
+  currentTitle: string | null;
+  newTitle: string;
+  currentText: string | null;
+  newText: string;
   isLoading: boolean;
   placeholderHint?: string;
 }
 
 // Define the sections that appear on the homepage or other key public pages
-const initialManagedSections: Omit<ManagedSection, 'currentImageUrl' | 'newImageUrl' | 'isLoading'>[] = [
-  { id: 'hero', name: 'Hero Section', description: 'Main banner image on the homepage.', placeholderHint: 'professional virtual assistant' },
-  { id: 'onboarding-overview', name: 'Onboarding Overview Section', description: 'Image for the onboarding process summary.', placeholderHint: 'onboarding steps' },
-  { id: 'services-intro', name: 'Services Introduction', description: 'Introductory image for the services area.', placeholderHint: 'virtual assistance services' },
-  { id: 'tools', name: 'Tools We Master Section', description: 'Visual for the tools showcase.', placeholderHint: 'business tools collage' },
-  { id: 'pricing', name: 'Pricing Section Image', description: 'Contextual image for pricing plans.', placeholderHint: 'pricing plans KES' },
-  { id: 'testimonials', name: 'Testimonials Section Image', description: 'Background or illustrative image for testimonials.', placeholderHint: 'happy clients' },
-  { id: 'blog-intro', name: 'Blog Introduction Image', description: 'Image for the blog preview section on homepage.', placeholderHint: 'blog ideas' },
-  { id: 'cta', name: 'Call to Action Section Image', description: 'Visual for the main contact/CTA block.', placeholderHint: 'business collaboration' },
-  // Add other AiImageSection ids from your src/app/page.tsx or other relevant pages
+// These provide default text if nothing is in CMS and also UI descriptions
+const initialStaticSectionsData = [
+  { id: 'hero', name: 'Hero Section', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant' },
+  { id: 'onboarding-overview', name: 'Onboarding Overview Section', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps' },
+  { id: 'services-intro', name: 'Services Introduction', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services' },
+  { id: 'tools', name: 'Tools We Master Section', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage' },
+  { id: 'pricing', name: 'Pricing Section Image & Intro', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES' },
+  { id: 'testimonials', name: 'Testimonials Section Image & Intro', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients' },
+  { id: 'blog-intro', name: 'Blog Introduction Image & Text', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas' },
+  { id: 'cta', name: 'Call to Action Section Image & Text', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration' },
 ];
 
 
@@ -63,19 +72,38 @@ const CmsPage: FC = () => {
   const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
 
   const [managedSections, setManagedSections] = useState<ManagedSection[]>(
-    initialManagedSections.map(s => ({ ...s, currentImageUrl: null, newImageUrl: '', isLoading: false }))
+    initialStaticSectionsData.map(s => ({ 
+      ...s, 
+      currentImageUrl: null, newImageUrl: '', 
+      currentTitle: null, newTitle: s.defaultTitle,
+      currentText: null, newText: s.defaultText,
+      isLoading: true 
+    }))
   );
 
-  const fetchAllSectionImages = useCallback(async () => {
+  const fetchAllSectionData = useCallback(async () => {
     if (!firebaseUser) return;
-    setManagedSections(prev => prev.map(s => ({ ...s, isLoading: true })));
+    
+    const initialData = initialStaticSectionsData.map(s => ({
+        ...s,
+        currentImageUrl: null, newImageUrl: '',
+        currentTitle: s.defaultTitle, newTitle: s.defaultTitle,
+        currentText: s.defaultText, newText: s.defaultText,
+        isLoading: true,
+    }));
+    setManagedSections(initialData);
+
     const updates = await Promise.all(
-      initialManagedSections.map(async (section) => {
-        const imageInfo: SectionImage | null = await getSectionImageAction(section.id);
+      initialStaticSectionsData.map(async (staticSection) => {
+        const fetchedData: SectionData | null = await getSectionDataAction(staticSection.id);
         return {
-          ...section,
-          currentImageUrl: imageInfo?.imageUrl || null,
-          newImageUrl: imageInfo?.imageUrl || '',
+          ...staticSection,
+          currentImageUrl: fetchedData?.imageUrl || null,
+          newImageUrl: fetchedData?.imageUrl || '',
+          currentTitle: fetchedData?.title || staticSection.defaultTitle,
+          newTitle: fetchedData?.title || staticSection.defaultTitle,
+          currentText: fetchedData?.text || staticSection.defaultText,
+          newText: fetchedData?.text || staticSection.defaultText,
           isLoading: false,
         };
       })
@@ -84,8 +112,8 @@ const CmsPage: FC = () => {
   }, [firebaseUser]);
 
   useEffect(() => {
-    fetchAllSectionImages();
-  }, [fetchAllSectionImages]);
+    fetchAllSectionData();
+  }, [fetchAllSectionData]);
 
 
   useEffect(() => {
@@ -137,8 +165,14 @@ const CmsPage: FC = () => {
   const handleImageUrlChange = (sectionId: string, value: string) => {
     setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newImageUrl: value } : s));
   };
+  const handleTitleChange = (sectionId: string, value: string) => {
+    setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newTitle: value } : s));
+  };
+  const handleTextChange = (sectionId: string, value: string) => {
+    setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newText: value } : s));
+  };
 
-  const handleSaveSectionImage = async (sectionId: string) => {
+  const handleSaveSectionData = async (sectionId: string) => {
     if (!firebaseUser?.uid) {
       toast({ title: "Authentication Error", description: "Admin not authenticated.", variant: "destructive" });
       return;
@@ -148,11 +182,37 @@ const CmsPage: FC = () => {
 
     setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, isLoading: true } : s));
     
-    const result: SectionImageOperationResult = await updateSectionImageAction(sectionId, section.newImageUrl, firebaseUser.uid);
+    const dataToUpdate: Partial<SectionData> = {};
+    if (section.newImageUrl !== section.currentImageUrl) dataToUpdate.imageUrl = section.newImageUrl;
+    if (section.newTitle !== section.currentTitle) dataToUpdate.title = section.newTitle;
+    if (section.newText !== section.currentText) dataToUpdate.text = section.newText;
     
-    if (result.success) {
+    // Only update if there are actual changes to image, title, or text
+    if (Object.keys(dataToUpdate).length === 0) {
+        toast({ title: "No Changes", description: "No changes detected to save for this section." });
+        setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, isLoading: false } : s));
+        return;
+    }
+
+    const result: SectionOperationResult = await updateSectionDataAction(sectionId, dataToUpdate, firebaseUser.uid);
+    
+    if (result.success && result.sectionData) {
       toast({ title: "Success", description: result.message });
-      setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, currentImageUrl: result.imageUrl || null, isLoading: false } : s));
+      setManagedSections(prev => prev.map(s => {
+        if (s.id === sectionId) {
+          return { 
+            ...s, 
+            currentImageUrl: result.sectionData!.hasOwnProperty('imageUrl') ? result.sectionData!.imageUrl : s.currentImageUrl,
+            newImageUrl: result.sectionData!.hasOwnProperty('imageUrl') ? (result.sectionData!.imageUrl || '') : s.newImageUrl,
+            currentTitle: result.sectionData!.hasOwnProperty('title') ? result.sectionData!.title : s.currentTitle,
+            newTitle: result.sectionData!.hasOwnProperty('title') ? (result.sectionData!.title || s.defaultTitle) : s.newTitle,
+            currentText: result.sectionData!.hasOwnProperty('text') ? result.sectionData!.text : s.currentText,
+            newText: result.sectionData!.hasOwnProperty('text') ? (result.sectionData!.text || s.defaultText) : s.newText,
+            isLoading: false 
+          };
+        }
+        return s;
+      }));
     } else {
       toast({ title: "Error", description: result.message, variant: "destructive" });
       setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, isLoading: false } : s));
@@ -166,10 +226,10 @@ const CmsPage: FC = () => {
     }
      setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, isLoading: true } : s));
     
-    const result: SectionImageOperationResult = await updateSectionImageAction(sectionId, null, firebaseUser.uid);
+    const result: SectionOperationResult = await updateSectionDataAction(sectionId, { imageUrl: null }, firebaseUser.uid);
     
     if (result.success) {
-      toast({ title: "Success", description: result.message });
+      toast({ title: "Success", description: "Image cleared successfully." });
       setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, currentImageUrl: null, newImageUrl: '', isLoading: false } : s));
     } else {
       toast({ title: "Error", description: result.message, variant: "destructive" });
@@ -180,14 +240,14 @@ const CmsPage: FC = () => {
 
   return (
     <AlertDialog open={!!postToDelete} onOpenChange={(isOpen) => { if (!isOpen) setPostToDelete(null); }}>
-      <div className="flex flex-col gap-8"> {/* Changed to flex-col for main layout */}
+      <div className="flex flex-col gap-8"> 
         
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Images</CardTitle>
+            <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Content</CardTitle>
             <CardDescription>
-              Update images for key sections of your public website by providing image URLs. 
-              Important: Ensure you use direct image links (e.g., ending in .jpg, .png), not links to web pages (like Unsplash photo pages).
+              Update images and text for key sections of your public website. 
+              For images, use direct links (e.g., ending in .jpg, .png from sources like Unsplash direct image URLs), not links to web pages.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -197,59 +257,98 @@ const CmsPage: FC = () => {
                   <CardTitle className="text-lg font-semibold text-primary">{section.name}</CardTitle>
                   <CardDescription className="text-xs">{section.description}</CardDescription>
                 </CardHeader>
-                <CardContent className="p-0 space-y-3">
-                  <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
-                    {section.currentImageUrl ? (
-                      <Image 
-                        src={section.currentImageUrl} 
-                        alt={`Current ${section.name} image`} 
-                        fill 
-                        style={{ objectFit: 'contain' }}
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        priority={section.id === 'hero'}
-                      />
-                    ) : (
-                       <Image 
-                         src={`https://placehold.co/300x200.png?text=${section.placeholderHint || 'Placeholder'}`} 
-                         alt="Placeholder" 
-                         width={300} 
-                         height={200} 
-                         className="opacity-50" 
-                         data-ai-hint={section.placeholderHint || "website section"}
-                         style={{ objectFit: 'contain' }}
-                         priority={section.id === 'hero'}
-                       />
-                    )}
-                     {section.isLoading && (
-                        <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-                            <LottieLoader size={32}/>
-                        </div>
-                    )}
-                  </div>
-                  <Input
-                    placeholder="Paste direct image URL here (e.g., https://images.unsplash.com/your-image.jpg)"
-                    value={section.newImageUrl}
-                    onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
-                    disabled={section.isLoading || !firebaseUser}
-                  />
-                  <div className="flex gap-2 justify-end">
-                     <Button 
+                <CardContent className="p-0 grid md:grid-cols-2 gap-6">
+                  {/* Column 1: Image Management */}
+                  <div className="space-y-3">
+                    <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
+                      {section.currentImageUrl ? (
+                        <Image 
+                          src={section.currentImageUrl} 
+                          alt={`Current ${section.name} image`} 
+                          fill 
+                          style={{ objectFit: 'contain' }}
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          priority={section.id === 'hero'}
+                        />
+                      ) : (
+                        <Image 
+                          src={`https://placehold.co/300x200.png?text=${encodeURIComponent(section.placeholderHint || 'Placeholder')}`} 
+                          alt="Placeholder" 
+                          width={300} 
+                          height={200} 
+                          className="opacity-50" 
+                          data-ai-hint={section.placeholderHint || "website section"}
+                          style={{ objectFit: 'contain' }}
+                          priority={section.id === 'hero'}
+                        />
+                      )}
+                      {section.isLoading && (
+                          <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
+                              <LottieLoader size={32}/>
+                          </div>
+                      )}
+                    </div>
+                    <Label htmlFor={`imageUrl-${section.id}`}>Image URL</Label>
+                    <Input
+                      id={`imageUrl-${section.id}`}
+                      placeholder="Paste direct image URL (e.g., .jpg, .png)"
+                      value={section.newImageUrl}
+                      onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
+                      disabled={section.isLoading || !firebaseUser}
+                    />
+                    <Button 
                       variant="outline" 
                       size="sm" 
                       onClick={() => handleClearSectionImage(section.id)}
                       disabled={section.isLoading || !firebaseUser || !section.currentImageUrl}
+                      className="w-full"
                     >
                       <XCircle className="mr-1 h-4 w-4"/> Clear Image
                     </Button>
-                    <Button 
-                      size="sm" 
-                      onClick={() => handleSaveSectionImage(section.id)}
-                      disabled={section.isLoading || !firebaseUser || section.newImageUrl === section.currentImageUrl || !section.newImageUrl.trim()}
-                    >
-                      <Save className="mr-1 h-4 w-4"/> Save Image
-                    </Button>
+                  </div>
+
+                  {/* Column 2: Text Content Management */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor={`title-${section.id}`}>Section Title</Label>
+                      <Input
+                        id={`title-${section.id}`}
+                        value={section.newTitle}
+                        onChange={(e) => handleTitleChange(section.id, e.target.value)}
+                        disabled={section.isLoading || !firebaseUser}
+                        placeholder="Enter section title"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`text-${section.id}`}>Section Text</Label>
+                      <Textarea
+                        id={`text-${section.id}`}
+                        value={section.newText}
+                        onChange={(e) => handleTextChange(section.id, e.target.value)}
+                        disabled={section.isLoading || !firebaseUser}
+                        placeholder="Enter section text content"
+                        rows={section.id === 'hero' ? 5 : 8} 
+                        className="min-h-[100px]"
+                      />
+                    </div>
                   </div>
                 </CardContent>
+                <CardFooter className="p-0 pt-4 mt-4 border-t flex justify-end">
+                  <Button 
+                    size="sm" 
+                    onClick={() => handleSaveSectionData(section.id)}
+                    disabled={
+                        section.isLoading || 
+                        !firebaseUser ||
+                        (section.newImageUrl === section.currentImageUrl && 
+                         section.newTitle === section.currentTitle &&
+                         section.newText === section.currentText)
+                    }
+                  >
+                    {section.isLoading && <LottieLoader className="mr-1" size={16}/>}
+                    <Save className="mr-1 h-4 w-4"/> Save Section
+                  </Button>
+                </CardFooter>
               </Card>
             ))}
           </CardContent>
@@ -268,9 +367,6 @@ const CmsPage: FC = () => {
                 <Button asChild size="lg">
                     <Link href="/admin/blog/create">Create New Blog Post</Link>
                 </Button>
-                <p className="text-sm text-muted-foreground">
-                    The AI Image Generation tool has been moved to the <Button variant="link" asChild className="p-0 h-auto"><Link href="/admin/ai-tools">AI Tools page</Link></Button>.
-                </p>
                 </CardContent>
             </Card>
 
@@ -280,7 +376,7 @@ const CmsPage: FC = () => {
                     <CardDescription>Manage static pages of your website (Coming Soon).</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">Functionality to edit pages like 'Homepage', 'About Us', 'Services' will be available here.</p>
+                    <p className="text-muted-foreground">Functionality to edit pages like 'About Us', 'Services' will be available here.</p>
                     <Button disabled className="mt-4">Manage Pages (Coming Soon)</Button>
                 </CardContent>
             </Card>
@@ -306,7 +402,7 @@ const CmsPage: FC = () => {
                             <Clock className="mr-1 h-3 w-3" />
                             <span>{post.updatedAt ? new Date(post.updatedAt).toLocaleDateString() : 'N/A'}</span>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        <span className={cn(`px-2 py-0.5 rounded-full text-xs font-medium`, post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700')}>
                             {post.status}
                         </span>
                         </div>

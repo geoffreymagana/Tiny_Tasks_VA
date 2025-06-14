@@ -17,37 +17,81 @@ import {
   CalendarDays, Users, Phone, Video, MessageSquare as MessageCircleIcon, FileTextIcon, ListChecks, CheckSquare, MonitorSmartphone, Slack, Trello, ThumbsUp, TrendingUp, Brush, LayoutGrid, Crop, ShoppingCart
 } from 'lucide-react';
 import Link from 'next/link';
-import { getSectionImageAction, type SectionImage } from '@/app/admin/cms/actions';
+import { getSectionDataAction, type SectionData } from '@/app/admin/cms/actions'; // Updated import
 
-interface SectionContent {
+interface StaticSectionContent {
   id: string;
-  title: string;
-  text: string;
+  defaultTitle: string;
+  defaultText: string;
   imagePlacement?: 'left' | 'right';
   cta?: { text: string; href: string };
   icon?: React.ReactNode;
   imageDescriptionForHint: string; 
 }
 
-const sectionsData: SectionContent[] = [
+// Static definitions for section structure and default content
+const staticSectionsData: StaticSectionContent[] = [
   {
     id: 'hero',
-    title: 'Your Dedicated Virtual Assistant for Effortless Productivity',
-    text: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.",
+    defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity',
+    defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.",
     imagePlacement: 'right',
     cta: { text: 'Get Started', href: '/auth' },
     imageDescriptionForHint: "professional virtual assistant",
   },
   {
     id: 'onboarding-overview',
-    title: 'Our Simple Onboarding Process',
-    text: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.",
+    defaultTitle: 'Our Simple Onboarding Process',
+    defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.",
     imagePlacement: 'left',
     cta: { text: 'View Detailed Onboarding', href: '/onboarding-steps' },
     imageDescriptionForHint: "onboarding steps",
   },
+   {
+    id: 'services-intro',
+    defaultTitle: 'Expert VA Support Tailored For You',
+    defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.",
+    imagePlacement: 'left',
+    imageDescriptionForHint: "virtual assistance services",
+  },
+  {
+    id: 'tools',
+    defaultTitle: 'Our Versatile Toolkit',
+    defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.",
+    imagePlacement: 'right',
+    imageDescriptionForHint: "business tools collage",
+  },
+  {
+    id: 'pricing',
+    defaultTitle: 'Transparent VA Pricing',
+    defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.",
+    imagePlacement: 'left',
+    imageDescriptionForHint: "pricing plans KES",
+  },
+  {
+    id: 'testimonials',
+    defaultTitle: 'Client Success Stories',
+    defaultText: "Visually representing client satisfaction through placeholder imagery.",
+    imagePlacement: 'right',
+    imageDescriptionForHint: "happy clients",
+  },
+  {
+    id: 'blog-intro',
+    defaultTitle: "Insights & Productivity Tips",
+    defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.",
+    imagePlacement: 'right',
+    imageDescriptionForHint: "blog ideas",
+  },
+  {
+    id: 'cta',
+    defaultTitle: "Ready to Delegate, Grow, and Thrive?",
+    defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!",
+    imagePlacement: 'right', // Image is on the right of the form, text on left
+    imageDescriptionForHint: "business collaboration",
+  },
 ];
 
+// Static data for elements not directly managed by CMS text fields (like feature cards, specific service items)
 const services = [
   {
     mainIcon: <Briefcase size={32} />,
@@ -60,7 +104,6 @@ const services = [
       { icon: <FileTextLucide size={18}/>, text: "Document Preparation" },
     ],
     learnMoreLink: "/services/executive-assistance",
-    imageDescriptionForHint: "Professional executive assistant organizing tasks on a digital interface, symbolizing efficiency and support in a modern office setting.",
   },
   {
     mainIcon: <Share2 size={32} />,
@@ -73,7 +116,6 @@ const services = [
       { icon: <Megaphone size={18}/>, text: "Ad Campaign Support" },
     ],
     learnMoreLink: "/services/social-media-management", 
-    imageDescriptionForHint: "Dynamic composition of social media icons (Instagram, Facebook, Twitter, LinkedIn) with stylized charts and engagement symbols, representing growth and active online presence management.",
   },
   {
     mainIcon: <PaletteIconLucide size={32} />,
@@ -86,7 +128,6 @@ const services = [
       { icon: <PaletteIconLucide size={18}/>, text: "Basic Brand Asset Creation" },
     ],
     learnMoreLink: "/services/graphic-design-support",
-    imageDescriptionForHint: "Modern flat design illustration of graphic design tools (pen tool, color palette, shapes) creating a visually appealing brand logo or marketing material.",
   },
 ];
 
@@ -115,13 +156,7 @@ const improvedCopyData = {
   improvedText: "Tiny Tasks empowers your business by connecting you with skilled virtual assistants. We streamline your operations, manage critical tasks, and provide dedicated support, freeing you to concentrate on high-impact activities and achieve your strategic objectives.",
 };
 
-const ctaSectionData = {
-  title: "Ready to Delegate, Grow, and Thrive?",
-  text: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!",
-  imageDescriptionForHint: "business collaboration",
-};
-
-const toolsData = {
+const toolsDataStatic = {
   title: "Tools We Master for Your Success",
   description: "Our virtual assistants are proficient with a wide array of industry-standard tools to seamlessly integrate into your workflows and boost productivity.",
   categories: [
@@ -135,73 +170,24 @@ const toolsData = {
         { name: "Slack", icon: <Slack size={18} /> },
       ],
     },
-    {
-      name: "Calendar Management",
-      icon: <CalendarDays size={24} className="text-accent" />,
-      tools: [
-        { name: "Calendly", icon: <CalendarDays size={18} /> },
-        { name: "Google Calendar", icon: <CalendarDays size={18} /> },
-      ],
-    },
-    {
-      name: "Email Management",
-      icon: <Mail size={24} className="text-accent" />,
-      tools: [{ name: "Zoho Mail", icon: <Mail size={18} /> }],
-    },
-    {
-      name: "Social Media",
-      icon: <Share2 size={24} className="text-accent" />,
-      tools: [
-        { name: "Canva", icon: <PaletteIconLucide size={18} /> },
-        { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> },
-      ],
-    },
-    {
-      name: "Project Management",
-      icon: <ListChecks size={24} className="text-accent" />,
-      tools: [
-        { name: "Notion", icon: <FileTextIcon size={18} /> },
-        { name: "Trello", icon: <Trello size={18} /> },
-        { name: "Todoist", icon: <CheckSquare size={18} /> },
-      ],
-    },
+    { name: "Calendar Management", icon: <CalendarDays size={24} className="text-accent" />, tools: [ { name: "Calendly", icon: <CalendarDays size={18} /> }, { name: "Google Calendar", icon: <CalendarDays size={18} /> }, ], },
+    { name: "Email Management", icon: <Mail size={24} className="text-accent" />, tools: [{ name: "Zoho Mail", icon: <Mail size={18} /> }], },
+    { name: "Social Media", icon: <Share2 size={24} className="text-accent" />, tools: [ { name: "Canva", icon: <PaletteIconLucide size={18} /> }, { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> }, ], },
+    { name: "Project Management", icon: <ListChecks size={24} className="text-accent" />, tools: [ { name: "Notion", icon: <FileTextIcon size={18} /> }, { name: "Trello", icon: <Trello size={18} /> }, { name: "Todoist", icon: <CheckSquare size={18} /> }, ], },
   ],
-  imageDescriptionForHint: "business tools collage",
 };
 
-const pricingData = {
+const pricingDataStatic = {
   title: "Flexible Pricing for Every Need",
   description: "Choose a plan that fits your business goals and budget. All prices are in Kenyan Shillings (KES). Note: These are example prices, please update with your actual rates.",
   tiers: [
-    {
-      tier: "Essential VA Support",
-      price: "KES 15,000/month",
-      description: "Perfect for individuals or small businesses needing core administrative help.",
-      features: ["10 hours of VA support", "Basic Admin Tasks", "Email Management (limited)", "Scheduling Assistance"],
-      isPopular: false,
-      ctaLink: "/auth"
-    },
-    {
-      tier: "Growth VA Package",
-      price: "KES 35,000/month",
-      description: "Ideal for growing businesses needing consistent, broader support.",
-      features: ["25 hours of VA support", "Advanced Admin Tasks", "Social Media Scheduling", "Calendar Management", "Client Communication"],
-      isPopular: true,
-      ctaLink: "/auth"
-    },
-    {
-      tier: "Premium VA Partnership",
-      price: "KES 60,000/month",
-      description: "Comprehensive support for established businesses and executives.",
-      features: ["50 hours of VA support", "Dedicated VA", "Project Management Support", "Graphic Design Basics", "Full Email & Calendar Control", "Priority Support"],
-      isPopular: false,
-      ctaLink: "/auth"
-    },
+    { tier: "Essential VA Support", price: "KES 15,000/month", description: "Perfect for individuals or small businesses needing core administrative help.", features: ["10 hours of VA support", "Basic Admin Tasks", "Email Management (limited)", "Scheduling Assistance"], isPopular: false, ctaLink: "/auth" },
+    { tier: "Growth VA Package", price: "KES 35,000/month", description: "Ideal for growing businesses needing consistent, broader support.", features: ["25 hours of VA support", "Advanced Admin Tasks", "Social Media Scheduling", "Calendar Management", "Client Communication"], isPopular: true, ctaLink: "/auth" },
+    { tier: "Premium VA Partnership", price: "KES 60,000/month", description: "Comprehensive support for established businesses and executives.", features: ["50 hours of VA support", "Dedicated VA", "Project Management Support", "Graphic Design Basics", "Full Email & Calendar Control", "Priority Support"], isPopular: false, ctaLink: "/auth" },
   ],
-  imageDescriptionForHint: "pricing plans KES",
 };
 
-const testimonialsData = {
+const testimonialsDataStatic = {
   title: "Hear From Our Happy Clients",
   description: "Discover how Tiny Tasks has helped businesses like yours save time, reduce stress, and achieve their goals.",
   reviews: [
@@ -209,60 +195,54 @@ const testimonialsData = {
     { name: "David M.", role: "Consultant, Peak Solutions", testimonial: "The onboarding was seamless, and my assistant got up to speed incredibly fast. I can finally focus on strategy instead of being bogged down in admin.", avatarFallback: "DM", rating: 5 },
     { name: "Sarah L.", role: "E-commerce Store Owner", testimonial: "From social media to customer support, my VA handles it all. Sales are up, and my stress levels are way down. Highly recommend!", avatarFallback: "SL", rating: 4 },
   ],
-  imageDescriptionForHint: "happy clients",
-};
-
-const blogIntroData = {
-  title: "Insights & Productivity Tips",
-  description: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.",
-  imageDescriptionForHint: "blog ideas",
 };
 
 
 export default async function HomePage() {
-  // Define which sections from your static data need dynamic images
-  const dynamicImageSectionIds = [
-    'hero', 
-    'onboarding-overview', 
-    // Add other IDs from sectionsData or other configurations as needed
-    // e.g., if services-intro image needs to be dynamic:
-    // 'services-intro', 
-    'tools',
-    'pricing',
-    'testimonials',
-    'blog-intro',
-    'cta'
-  ];
-
-  const fetchedImageUrls: Record<string, string | null> = {};
-
-  for (const sectionId of dynamicImageSectionIds) {
-    const imageSection: SectionImage | null = await getSectionImageAction(sectionId);
-    fetchedImageUrls[sectionId] = imageSection?.imageUrl || null;
+  
+  const fetchedSectionData: Record<string, SectionData | null> = {};
+  for (const section of staticSectionsData) {
+    fetchedSectionData[section.id] = await getSectionDataAction(section.id);
   }
 
-  // Helper function to get AiImageInfo for a section
-  const getAiImageInfoForSection = (sectionId: string, defaultDescription: string, defaultPlaceholderHint: string): AiImageInfo => {
+  const getDynamicOrStaticContent = (sectionId: string, field: 'title' | 'text') => {
+    const dynamicData = fetchedSectionData[sectionId];
+    const staticSection = staticSectionsData.find(s => s.id === sectionId);
+
+    if (field === 'title') {
+      return dynamicData?.title || staticSection?.defaultTitle || '';
+    }
+    if (field === 'text') {
+      return dynamicData?.text || staticSection?.defaultText || '';
+    }
+    return '';
+  };
+  
+  const getAiImageInfoForSection = (staticSection: StaticSectionContent): AiImageInfo => {
+    const dynamicData = fetchedSectionData[staticSection.id];
     return {
-      imageDataURI: fetchedImageUrls[sectionId] || null,
-      description: defaultDescription, // Alt text
-      placeholderHint: defaultPlaceholderHint // For placeholder.co if imageDataURI is null
+      imageDataURI: dynamicData?.imageUrl || null,
+      description: staticSection.imageDescriptionForHint, // Alt text from static data
+      placeholderHint: staticSection.imageDescriptionForHint 
     };
   };
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
       <main className="flex-grow">
-        {sectionsData.map((section) => (
+        {staticSectionsData.map((section) => (
           <AiImageSection
             key={section.id}
-            title={section.title}
-            text={section.text}
-            imageInfo={getAiImageInfoForSection(section.id, section.imageDescriptionForHint, section.imageDescriptionForHint)}
+            title={getDynamicOrStaticContent(section.id, 'title')}
+            text={getDynamicOrStaticContent(section.id, 'text')}
+            imageInfo={getAiImageInfoForSection(section)}
             imagePlacement={section.imagePlacement}
             className={section.id === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
-            titleClassName={section.id === 'hero' ? 'text-5xl md:text-6xl lg:text-7xl' : ''}
+            titleClassName={section.id === 'hero' ? 'text-5xl md:text-6xl lg:text-7xl' : (section.id === 'services-intro' || section.id === 'tools' || section.id === 'pricing' || section.id === 'testimonials' || section.id === 'blog-intro' ? 'text-3xl text-center md:text-left' : '')}
+            textClassName={(section.id === 'services-intro' || section.id === 'tools' || section.id === 'pricing' || section.id === 'testimonials' || section.id === 'blog-intro' ? 'text-center md:text-left' : '')}
+            imageContainerClassName={(section.id === 'blog-intro' ? 'max-w-md ml-auto' : '')}
           >
             {section.cta && (
               <Button asChild size="lg" className="mt-6 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-accent hover:bg-accent/90 text-accent-foreground">
@@ -297,23 +277,13 @@ export default async function HomePage() {
 
         <section id="services" className="py-16 md:py-24">
           <div className="container mx-auto text-center">
-            <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
+             <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
               Our Virtual Assistant Services
             </h2>
             <p className="text-lg text-foreground/80 mb-12 max-w-3xl mx-auto">
               Comprehensive VA solutions designed to streamline your business operations, manage your tasks effectively, and free up your valuable time so you can focus on strategic growth.
             </p>
-            <div className="mb-12 md:mb-16 max-w-4xl mx-auto">
-              <AiImageSection
-                title="Expert VA Support Tailored For You"
-                text="Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges."
-                imageInfo={getAiImageInfoForSection('services-intro', services[0]?.imageDescriptionForHint || "VA services overview", 'virtual assistance services')}
-                imagePlacement="left" 
-                className="py-0 !pt-0 text-left"
-                titleClassName="text-3xl text-center md:text-left"
-                textClassName="text-center md:text-left"
-              />
-            </div>
+            {/* The "Expert VA Support Tailored For You" AiImageSection is now part of the main loop above */}
             <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
               {services.map((service) => (
                 <ServiceCard
@@ -348,19 +318,19 @@ export default async function HomePage() {
             </div>
         </section>
 
-        <section id="tools" className="py-16 md:py-24 bg-background">
+        <section id="tools-static" className="py-16 md:py-24 bg-background">
           <div className="container mx-auto">
             <div className="text-center mb-12 md:mb-16">
               <BotMessageSquare className="h-12 w-12 text-accent mx-auto mb-4" />
               <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
-                {toolsData.title}
+                {toolsDataStatic.title}
               </h2>
               <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
-                {toolsData.description}
+                {toolsDataStatic.description}
               </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-              {toolsData.categories.map((category) => (
+              {toolsDataStatic.categories.map((category) => (
                 <div key={category.name} className="p-6 bg-card rounded-xl shadow-lg hover:shadow-xl transition-shadow">
                   <div className="flex items-center mb-4">
                     {category.icon}
@@ -377,33 +347,23 @@ export default async function HomePage() {
                 </div>
               ))}
             </div>
-            <div className="mt-12 max-w-3xl mx-auto">
-              <AiImageSection
-                title="Our Versatile Toolkit"
-                text="We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects."
-                imageInfo={getAiImageInfoForSection('tools', toolsData.imageDescriptionForHint, 'business tools collage')}
-                imagePlacement="right"
-                className="py-0"
-                titleClassName="text-3xl text-center md:text-left"
-                textClassName="text-center md:text-left"
-              />
-            </div>
+            {/* The AiImageSection for "tools" is handled in the main loop */}
           </div>
         </section>
 
-        <section id="pricing" className="py-16 md:py-24 bg-secondary/50">
+        <section id="pricing-static" className="py-16 md:py-24 bg-secondary/50">
           <div className="container mx-auto">
             <div className="text-center mb-12 md:mb-16">
               <Lightbulb className="h-12 w-12 text-accent mx-auto mb-4" />
               <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
-                {pricingData.title}
+                {pricingDataStatic.title}
               </h2>
               <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
-                {pricingData.description}
+                {pricingDataStatic.description}
               </p>
             </div>
             <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-              {pricingData.tiers.map((tier) => (
+              {pricingDataStatic.tiers.map((tier) => (
                 <PricingCard
                   key={tier.tier}
                   tier={tier.tier}
@@ -415,33 +375,23 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            <div className="mt-16 max-w-4xl mx-auto">
-              <AiImageSection
-                title="Transparent VA Pricing"
-                text="Our clear pricing plans ensure you find the perfect fit for your business needs."
-                imageInfo={getAiImageInfoForSection('pricing', pricingData.imageDescriptionForHint, 'pricing plans KES')}
-                imagePlacement="left"
-                className="py-0"
-                titleClassName="text-3xl text-center md:text-left"
-                textClassName="text-center md:text-left"
-              />
-            </div>
+             {/* The AiImageSection for "pricing" is handled in the main loop */}
           </div>
         </section>
 
-        <section id="testimonials" className="py-16 md:py-24 bg-background">
+        <section id="testimonials-static" className="py-16 md:py-24 bg-background">
           <div className="container mx-auto">
             <div className="text-center mb-12 md:mb-16">
               <Users2 className="h-12 w-12 text-accent mx-auto mb-4" />
               <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
-                {testimonialsData.title}
+                {testimonialsDataStatic.title}
               </h2>
               <p className="text-lg text-foreground/80 max-w-3xl mx-auto">
-                {testimonialsData.description}
+                {testimonialsDataStatic.description}
               </p>
             </div>
             <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
-              {testimonialsData.reviews.map((review) => (
+              {testimonialsDataStatic.reviews.map((review) => (
                 <TestimonialCard
                   key={review.name}
                   name={review.name}
@@ -452,75 +402,33 @@ export default async function HomePage() {
                 />
               ))}
             </div>
-            <div className="mt-16 max-w-3xl mx-auto">
-              <AiImageSection
-                title="Client Success Stories"
-                text="Visually representing client satisfaction through placeholder imagery."
-                imageInfo={getAiImageInfoForSection('testimonials', testimonialsData.imageDescriptionForHint, 'happy clients')}
-                imagePlacement="right"
-                className="py-0"
-                titleClassName="text-3xl text-center md:text-left"
-                textClassName="text-center md:text-left"
-              />
-            </div>
+            {/* The AiImageSection for "testimonials" is handled in the main loop */}
           </div>
         </section>
 
-        <section id="blog-intro" className="py-16 md:py-24 bg-secondary/30">
+        <section id="blog-intro-wrapper" className="py-16 md:py-24 bg-secondary/30">
           <div className="container mx-auto">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
-                  {blogIntroData.title}
-                </h2>
-                <p className="text-lg text-foreground/80 mb-6 leading-relaxed">
-                  {blogIntroData.description}
-                </p>
-                <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+             {/* The AiImageSection for "blog-intro" is handled in the main loop */}
+            <div className="text-center md:text-left mt-8 md:mt-0"> {/* Adjustments for layout if AiImageSection handles text */}
+                 <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
                   <Link href="/blog">
                     Explore Our Blog <Rocket className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-              </div>
-              <div className="mt-8 md:mt-0">
-                <AiImageSection
-                  title="" 
-                  text=""
-                  imageInfo={getAiImageInfoForSection('blog-intro', blogIntroData.imageDescriptionForHint, 'blog ideas')}
-                  imagePlacement="right" 
-                  className="py-0 !shadow-none"
-                  titleClassName="hidden"
-                  textClassName="hidden" 
-                  imageContainerClassName="max-w-md ml-auto"
-                />
-              </div>
             </div>
           </div>
         </section>
 
-        <section id="cta" className="py-20 md:py-28 bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
+
+        <section id="cta-wrapper" className="py-20 md:py-28 bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
           <div className="container mx-auto">
             <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
                 <div>
-                    <h2 className="font-headline text-4xl md:text-5xl font-bold !text-primary-foreground mb-4">
-                        {ctaSectionData.title}
-                    </h2>
-                    <p className="text-lg !text-primary-foreground/90 leading-relaxed mb-8">
-                        {ctaSectionData.text}
-                    </p>
+                    {/* Title and Text for CTA are now rendered by AiImageSection from the loop */}
                     <ContactForm />
                 </div>
                 <div className="hidden md:flex justify-center items-center">
-                     <AiImageSection
-                        title=""
-                        text=""
-                        imageInfo={getAiImageInfoForSection('cta', ctaSectionData.imageDescriptionForHint, 'business collaboration')}
-                        imagePlacement="right"
-                        className="py-0 !bg-transparent !shadow-none"
-                        titleClassName="hidden"
-                        textClassName="hidden"
-                        imageContainerClassName="!p-0"
-                    />
+                     {/* The AiImageSection for "cta" is handled in the main loop, no need to repeat image logic here, only text if not part of AiImageSection */}
                 </div>
             </div>
           </div>
@@ -531,4 +439,3 @@ export default async function HomePage() {
     </div>
   );
 }
-

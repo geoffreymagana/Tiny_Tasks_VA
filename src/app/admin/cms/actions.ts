@@ -3,7 +3,6 @@
 
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { User } from 'firebase/auth';
 
 // Helper function to verify admin (can be shared if used elsewhere)
 async function verifyAdmin(adminUserId: string): Promise<boolean> {
@@ -13,47 +12,50 @@ async function verifyAdmin(adminUserId: string): Promise<boolean> {
   return adminDoc.exists() && adminDoc.data()?.role === 'admin';
 }
 
-export interface SectionImage {
+export interface SectionData {
   imageUrl: string | null;
-  updatedAt?: string; // Changed to string for ISO date
+  title: string | null;
+  text: string | null;
+  updatedAt?: string | null;
 }
 
-export interface SectionImageOperationResult {
+export interface SectionOperationResult {
   success: boolean;
   message: string;
-  imageUrl?: string | null;
+  sectionData?: Partial<SectionData>;
 }
 
-const SECTION_IMAGES_COLLECTION = 'websiteSectionImages';
+const SECTIONS_COLLECTION = 'websiteSectionImages'; // Keeping collection name for now
 
-export async function getSectionImageAction(sectionId: string): Promise<SectionImage | null> {
+export async function getSectionDataAction(sectionId: string): Promise<SectionData | null> {
   try {
-    const sectionDocRef = doc(db, SECTION_IMAGES_COLLECTION, sectionId);
+    const sectionDocRef = doc(db, SECTIONS_COLLECTION, sectionId);
     const docSnap = await getDoc(sectionDocRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
-      // Convert Firestore Timestamp to ISO string
       const updatedAtISO = data.updatedAt instanceof Timestamp 
         ? data.updatedAt.toDate().toISOString() 
-        : undefined;
+        : (data.updatedAt && typeof data.updatedAt === 'string' ? data.updatedAt : undefined);
       
       return {
         imageUrl: data.imageUrl || null,
+        title: data.title || null,
+        text: data.text || null,
         updatedAt: updatedAtISO,
       };
     }
     return null;
   } catch (error) {
-    console.error(`Error fetching image for section ${sectionId}:`, error);
+    console.error(`Error fetching data for section ${sectionId}:`, error);
     return null;
   }
 }
 
-export async function updateSectionImageAction(
+export async function updateSectionDataAction(
   sectionId: string,
-  imageUrl: string | null,
+  data: { imageUrl?: string | null; title?: string | null; text?: string | null },
   adminUserId: string
-): Promise<SectionImageOperationResult> {
+): Promise<SectionOperationResult> {
   if (!(await verifyAdmin(adminUserId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
@@ -62,33 +64,47 @@ export async function updateSectionImageAction(
     return { success: false, message: 'Section ID is required.' };
   }
 
-  const sectionDocRef = doc(db, SECTION_IMAGES_COLLECTION, sectionId);
+  const sectionDocRef = doc(db, SECTIONS_COLLECTION, sectionId);
+  const dataToUpdate: any = { updatedAt: serverTimestamp() };
+
+  // Explicitly handle null or undefined for clearing fields, or set the new value
+  if (data.hasOwnProperty('imageUrl')) {
+    if (data.imageUrl === null || (typeof data.imageUrl === 'string' && data.imageUrl.trim() === '')) {
+        dataToUpdate.imageUrl = null;
+    } else if (typeof data.imageUrl === 'string') {
+        try {
+            new URL(data.imageUrl); // Basic URL validation
+            dataToUpdate.imageUrl = data.imageUrl;
+        } catch (_) {
+            return { success: false, message: 'Invalid image URL format provided.' };
+        }
+    }
+  }
+
+
+  if (data.hasOwnProperty('title')) {
+    dataToUpdate.title = data.title === null || (typeof data.title === 'string' && data.title.trim() === '') ? null : data.title;
+  }
+  if (data.hasOwnProperty('text')) {
+    dataToUpdate.text = data.text === null || (typeof data.text === 'string' && data.text.trim() === '') ? null : data.text;
+  }
+  
+  // If only updatedAt is in dataToUpdate (meaning no actual content fields were changed),
+  // we might not want to make a write unless truly necessary.
+  // However, for simplicity of update logic, we'll proceed.
+  // A more complex check could see if other fields than `updatedAt` are present.
 
   try {
-    if (imageUrl === null || imageUrl.trim() === '') {
-      // If imageUrl is null or empty, delete the document or specific field to clear it
-      const docSnap = await getDoc(sectionDocRef);
-      if (docSnap.exists()) {
-        await deleteDoc(sectionDocRef);
-      }
-      return { success: true, message: `Image for section '${sectionId}' cleared successfully.`, imageUrl: null };
-    } else {
-      // Validate URL format (basic check)
-      try {
-        new URL(imageUrl);
-      } catch (_) {
-        return { success: false, message: 'Invalid image URL format.' };
-      }
+    await setDoc(sectionDocRef, dataToUpdate, { merge: true });
+    // Return the data that was intended to be saved for UI update
+    const returnData: Partial<SectionData> = {};
+    if (data.hasOwnProperty('imageUrl')) returnData.imageUrl = dataToUpdate.imageUrl;
+    if (data.hasOwnProperty('title')) returnData.title = dataToUpdate.title;
+    if (data.hasOwnProperty('text')) returnData.text = dataToUpdate.text;
 
-      await setDoc(sectionDocRef, { 
-        imageUrl: imageUrl,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-      return { success: true, message: `Image for section '${sectionId}' updated successfully.`, imageUrl: imageUrl };
-    }
+    return { success: true, message: `Content for section '${sectionId}' updated successfully.`, sectionData: returnData };
   } catch (error: any) {
-    console.error(`Error updating image for section ${sectionId}:`, error);
-    return { success: false, message: error.message || 'Failed to update section image.' };
+    console.error(`Error updating data for section ${sectionId}:`, error);
+    return { success: false, message: error.message || 'Failed to update section content.' };
   }
 }
-
