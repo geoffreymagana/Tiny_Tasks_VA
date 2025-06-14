@@ -17,10 +17,8 @@ interface ResolvedPageParams {
 }
 
 // This interface describes the props object as received by the page component.
-// We assume `params` here is the "Readable" entity.
 interface BlogSlugPageServerProps {
-  params: any; // The type of this "Readable" is not precisely known without more Next.js internal details.
-               // It should resolve to an object like ResolvedPageParams.
+  params: any; 
 }
 
 async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
@@ -36,20 +34,65 @@ async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
     const doc = querySnapshot.docs[0];
     const data = doc.data();
     
-    const convertTimestamp = (timestamp: any) => {
-        if (timestamp instanceof Timestamp) {
-          return timestamp.toDate().toISOString();
+    // More robust timestamp conversion
+    const convertDbTimestampToISO = (dbTimestamp: any): string | null => {
+      if (!dbTimestamp) return null;
+      
+      if (dbTimestamp instanceof Timestamp) { // Firebase v9 Timestamp
+        return dbTimestamp.toDate().toISOString();
+      }
+      if (dbTimestamp instanceof Date) { // Plain JS Date
+        return dbTimestamp.toISOString();
+      }
+      // Handle cases where timestamp might be an object with seconds/nanoseconds (e.g. after JSON stringify/parse)
+      if (typeof dbTimestamp === 'object' && dbTimestamp !== null && 
+          typeof dbTimestamp.seconds === 'number' && typeof dbTimestamp.nanoseconds === 'number') {
+        try {
+            return new Timestamp(dbTimestamp.seconds, dbTimestamp.nanoseconds).toDate().toISOString();
+        } catch(e) {
+            console.warn("Error converting object with sec/ns to Timestamp:", e, dbTimestamp);
+            return null;
         }
-        return timestamp;
+      }
+      // Handle Firestore ServerTimestamp placeholder or other objects with toDate()
+      if (typeof dbTimestamp === 'object' && dbTimestamp !== null && typeof dbTimestamp.toDate === 'function') {
+        try {
+            return dbTimestamp.toDate().toISOString();
+        } catch (e) {
+            console.warn("Failed to convert object with toDate method:", e, dbTimestamp);
+            // Fallback for uncommitted server timestamps or problematic objects
+            return null; 
+        }
+      }
+      // If it's already a string, try to parse it to ensure it's valid, then re-stringify to ISO
+      if (typeof dbTimestamp === 'string') {
+        const d = new Date(dbTimestamp);
+        if (!isNaN(d.getTime())) {
+          return d.toISOString();
+        }
+        console.warn("Invalid date string encountered in getBlogPostBySlug:", dbTimestamp);
+        return null; 
+      }
+      console.warn("Unparseable timestamp format encountered in getBlogPostBySlug:", dbTimestamp);
+      return null; 
     };
 
-    return {
+    // Ensure all fields from BlogPost interface are mapped, even if some are from data directly.
+    const postData: BlogPost = {
       id: doc.id,
-      ...data,
-      createdAt: convertTimestamp(data.createdAt),
-      updatedAt: convertTimestamp(data.updatedAt),
-      publishedAt: data.publishedAt ? convertTimestamp(data.publishedAt) : null,
-    } as BlogPost;
+      title: data.title,
+      content: data.content,
+      category: data.category,
+      excerpt: data.excerpt,
+      slug: data.slug,
+      status: data.status,
+      authorId: data.authorId,
+      authorName: data.authorName,
+      createdAt: convertDbTimestampToISO(data.createdAt),
+      updatedAt: convertDbTimestampToISO(data.updatedAt),
+      publishedAt: data.publishedAt ? convertDbTimestampToISO(data.publishedAt) : null,
+    };
+    return postData;
 
   } catch (error) {
     console.error("Error fetching blog post by slug:", error);
@@ -58,7 +101,6 @@ async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
 }
 
 export default async function BlogSlugPage({ params: incomingParams }: BlogSlugPageServerProps) {
-  // Unwrap the params object using React.use() as suggested by the error.
   const resolvedParams: ResolvedPageParams = use(incomingParams);
   const slug = resolvedParams.slug;
 
@@ -137,13 +179,3 @@ export default async function BlogSlugPage({ params: incomingParams }: BlogSlugP
     </div>
   );
 }
-
-// Optional: Add generateStaticParams if you want to pre-render blog posts at build time
-// export async function generateStaticParams() {
-//   const postsCollection = collection(db, 'blogPosts');
-//   const q = query(postsCollection, where('status', '==', 'published'));
-//   const postsSnapshot = await getDocs(q);
-//   return postsSnapshot.docs.map(doc => ({
-//     slug: doc.data().slug as string,
-//   }));
-// }
