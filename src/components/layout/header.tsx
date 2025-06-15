@@ -19,10 +19,10 @@ export function Header() {
           <Link href="/#features" className="transition-colors hover:text-primary">
             Features
           </Link>
-          <Link href="/#services" className="transition-colors hover:text-primary">
+          <Link href="/#services-intro" className="transition-colors hover:text-primary">
             Services
           </Link>
-          <Link href="/#portfolio" className="transition-colors hover:text-primary">
+          <Link href="/#portfolio-intro" className="transition-colors hover:text-primary">
             Portfolio
           </Link>
           <Link href="/#pricing" className="transition-colors hover:text-primary">
@@ -62,10 +62,10 @@ export function Header() {
                 <Link href="/#features" className="hover:text-primary">
                   Features
                 </Link>
-                <Link href="/#services" className="hover:text-primary">
+                <Link href="/#services-intro" className="hover:text-primary">
                   Services
                 </Link>
-                 <Link href="/#portfolio" className="hover:text-primary">
+                 <Link href="/#portfolio-intro" className="hover:text-primary">
                   Portfolio
                 </Link>
                 <Link href="/#pricing" className="hover:text-primary">
