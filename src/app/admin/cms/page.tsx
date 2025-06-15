@@ -2,8 +2,8 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect, useCallback, useRef } from 'react'; // Added useRef
+import { useForm } from 'react-hook-form'; // Corrected import for useForm
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -113,6 +113,13 @@ const convertDbTimestampToISOForCms = (dbTimestamp: any): string | null => {
   console.warn("Unparseable timestamp for CMS:", dbTimestamp); return null;
 };
 
+interface CmsNavItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  ref: React.RefObject<HTMLDivElement>;
+}
+
 
 const CmsPage: FC = () => {
   const { toast } = useToast();
@@ -138,6 +145,22 @@ const CmsPage: FC = () => {
   const [isPortfolioDialogOpEn, setIsPortfolioDialogOpen] = useState(false);
   const [editingPortfolioItem, setEditingPortfolioItem] = useState<PortfolioItem | null>(null);
   const [isProcessingPortfolio, setIsProcessingPortfolio] = useState(false);
+  const [activeSection, setActiveSection] = useState('websiteContent');
+
+  const websiteContentRef = useRef<HTMLDivElement>(null);
+  const portfolioRef = useRef<HTMLDivElement>(null);
+  const blogRef = useRef<HTMLDivElement>(null);
+
+  const cmsNavItems: CmsNavItem[] = [
+    { id: 'websiteContent', label: 'Section Content', icon: <Images className="mr-2 h-5 w-5" />, ref: websiteContentRef },
+    { id: 'portfolio', label: 'Portfolio Items', icon: <Briefcase className="mr-2 h-5 w-5" />, ref: portfolioRef },
+    { id: 'blog', label: 'Blog & Pages', icon: <BookOpen className="mr-2 h-5 w-5" />, ref: blogRef },
+  ];
+
+  const scrollToSection = (sectionRef: React.RefObject<HTMLDivElement>, sectionId: string) => {
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveSection(sectionId);
+  };
 
 
   const fetchAllSectionData = useCallback(async () => {
@@ -215,23 +238,21 @@ const CmsPage: FC = () => {
   }, [toast]);
 
   const fetchPortfolioItems = useCallback(async () => {
-    // isLoadingPortfolio is set by the caller (handlePortfolioSave or useEffect)
     try {
       const items = await getPortfolioItemsAction();
-      console.log("CMS Page: Fetched portfolio items in fetchPortfolioItems:", items); 
       setPortfolioItems(items);
     } catch (error) {
       console.error("CMS Page: Error fetching portfolio items:", error);
       toast({ title: "Error", description: "Could not fetch portfolio items.", variant: "destructive" });
-      setPortfolioItems([]); // Ensure it's empty on error
+      setPortfolioItems([]);
     } finally {
-       setIsLoadingPortfolio(false); // Set loading to false *after* items are set or error handled
+       setIsLoadingPortfolio(false);
     }
-  }, [toast]); // toast is stable, no other direct dependencies for getPortfolioItemsAction
+  }, [toast]);
 
   useEffect(() => {
     if (firebaseUser) {
-      setIsLoadingPortfolio(true); // Set loading true before initial fetch
+      setIsLoadingPortfolio(true);
       fetchPortfolioItems();
     }
   }, [firebaseUser, fetchPortfolioItems]);
@@ -239,8 +260,8 @@ const CmsPage: FC = () => {
   const handlePortfolioSave = async () => {
     setIsPortfolioDialogOpen(false);
     setEditingPortfolioItem(null);
-    setIsLoadingPortfolio(true); // Set loading to true before fetching
-    await fetchPortfolioItems(); // Re-fetch. This will set isLoadingPortfolio to false.
+    setIsLoadingPortfolio(true); 
+    await fetchPortfolioItems(); 
   };
 
 
@@ -368,7 +389,7 @@ const CmsPage: FC = () => {
     const result = await deletePortfolioItemAction(itemId, firebaseUser.uid);
     if (result.success) {
       toast({ title: "Success", description: result.message });
-      await handlePortfolioSave(); // Re-fetch after delete
+      await handlePortfolioSave();
     } else {
       toast({ title: "Error", description: result.message, variant: "destructive" });
     }
@@ -378,310 +399,345 @@ const CmsPage: FC = () => {
 
   return (
     <AlertDialog open={!!postToDelete} onOpenChange={(isOpen) => { if (!isOpen) setPostToDelete(null); }}>
-      <div className="flex flex-col gap-8"> 
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Content</CardTitle>
-            <CardDescription>
-              Update images (use direct image links like from Unsplash: `https://images.unsplash.com/your-image-id.jpg` or `https://source.unsplash.com/random/800x600?keyword`), 
-              text, and visibility for key sections.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {managedSections.map((section) => (
-              <Card key={section.id} className="p-4 shadow-md">
-                <CardHeader className="p-0 pb-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg font-semibold text-primary">{section.name}</CardTitle>
-                      <CardDescription className="text-xs">{section.description}</CardDescription>
-                    </div>
-                    <div className="flex items-center space-x-2 pt-1">
-                        <Switch
-                            id={`isVisible-${section.id}`}
-                            checked={section.newIsVisible}
-                            onCheckedChange={(checked) => handleIsVisibleChange(section.id, checked)}
-                            disabled={section.isLoading || !firebaseUser}
-                        />
-                        <Label htmlFor={`isVisible-${section.id}`} className="text-sm">
-                            {section.newIsVisible ? <Eye className="h-4 w-4 inline mr-1"/> : <EyeOff className="h-4 w-4 inline mr-1"/>}
-                            {section.newIsVisible ? "Visible" : "Hidden"}
-                        </Label>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0 grid md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
-                      {section.currentImageUrl ? (
-                        <Image 
-                          src={section.currentImageUrl} 
-                          alt={`Current ${section.name} image`} 
-                          fill
-                          style={{ objectFit: 'contain' }}
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          priority={section.id === 'hero'} 
-                        />
-                      ) : (
-                        <Image 
-                          src={`https://placehold.co/300x200.png?text=${encodeURIComponent(section.placeholderHint || 'Placeholder')}`} 
-                          alt="Placeholder" 
-                          width={300} 
-                          height={200} 
-                          className="opacity-50" 
-                          data-ai-hint={section.placeholderHint || "website section"}
-                          style={{ objectFit: 'contain' }}
-                          priority={section.id === 'hero'}
-                        />
-                      )}
-                      {section.isLoading && (
-                          <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-                              <LottieLoader size={32}/>
-                          </div>
-                      )}
-                    </div>
-                    <Label htmlFor={`imageUrl-${section.id}`}>Image URL (direct link: .jpg, .png)</Label>
-                    <Input
-                      id={`imageUrl-${section.id}`}
-                      placeholder="Paste direct image URL..."
-                      value={section.newImageUrl}
-                      onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
-                      disabled={section.isLoading || !firebaseUser}
-                    />
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleClearSectionImage(section.id)}
-                      disabled={section.isLoading || !firebaseUser || !section.currentImageUrl}
-                      className="w-full"
-                    >
-                      <XCircle className="mr-1 h-4 w-4"/> Clear Image
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor={`title-${section.id}`}>Section Title</Label>
-                      <Input
-                        id={`title-${section.id}`}
-                        value={section.newTitle}
-                        onChange={(e) => handleTitleChange(section.id, e.target.value)}
-                        disabled={section.isLoading || !firebaseUser}
-                        placeholder="Enter section title"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`text-${section.id}`}>Section Text</Label>
-                      <Textarea
-                        id={`text-${section.id}`}
-                        value={section.newText}
-                        onChange={(e) => handleTextChange(section.id, e.target.value)}
-                        disabled={section.isLoading || !firebaseUser}
-                        placeholder="Enter section text content"
-                        rows={section.id === 'hero' ? 5 : 8} 
-                        className="min-h-[100px]"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="p-0 pt-4 mt-4 border-t flex justify-end">
-                  <Button 
-                    size="sm" 
-                    onClick={() => handleSaveSectionData(section.id)}
-                    disabled={
-                        section.isLoading || 
-                        !firebaseUser ||
-                        (section.newImageUrl === section.currentImageUrl && 
-                         section.newTitle === section.currentTitle &&
-                         section.newText === section.currentText &&
-                         section.newIsVisible === section.currentIsVisible)
-                    }
+      <div className="flex flex-col md:flex-row gap-8 h-full">
+        <aside className="md:w-64 lg:w-72 shrink-0">
+          <Card className="sticky top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
+            <CardHeader>
+              <CardTitle>CMS Navigation</CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+              <nav className="flex flex-col space-y-1">
+                {cmsNavItems.map((item) => (
+                  <Button
+                    key={item.id}
+                    variant={activeSection === item.id ? 'secondary' : 'ghost'}
+                    className="justify-start text-sm h-auto py-2.5 px-3"
+                    onClick={() => scrollToSection(item.ref, item.id)}
                   >
-                    {section.isLoading && <LottieLoader className="mr-1" size={16}/>}
-                    <Save className="mr-1 h-4 w-4"/> Save Section
+                    {item.icon}
+                    {item.label}
                   </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </CardContent>
-        </Card>
-        
-        <Separator />
+                ))}
+              </nav>
+            </CardContent>
+          </Card>
+        </aside>
 
-        <Card>
-          <CardHeader className="flex flex-row justify-between items-center">
-            <div>
-              <CardTitle className="flex items-center"><Briefcase className="mr-2 h-6 w-6 text-accent" /> Manage Portfolio Items</CardTitle>
-              <CardDescription>Add, edit, or remove items from your website's portfolio.</CardDescription>
-            </div>
-            <Button onClick={() => handleOpenPortfolioDialog()} disabled={!firebaseUser}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Portfolio Item
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {isLoadingPortfolio ? (
-              <div className="flex justify-center items-center py-10"><LottieLoader size={48} /><p className="ml-2">Loading portfolio...</p></div>
-            ) : portfolioItems.length === 0 ? (
-              <p className="text-center text-muted-foreground py-10">No portfolio items yet. Click "Add Portfolio Item" to start.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-1/4">Image</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Order</TableHead>
-                    <TableHead>Visible</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {portfolioItems.map(item => (
-                    <TableRow key={item.id} className={cn(!item.isVisible && "opacity-50")}>
-                      <TableCell>
-                        <Image src={item.imageUrl || "https://placehold.co/100x75.png"} alt={item.title} width={100} height={75} className="rounded-md object-cover bg-muted" data-ai-hint={item.imageHint || "portfolio project"}/>
-                      </TableCell>
-                      <TableCell className="font-medium">{item.title}</TableCell>
-                      <TableCell>{item.order}</TableCell>
-                      <TableCell>{item.isVisible ? <Eye className="h-5 w-5 text-green-500"/> : <EyeOff className="h-5 w-5 text-muted-foreground"/>}</TableCell>
-                      <TableCell className="text-right space-x-1">
-                        <Button variant="outline" size="icon" onClick={() => handleOpenPortfolioDialog(item)}><Edit3 className="h-4 w-4"/></Button>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="icon" onClick={() => setEditingPortfolioItem(item)}><Trash2 className="h-4 w-4"/></Button>
-                        </AlertDialogTrigger>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <Dialog open={isPortfolioDialogOpEn} onOpenChange={(open) => {
-            if (!open) {
-                setEditingPortfolioItem(null); // Clear editing item when dialog closes
-            }
-            setIsPortfolioDialogOpen(open);
-        }}>
-          <PortfolioItemForm
-            item={editingPortfolioItem}
-            adminUserId={firebaseUser?.uid || ''}
-            onSave={handlePortfolioSave}
-            onCancel={() => {setIsPortfolioDialogOpen(false); setEditingPortfolioItem(null);}}
-          />
-        </Dialog>
-
-        {editingPortfolioItem && !isPortfolioDialogOpEn && ( 
-            <AlertDialog open={!!editingPortfolioItem} onOpenChange={(open) => { if(!open) setEditingPortfolioItem(null)}}>
-                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Portfolio Item?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Are you sure you want to delete the portfolio item: &quot;{editingPortfolioItem?.title}&quot;? This action cannot be undone.
-                    </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setEditingPortfolioItem(null)} disabled={isProcessingPortfolio}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                        onClick={() => editingPortfolioItem?.id && handleDeletePortfolioItem(editingPortfolioItem.id)}
-                        disabled={isProcessingPortfolio || !editingPortfolioItem?.id}
-                        className="bg-destructive hover:bg-destructive/90"
-                    >
-                        {isProcessingPortfolio ? <LottieLoader size={16} /> : "Delete"}
-                    </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        )}
-
-
-        <Separator />
-
-        <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-            <Card>
-                <CardHeader>
-                <CardTitle className="flex items-center"><BookOpen className="mr-2 h-6 w-6 text-accent" /> Blog Content Management</CardTitle>
-                <CardDescription>Create, edit, and manage your website's blog posts here.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                <Button asChild size="lg">
-                    <Link href="/admin/blog/create">Create New Blog Post</Link>
-                </Button>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-xl">Website Pages Overview</CardTitle>
-                    <CardDescription>Manage static pages of your website (Coming Soon).</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">Functionality to edit pages like 'About Us', 'Services' will be available here.</p>
-                    <Button disabled className="mt-4">Manage Pages (Coming Soon)</Button>
-                </CardContent>
-            </Card>
-            </div>
-
-            <div className="lg:col-span-1 space-y-6">
-            <Card>
-                <CardHeader>
-                <CardTitle className="text-xl">Blog Posts Overview</CardTitle>
-                <CardDescription>Recently created or updated articles.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                {isLoadingPosts ? (
-                    <div className="flex justify-center items-center h-32">
-                    <LottieLoader size={48} className="text-primary" />
-                    </div>
-                ) : blogPosts.length > 0 ? (
-                    blogPosts.slice(0, 5).map(post => ( 
-                    <Card key={post.id} className="p-4 hover:shadow-md transition-shadow">
-                        <h4 className="font-semibold text-primary mb-1 truncate" title={post.title}>{post.title}</h4>
-                        <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-2">
-                        <div className="flex items-center">
-                            <Clock className="mr-1 h-3 w-3" />
-                            <span>{post.updatedAt ? new Date(post.updatedAt).toLocaleDateString() : 'N/A'}</span>
-                        </div>
-                        <span className={cn(`px-2 py-0.5 rounded-full text-xs font-medium`, post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700')}>
-                            {post.status}
-                        </span>
-                        </div>
-                        <div className="flex space-x-2 mt-2">
-                        <Button variant="outline" size="sm" asChild className="text-accent" disabled={post.status !== 'published'}>
-                            <Link href={`/blog/${post.slug}`} target="_blank" title="View Post">
-                            <Eye className="mr-1 h-3 w-3" /> View
-                            </Link>
-                        </Button>
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href={`/admin/blog/edit/${post.id}`} title="Edit Post">
-                            <Edit3 className="mr-1 h-3 w-3" /> Edit
-                            </Link>
-                        </Button>
-                        <AlertDialogTrigger asChild>
+        <main className="flex-1 min-w-0"> {/* Ensure main content area can shrink if needed */}
+          <ScrollArea className="h-[calc(100vh-5.5rem)] md:h-[calc(100vh-6rem)]"> {/* Adjust height based on header/footer/padding */}
+            <div className="space-y-12 pb-12 md:pr-4">
+              <section id="websiteContent" ref={websiteContentRef} className="pt-1">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Content</CardTitle>
+                    <CardDescription>
+                      Update images (use direct image links), text, and visibility for key sections.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {managedSections.map((section) => (
+                      <Card key={section.id} className="p-4 shadow-md">
+                        <CardHeader className="p-0 pb-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-lg font-semibold text-primary">{section.name}</CardTitle>
+                              <CardDescription className="text-xs">{section.description}</CardDescription>
+                            </div>
+                            <div className="flex items-center space-x-2 pt-1">
+                                <Switch
+                                    id={`isVisible-${section.id}`}
+                                    checked={section.newIsVisible}
+                                    onCheckedChange={(checked) => handleIsVisibleChange(section.id, checked)}
+                                    disabled={section.isLoading || !firebaseUser}
+                                />
+                                <Label htmlFor={`isVisible-${section.id}`} className="text-sm">
+                                    {section.newIsVisible ? <Eye className="h-4 w-4 inline mr-1"/> : <EyeOff className="h-4 w-4 inline mr-1"/>}
+                                    {section.newIsVisible ? "Visible" : "Hidden"}
+                                </Label>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-0 grid md:grid-cols-2 gap-6">
+                          <div className="space-y-3">
+                            <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
+                              {section.currentImageUrl ? (
+                                <Image 
+                                  src={section.currentImageUrl} 
+                                  alt={`Current ${section.name} image`} 
+                                  fill
+                                  style={{ objectFit: 'contain' }}
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                  priority={section.id === 'hero'} 
+                                />
+                              ) : (
+                                <Image 
+                                  src={`https://placehold.co/300x200.png?text=${encodeURIComponent(section.placeholderHint || 'Placeholder')}`} 
+                                  alt="Placeholder" 
+                                  width={300} 
+                                  height={200} 
+                                  className="opacity-50" 
+                                  data-ai-hint={section.placeholderHint || "website section"}
+                                  style={{ objectFit: 'contain' }}
+                                  priority={section.id === 'hero'}
+                                />
+                              )}
+                              {section.isLoading && (
+                                  <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
+                                      <LottieLoader size={32}/>
+                                  </div>
+                              )}
+                            </div>
+                            <Label htmlFor={`imageUrl-${section.id}`}>Image URL (direct link: .jpg, .png)</Label>
+                            <Input
+                              id={`imageUrl-${section.id}`}
+                              placeholder="Paste direct image URL..."
+                              value={section.newImageUrl}
+                              onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
+                              disabled={section.isLoading || !firebaseUser}
+                            />
                             <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-destructive hover:bg-destructive hover:text-destructive-foreground" 
-                            title="Delete Post" 
-                            onClick={() => setPostToDelete(post)}
-                            disabled={isDeletingPost && postToDelete?.id === post.id}
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleClearSectionImage(section.id)}
+                              disabled={section.isLoading || !firebaseUser || !section.currentImageUrl}
+                              className="w-full"
                             >
-                            <Trash2 className="mr-1 h-3 w-3" /> Delete
+                              <XCircle className="mr-1 h-4 w-4"/> Clear Image
                             </Button>
-                        </AlertDialogTrigger>
-                        </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor={`title-${section.id}`}>Section Title</Label>
+                              <Input
+                                id={`title-${section.id}`}
+                                value={section.newTitle}
+                                onChange={(e) => handleTitleChange(section.id, e.target.value)}
+                                disabled={section.isLoading || !firebaseUser}
+                                placeholder="Enter section title"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor={`text-${section.id}`}>Section Text</Label>
+                              <Textarea
+                                id={`text-${section.id}`}
+                                value={section.newText}
+                                onChange={(e) => handleTextChange(section.id, e.target.value)}
+                                disabled={section.isLoading || !firebaseUser}
+                                placeholder="Enter section text content"
+                                rows={section.id === 'hero' ? 5 : 8} 
+                                className="min-h-[100px]"
+                              />
+                            </div>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="p-0 pt-4 mt-4 border-t flex justify-end">
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSaveSectionData(section.id)}
+                            disabled={
+                                section.isLoading || 
+                                !firebaseUser ||
+                                (section.newImageUrl === section.currentImageUrl && 
+                                 section.newTitle === section.currentTitle &&
+                                 section.newText === section.currentText &&
+                                 section.newIsVisible === section.currentIsVisible)
+                            }
+                          >
+                            {section.isLoading && <LottieLoader className="mr-1" size={16}/>}
+                            <Save className="mr-1 h-4 w-4"/> Save Section
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </CardContent>
+                </Card>
+              </section>
+              
+              <Separator />
+
+              <section id="portfolio" ref={portfolioRef} className="pt-4">
+                <Card>
+                  <CardHeader className="flex flex-row justify-between items-center">
+                    <div>
+                      <CardTitle className="flex items-center"><Briefcase className="mr-2 h-6 w-6 text-accent" /> Manage Portfolio Items</CardTitle>
+                      <CardDescription>Add, edit, or remove items from your website's portfolio.</CardDescription>
+                    </div>
+                    <Button onClick={() => handleOpenPortfolioDialog()} disabled={!firebaseUser}>
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add Portfolio Item
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingPortfolio ? (
+                      <div className="flex justify-center items-center py-10"><LottieLoader size={48} /><p className="ml-2">Loading portfolio...</p></div>
+                    ) : portfolioItems.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-10">No portfolio items yet. Click "Add Portfolio Item" to start.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-1/4">Image</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Order</TableHead>
+                            <TableHead>Visible</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {portfolioItems.map(item => (
+                            <TableRow key={item.id} className={cn(!item.isVisible && "opacity-50")}>
+                              <TableCell>
+                                <Image src={item.imageUrl || "https://placehold.co/100x75.png"} alt={item.title} width={100} height={75} className="rounded-md object-cover bg-muted" data-ai-hint={item.imageHint || "portfolio project"}/>
+                              </TableCell>
+                              <TableCell className="font-medium">{item.title}</TableCell>
+                              <TableCell>{item.order}</TableCell>
+                              <TableCell>{item.isVisible ? <Eye className="h-5 w-5 text-green-500"/> : <EyeOff className="h-5 w-5 text-muted-foreground"/>}</TableCell>
+                              <TableCell className="text-right space-x-1">
+                                <Button variant="outline" size="icon" onClick={() => handleOpenPortfolioDialog(item)}><Edit3 className="h-4 w-4"/></Button>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="icon" onClick={() => setEditingPortfolioItem(item)}><Trash2 className="h-4 w-4"/></Button>
+                                </AlertDialogTrigger>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </section>
+
+              <Dialog open={isPortfolioDialogOpEn} onOpenChange={(open) => {
+                  if (!open) {
+                      setEditingPortfolioItem(null); 
+                  }
+                  setIsPortfolioDialogOpen(open);
+              }}>
+                <PortfolioItemForm
+                  item={editingPortfolioItem}
+                  adminUserId={firebaseUser?.uid || ''}
+                  onSave={handlePortfolioSave}
+                  onCancel={() => {setIsPortfolioDialogOpen(false); setEditingPortfolioItem(null);}}
+                />
+              </Dialog>
+
+              {editingPortfolioItem && !isPortfolioDialogOpEn && ( 
+                  <AlertDialog open={!!editingPortfolioItem} onOpenChange={(open) => { if(!open) setEditingPortfolioItem(null)}}>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Portfolio Item?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                              Are you sure you want to delete the portfolio item: &quot;{editingPortfolioItem?.title}&quot;? This action cannot be undone.
+                          </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setEditingPortfolioItem(null)} disabled={isProcessingPortfolio}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                              onClick={() => editingPortfolioItem?.id && handleDeletePortfolioItem(editingPortfolioItem.id)}
+                              disabled={isProcessingPortfolio || !editingPortfolioItem?.id}
+                              className="bg-destructive hover:bg-destructive/90"
+                          >
+                              {isProcessingPortfolio ? <LottieLoader size={16} /> : "Delete"}
+                          </AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                  </AlertDialog>
+              )}
+
+
+              <Separator />
+
+              <section id="blog" ref={blogRef} className="pt-4">
+                <div className="grid lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-8">
+                    <Card>
+                        <CardHeader>
+                        <CardTitle className="flex items-center"><BookOpen className="mr-2 h-6 w-6 text-accent" /> Blog Content Management</CardTitle>
+                        <CardDescription>Create, edit, and manage your website's blog posts here.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                        <Button asChild size="lg">
+                            <Link href="/admin/blog/create">Create New Blog Post</Link>
+                        </Button>
+                        </CardContent>
                     </Card>
-                    ))
-                ) : (
-                    <p className="text-sm text-muted-foreground">No blog posts found.</p>
-                )}
-                <Button variant="outline" className="w-full mt-4" disabled>View All Posts (coming soon)</Button>
-                </CardContent>
-            </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-xl">Website Pages Overview</CardTitle>
+                            <CardDescription>Manage static pages of your website (Coming Soon).</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-muted-foreground">Functionality to edit pages like 'About Us', 'Services' will be available here.</p>
+                            <Button disabled className="mt-4">Manage Pages (Coming Soon)</Button>
+                        </CardContent>
+                    </Card>
+                    </div>
+
+                    <div className="lg:col-span-1 space-y-6">
+                    <Card>
+                        <CardHeader>
+                        <CardTitle className="text-xl">Blog Posts Overview</CardTitle>
+                        <CardDescription>Recently created or updated articles.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                        {isLoadingPosts ? (
+                            <div className="flex justify-center items-center h-32">
+                            <LottieLoader size={48} className="text-primary" />
+                            </div>
+                        ) : blogPosts.length > 0 ? (
+                            blogPosts.slice(0, 5).map(post => ( 
+                            <Card key={post.id} className="p-4 hover:shadow-md transition-shadow">
+                                <h4 className="font-semibold text-primary mb-1 truncate" title={post.title}>{post.title}</h4>
+                                <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-2">
+                                <div className="flex items-center">
+                                    <Clock className="mr-1 h-3 w-3" />
+                                    <span>{post.updatedAt ? new Date(post.updatedAt).toLocaleDateString() : 'N/A'}</span>
+                                </div>
+                                <span className={cn(`px-2 py-0.5 rounded-full text-xs font-medium`, post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700')}>
+                                    {post.status}
+                                </span>
+                                </div>
+                                <div className="flex space-x-2 mt-2">
+                                <Button variant="outline" size="sm" asChild className="text-accent" disabled={post.status !== 'published'}>
+                                    <Link href={`/blog/${post.slug}`} target="_blank" title="View Post">
+                                    <Eye className="mr-1 h-3 w-3" /> View
+                                    </Link>
+                                </Button>
+                                <Button variant="outline" size="sm" asChild>
+                                    <Link href={`/admin/blog/edit/${post.id}`} title="Edit Post">
+                                    <Edit3 className="mr-1 h-3 w-3" /> Edit
+                                    </Link>
+                                </Button>
+                                <AlertDialogTrigger asChild>
+                                    <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-destructive hover:bg-destructive hover:text-destructive-foreground" 
+                                    title="Delete Post" 
+                                    onClick={() => setPostToDelete(post)}
+                                    disabled={isDeletingPost && postToDelete?.id === post.id}
+                                    >
+                                    <Trash2 className="mr-1 h-3 w-3" /> Delete
+                                    </Button>
+                                </AlertDialogTrigger>
+                                </div>
+                            </Card>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No blog posts found.</p>
+                        )}
+                        <Button variant="outline" className="w-full mt-4" disabled>View All Posts (coming soon)</Button>
+                        </CardContent>
+                    </Card>
+                    </div>
+                </div>
+              </section>
+              
+              <div className="h-20" /> {/* Spacer for bottom scroll */}
             </div>
-        </div>
+          </ScrollArea>
+        </main>
         
         {postToDelete && (
           <AlertDialogContent>
@@ -712,7 +768,7 @@ const CmsPage: FC = () => {
 interface PortfolioItemFormProps {
   item: PortfolioItem | null;
   adminUserId: string;
-  onSave: () => Promise<void>; // Changed to Promise<void>
+  onSave: () => Promise<void>; 
   onCancel: () => void;
 }
 
@@ -759,7 +815,7 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
 
     if (result.success) {
       toast({ title: 'Success', description: result.message });
-      await onSave(); // Await onSave
+      await onSave(); 
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
