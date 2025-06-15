@@ -2,8 +2,8 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form'; // Added import for useForm
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -33,6 +33,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter, 
+  DialogClose 
+} from '@/components/ui/dialog'; 
+import { 
   getSectionDataAction, 
   updateSectionDataAction, 
   type SectionData,
@@ -46,7 +54,7 @@ import {
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogClose } from '@/components/ui/dialog'; 
+
 
 interface ManagedSection {
   id: string;
@@ -94,7 +102,7 @@ const convertDbTimestampToISOForCms = (dbTimestamp: any): string | null => {
       const dateObj = dbTimestamp.toDate();
       if (dateObj instanceof Date && !isNaN(dateObj.getTime())) { return dateObj.toISOString(); }
       console.warn("toDate() did not return valid Date for CMS:", dbTimestamp);
-      return new Date().toISOString();
+      return new Date().toISOString(); 
     } catch (e) { console.warn("Failed to convert object with toDate method for CMS:", e, dbTimestamp); return null; }
   }
   if (typeof dbTimestamp === 'string') {
@@ -520,7 +528,7 @@ const CmsPage: FC = () => {
                   {portfolioItems.map(item => (
                     <TableRow key={item.id} className={cn(!item.isVisible && "opacity-50")}>
                       <TableCell>
-                        <Image src={item.imageUrl || "https://placehold.co/100x75.png"} alt={item.title} width={100} height={75} className="rounded-md object-cover bg-muted" data-ai-hint={item.imageHint || "portfolio item"}/>
+                        <Image src={item.imageUrl || "https://placehold.co/100x75.png"} alt={item.title} width={100} height={75} className="rounded-md object-cover bg-muted" data-ai-hint={item.imageHint || "portfolio project"}/>
                       </TableCell>
                       <TableCell className="font-medium">{item.title}</TableCell>
                       <TableCell>{item.order}</TableCell>
@@ -548,7 +556,7 @@ const CmsPage: FC = () => {
           />
         </Dialog>
 
-        {editingPortfolioItem && !isPortfolioDialogOpEn && ( // For delete confirmation if dialog closes unexpectedly
+        {editingPortfolioItem && !isPortfolioDialogOpEn && ( 
             <AlertDialog open={!!editingPortfolioItem} onOpenChange={() => setEditingPortfolioItem(null)}>
                  <AlertDialogContent>
                     <AlertDialogHeader>
@@ -706,7 +714,7 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
 
   const form = useForm({ defaultValues });
 
-  useEffect(() => { // Reset form when item changes (e.g., opening dialog for different item)
+  useEffect(() => { 
     form.reset({
         title: item?.title || '',
         description: item?.description || '',

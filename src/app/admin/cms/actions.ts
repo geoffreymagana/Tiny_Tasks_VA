@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, where, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, where, writeBatch, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 async function verifyAdmin(adminUserId: string): Promise<boolean> {
