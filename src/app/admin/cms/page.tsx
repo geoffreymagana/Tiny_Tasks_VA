@@ -2,8 +2,8 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useEffect, useCallback, useRef } from 'react'; // Added useRef
-import { useForm } from 'react-hook-form'; // Corrected import for useForm
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -40,6 +40,7 @@ import {
   DialogFooter, 
   DialogClose 
 } from '@/components/ui/dialog'; 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   getSectionDataAction, 
   updateSectionDataAction, 
@@ -399,6 +400,7 @@ const CmsPage: FC = () => {
 
   return (
     <AlertDialog open={!!postToDelete} onOpenChange={(isOpen) => { if (!isOpen) setPostToDelete(null); }}>
+      <TooltipProvider>
       <div className="flex flex-col md:flex-row gap-8 h-full">
         <aside className="md:w-64 lg:w-72 shrink-0">
           <Card className="sticky top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
@@ -698,36 +700,51 @@ const CmsPage: FC = () => {
                                     {post.status}
                                 </span>
                                 </div>
-                                <div className="flex space-x-2 mt-2">
-                                <Button variant="outline" size="sm" asChild className="text-accent" disabled={post.status !== 'published'}>
-                                    <Link href={`/blog/${post.slug}`} target="_blank" title="View Post">
-                                    <Eye className="mr-1 h-3 w-3" /> View
-                                    </Link>
-                                </Button>
-                                <Button variant="outline" size="sm" asChild>
-                                    <Link href={`/admin/blog/edit/${post.id}`} title="Edit Post">
-                                    <Edit3 className="mr-1 h-3 w-3" /> Edit
-                                    </Link>
-                                </Button>
-                                <AlertDialogTrigger asChild>
-                                    <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="text-destructive hover:bg-destructive hover:text-destructive-foreground" 
-                                    title="Delete Post" 
-                                    onClick={() => setPostToDelete(post)}
-                                    disabled={isDeletingPost && postToDelete?.id === post.id}
-                                    >
-                                    <Trash2 className="mr-1 h-3 w-3" /> Delete
-                                    </Button>
-                                </AlertDialogTrigger>
+                                <div className="flex space-x-1 mt-2">
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" asChild disabled={post.status !== 'published'}>
+                                                <Link href={`/blog/${post.slug}`} target="_blank">
+                                                    <Eye className="h-4 w-4 text-accent" />
+                                                </Link>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>View Post</p></TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" asChild>
+                                                <Link href={`/admin/blog/edit/${post.id}`}>
+                                                    <Edit3 className="h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Edit Post</p></TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <AlertDialogTrigger asChild>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    onClick={() => setPostToDelete(post)}
+                                                    disabled={isDeletingPost && postToDelete?.id === post.id}
+                                                >
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Delete Post</p></TooltipContent>
+                                    </Tooltip>
                                 </div>
                             </Card>
                             ))
                         ) : (
                             <p className="text-sm text-muted-foreground">No blog posts found.</p>
                         )}
-                        <Button variant="outline" className="w-full mt-4" disabled>View All Posts (coming soon)</Button>
+                        <Button variant="outline" className="w-full mt-4" asChild>
+                            <Link href="/admin/blog">View All Posts</Link>
+                        </Button>
                         </CardContent>
                     </Card>
                     </div>
@@ -761,6 +778,7 @@ const CmsPage: FC = () => {
           </AlertDialogContent>
         )}
       </div>
+      </TooltipProvider>
     </AlertDialog>
   );
 };
