@@ -19,7 +19,8 @@ import {
   CalendarDays, Users, Phone, Video, MessageSquare as MessageCircleIcon, FileTextIcon, ListChecks, CheckSquare, MonitorSmartphone, Slack, Trello, ThumbsUp, TrendingUp, Brush, LayoutGrid, Crop, ShoppingCart, Aperture
 } from 'lucide-react';
 import Link from 'next/link';
-import { getSectionDataAction, type SectionData, getPortfolioItemsAction, type PortfolioItem } from '@/app/admin/cms/actions';
+import { getSectionDataAction, type SectionData, getPortfolioItemsAction, type PortfolioItem, getBrandLogosAction, type BrandLogoItem } from '@/app/admin/cms/actions';
+import { BrandMarquee } from '@/components/ui/brand-marquee';
 
 interface StaticSectionContent {
   id: string;
@@ -76,10 +77,18 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
   },
   {
+    id: 'brand-marquee-intro',
+    defaultTitle: 'Trusted By Leading Businesses',
+    defaultText: "We're proud to have partnered with a diverse range of companies, helping them achieve their goals with our dedicated virtual assistant services.",
+    imagePlacement: 'left', // Or 'none' if no image is desired for this intro, or right to alternate
+    imageDescriptionForHint: "brand logos collage",
+    defaultIsVisible: true,
+  },
+  {
     id: 'pricing', 
     defaultTitle: 'Transparent VA Pricing',
     defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.",
-    imagePlacement: 'left', 
+    imagePlacement: 'right', // Changed to alternate
     imageDescriptionForHint: "pricing plans KES",
     defaultIsVisible: true,
   },
@@ -87,24 +96,24 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     id: 'testimonials', 
     defaultTitle: 'Client Success Stories',
     defaultText: "Hear from businesses that have transformed their productivity and growth with Tiny Tasks.",
-    imagePlacement: 'right', 
+    imagePlacement: 'left', // Changed to alternate
     imageDescriptionForHint: "happy clients",
     defaultIsVisible: true,
   },
   {
     id: 'blog-intro',
     defaultTitle: "Insights & Productivity Tips",
-    defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.",
-    imagePlacement: 'left', 
-    imageDescriptionForHint: "blog ideas",
+    defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday. Discover trends, tools, and strategies to optimize your operations.",
+    imagePlacement: 'right', // Changed to alternate
+    imageDescriptionForHint: "blog ideas desk",
     defaultIsVisible: true,
   },
   {
     id: 'cta', 
     defaultTitle: "Ready to Delegate, Grow, and Thrive?",
     defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!",
-    imagePlacement: 'right', 
-    imageDescriptionForHint: "business collaboration",
+    imagePlacement: 'left', // Changed to alternate for the text, contact form will be on the right
+    imageDescriptionForHint: "business collaboration handshake",
     defaultIsVisible: true,
   },
 ];
@@ -165,6 +174,9 @@ export default async function HomePage() {
   const portfolioItems: PortfolioItem[] = await getPortfolioItemsAction();
   const visiblePortfolioItems = portfolioItems.filter(item => item.isVisible !== false);
 
+  const brandLogos: BrandLogoItem[] = await getBrandLogosAction();
+  const visibleBrandLogos = brandLogos.filter(logo => logo.isVisible !== false);
+
 
   const getSectionContent = (sectionId: string, field: 'title' | 'text' | 'imageUrl' | 'isVisible') => {
     const cmsData = fetchedSectionData[sectionId];
@@ -205,9 +217,23 @@ export default async function HomePage() {
 
     let titleClass = '';
     if (sectionId === 'hero') titleClass = 'text-5xl md:text-6xl lg:text-7xl';
-    else if (['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro'].includes(sectionId)) titleClass = 'text-3xl text-center md:text-left';
+    else if (['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId)) titleClass = 'text-3xl text-center md:text-left';
 
-    let textClass = ['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro'].includes(sectionId) ? 'text-center md:text-left' : '';
+    let textClass = ['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId) ? 'text-center md:text-left' : '';
+    
+    // Special handling for CTA text alignment
+    if (sectionId === 'cta') {
+        titleClass = 'text-4xl md:text-5xl';
+        textClass = 'text-lg';
+    }
+
+    let sectionSpecificImageContainerClass = '';
+    if (sectionId === 'blog-intro' && staticConfig.imagePlacement === 'right') { // imagePlacement now 'right'
+        sectionSpecificImageContainerClass = 'max-w-md'; 
+    } else if (sectionId === 'blog-intro' && staticConfig.imagePlacement === 'left') {
+        sectionSpecificImageContainerClass = 'max-w-md';
+    }
+
 
     return (
       <AiImageSection
@@ -220,7 +246,7 @@ export default async function HomePage() {
         className={sectionId === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
         titleClassName={titleClass}
         textClassName={textClass}
-        imageContainerClassName={(sectionId === 'blog-intro' ? 'max-w-md ml-auto' : '')}
+        imageContainerClassName={sectionSpecificImageContainerClass}
       >
         {staticConfig.cta && (
           <Button asChild size="lg" className="mt-6 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-accent hover:bg-accent/90 text-accent-foreground">
@@ -362,9 +388,22 @@ export default async function HomePage() {
             </section>
         )}
 
+        {renderAiImageSection('brand-marquee-intro')}
+        {(getSectionContent('brand-marquee-intro', 'isVisible') as boolean) && (
+          <section id="brand-marquee-items" className="py-16 md:py-20 bg-background">
+            <div className="container mx-auto">
+              {visibleBrandLogos.length > 0 ? (
+                <BrandMarquee logos={visibleBrandLogos} />
+              ) : (
+                <p className="text-center text-muted-foreground text-lg">Our valued partners and clients will be showcased here soon.</p>
+              )}
+            </div>
+          </section>
+        )}
+
         {renderAiImageSection('pricing')}
         {getSectionContent('pricing', 'isVisible') && (
-            <section id="pricing-static" className="py-16 md:py-24 bg-background">
+            <section id="pricing-static" className="py-16 md:py-24 bg-secondary/30"> {/* Alternating background */}
             <div className="container mx-auto">
                 <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
                 {pricingDataStatic.tiers.map((tier) => (
@@ -385,7 +424,7 @@ export default async function HomePage() {
         
         {renderAiImageSection('testimonials')}
         {getSectionContent('testimonials', 'isVisible') && (
-            <section id="testimonials-static" className="py-16 md:py-24 bg-secondary/30">
+            <section id="testimonials-static" className="py-16 md:py-24 bg-background"> {/* Alternating background */}
             <div className="container mx-auto">
                 <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
                 {testimonialsDataStatic.reviews.map((review) => (
@@ -405,8 +444,8 @@ export default async function HomePage() {
 
         {renderAiImageSection('blog-intro')}
          {(getSectionContent('blog-intro', 'isVisible') as boolean) && (
-            <section id="blog-cta" className="pb-16 md:pb-24 pt-8 bg-background">
-                 <div className="container mx-auto text-center md:text-left">
+            <section id="blog-cta" className="pb-16 md:pb-24 pt-8 bg-secondary/30"> {/* Alternating background */}
+                 <div className="container mx-auto text-center md:text-left"> {/* Ensured button is inside the main content flow of AiImageSection for blog-intro */}
                     <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
                         <Link href="/blog">
                         Explore Our Blog <Rocket className="ml-2 h-5 w-5" />
@@ -421,12 +460,12 @@ export default async function HomePage() {
           <section key="cta" id="cta" className="py-20 md:py-28 bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
             <div className="container mx-auto">
               <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                  <div>
+                  <div className={cmsSectionsConfig.find(s => s.id === 'cta')?.imagePlacement === 'right' ? 'md:order-first' : ''}>
                       <h2 className="font-headline text-4xl md:text-5xl font-bold mb-6">{getSectionContent('cta', 'title') as string}</h2>
                       <p className="text-lg leading-relaxed mb-8">{getSectionContent('cta', 'text') as string}</p>
                       <ContactForm />
                   </div>
-                  <div className="hidden md:flex justify-center items-center">
+                  <div className={`hidden md:flex justify-center items-center ${cmsSectionsConfig.find(s => s.id === 'cta')?.imagePlacement === 'right' ? 'md:order-last' : ''}`}>
                         <AiImageSection
                           title="" 
                           text=""
@@ -435,7 +474,7 @@ export default async function HomePage() {
                               description: cmsSectionsConfig.find(s => s.id === 'cta')?.imageDescriptionForHint || '',
                               placeholderHint: cmsSectionsConfig.find(s => s.id === 'cta')?.imageDescriptionForHint
                           }}
-                          imagePlacement="right" 
+                          imagePlacement="right" // This prop on AiImageSection itself dictates its internal image/text order
                           className="!p-0" 
                           titleClassName="hidden"
                           textClassName="hidden"
@@ -450,3 +489,4 @@ export default async function HomePage() {
     </div>
   );
 }
+

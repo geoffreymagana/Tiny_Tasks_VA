@@ -12,7 +12,7 @@ async function verifyAdmin(adminUserId: string): Promise<boolean> {
 }
 
 export interface SectionData {
-  id?: string; // Added for general use, though not always directly from this collection's ID
+  id?: string; 
   imageUrl: string | null;
   title: string | null;
   text: string | null;
@@ -24,8 +24,19 @@ export interface PortfolioItem {
   id?: string;
   title: string;
   description: string;
-  imageUrl: string; // Direct image link
-  imageHint: string; // For data-ai-hint
+  imageUrl: string; 
+  imageHint: string; 
+  order?: number;
+  isVisible?: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface BrandLogoItem {
+  id?: string;
+  name: string;
+  logoUrl: string;
+  websiteUrl?: string | null;
   order?: number;
   isVisible?: boolean;
   createdAt?: string | null;
@@ -44,8 +55,16 @@ export interface PortfolioOperationResult {
   portfolioItemId?: string;
 }
 
-const SECTIONS_COLLECTION = 'websiteSectionImages'; // Keeping name for now
+export interface BrandLogoOperationResult {
+  success: boolean;
+  message: string;
+  brandLogoId?: string;
+}
+
+const SECTIONS_COLLECTION = 'websiteSectionImages'; 
 const PORTFOLIO_COLLECTION = 'portfolioItems';
+const BRAND_LOGOS_COLLECTION = 'brandLogos';
+
 
 const convertDbTimestampToISOForCmsActions = (dbTimestamp: any): string | null => {
   if (!dbTimestamp) return null;
@@ -61,7 +80,7 @@ const convertDbTimestampToISOForCmsActions = (dbTimestamp: any): string | null =
       const dateObj = dbTimestamp.toDate();
       if (dateObj instanceof Date && !isNaN(dateObj.getTime())) { return dateObj.toISOString(); }
       console.warn("toDate() did not return valid Date for CMS actions:", dbTimestamp);
-      return new Date().toISOString(); // Fallback for uncommitted server timestamps
+      return new Date().toISOString(); 
     } catch (e) { console.warn("Failed to convert object with toDate method for CMS actions:", e, dbTimestamp); return null; }
   }
   if (typeof dbTimestamp === 'string') {
@@ -233,5 +252,95 @@ export async function deletePortfolioItemAction(
   } catch (error: any) {
     console.error(`Error deleting portfolio item ${itemId}:`, error);
     return { success: false, message: error.message || 'Failed to delete portfolio item.' };
+  }
+}
+
+// Brand Logo Actions
+export async function addBrandLogoAction(
+  logoData: Omit<BrandLogoItem, 'id' | 'createdAt' | 'updatedAt'>,
+  adminUserId: string
+): Promise<BrandLogoOperationResult> {
+  if (!(await verifyAdmin(adminUserId))) {
+    return { success: false, message: 'User does not have admin privileges.' };
+  }
+  try {
+    const dataToSave = {
+      ...logoData,
+      websiteUrl: logoData.websiteUrl || null,
+      isVisible: logoData.isVisible === undefined ? true : logoData.isVisible,
+      order: logoData.order === undefined ? 0 : logoData.order,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const docRef = await addDoc(collection(db, BRAND_LOGOS_COLLECTION), dataToSave);
+    return { success: true, message: 'Brand logo added successfully!', brandLogoId: docRef.id };
+  } catch (error: any) {
+    console.error('Error adding brand logo:', error);
+    return { success: false, message: error.message || 'Failed to add brand logo.' };
+  }
+}
+
+export async function getBrandLogosAction(): Promise<BrandLogoItem[]> {
+  try {
+    const q = query(collection(db, BRAND_LOGOS_COLLECTION), orderBy('order', 'asc'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name || '',
+        logoUrl: data.logoUrl || '',
+        websiteUrl: data.websiteUrl || null,
+        order: data.order === undefined ? 0 : data.order,
+        isVisible: data.isVisible === undefined ? true : data.isVisible,
+        createdAt: convertDbTimestampToISOForCmsActions(data.createdAt),
+        updatedAt: convertDbTimestampToISOForCmsActions(data.updatedAt),
+      } as BrandLogoItem;
+    });
+  } catch (error) {
+    console.error('Error fetching brand logos:', error);
+    return [];
+  }
+}
+
+export async function updateBrandLogoAction(
+  logoId: string,
+  logoData: Omit<BrandLogoItem, 'id' | 'createdAt' | 'updatedAt'>,
+  adminUserId: string
+): Promise<BrandLogoOperationResult> {
+  if (!(await verifyAdmin(adminUserId))) {
+    return { success: false, message: 'User does not have admin privileges.' };
+  }
+  try {
+    const logoRef = doc(db, BRAND_LOGOS_COLLECTION, logoId);
+    const dataToUpdate = {
+        ...logoData,
+        websiteUrl: logoData.websiteUrl || null,
+        isVisible: logoData.isVisible === undefined ? true : logoData.isVisible,
+        order: logoData.order === undefined ? 0 : logoData.order,
+        updatedAt: serverTimestamp()
+    };
+    await updateDoc(logoRef, dataToUpdate);
+    return { success: true, message: 'Brand logo updated successfully!', brandLogoId: logoId };
+  } catch (error: any) {
+    console.error(`Error updating brand logo ${logoId}:`, error);
+    return { success: false, message: error.message || 'Failed to update brand logo.' };
+  }
+}
+
+export async function deleteBrandLogoAction(
+  logoId: string,
+  adminUserId: string
+): Promise<BrandLogoOperationResult> {
+  if (!(await verifyAdmin(adminUserId))) {
+    return { success: false, message: 'User does not have admin privileges.' };
+  }
+  try {
+    const logoRef = doc(db, BRAND_LOGOS_COLLECTION, logoId);
+    await deleteDoc(logoRef);
+    return { success: true, message: 'Brand logo deleted successfully!' };
+  } catch (error: any) {
+    console.error(`Error deleting brand logo ${logoId}:`, error);
+    return { success: false, message: error.message || 'Failed to delete brand logo.' };
   }
 }

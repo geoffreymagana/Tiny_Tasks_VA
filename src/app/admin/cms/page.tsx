@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle } from 'lucide-react';
+import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -50,7 +50,13 @@ import {
   updatePortfolioItemAction,
   deletePortfolioItemAction,
   type PortfolioItem,
-  type PortfolioOperationResult
+  type PortfolioOperationResult,
+  addBrandLogoAction,
+  getBrandLogosAction,
+  updateBrandLogoAction,
+  deleteBrandLogoAction,
+  type BrandLogoItem,
+  type BrandLogoOperationResult
 } from './actions';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -82,6 +88,7 @@ const initialStaticSectionsData: Omit<ManagedSection, 'currentImageUrl' | 'newIm
   { id: 'services-intro', name: 'Services Introduction (Homepage)', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services', defaultIsVisible: true },
   { id: 'tools', name: 'Tools We Master Section (Homepage)', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage', defaultIsVisible: true },
   { id: 'portfolio-intro', name: 'Portfolio Introduction (Homepage)', description: 'Introductory content for the portfolio section.', defaultTitle: 'Our Recent Work & Case Studies', defaultText: "Explore a selection of projects where Tiny Tasks has made a significant impact, delivering quality and driving growth for our clients.", placeholderHint: 'portfolio showcase design', defaultIsVisible: true },
+  { id: 'brand-marquee-intro', name: 'Brand Marquee Intro (Homepage)', description: "Title/text above the client logo scroll.", defaultTitle: 'Trusted By Leading Businesses', defaultText: "We're proud to have partnered with a diverse range of companies.", placeholderHint: 'brand logos collage', defaultIsVisible: true },
   { id: 'pricing', name: 'Pricing Section Intro (Homepage)', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES', defaultIsVisible: true },
   { id: 'testimonials', name: 'Testimonials Intro (Homepage)', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients', defaultIsVisible: true },
   { id: 'blog-intro', name: 'Blog Introduction (Homepage)', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas', defaultIsVisible: true },
@@ -145,16 +152,28 @@ const CmsPage: FC = () => {
   const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(true);
   const [isPortfolioDialogOpEn, setIsPortfolioDialogOpen] = useState(false);
   const [editingPortfolioItem, setEditingPortfolioItem] = useState<PortfolioItem | null>(null);
+  const [portfolioItemToDelete, setPortfolioItemToDelete] = useState<PortfolioItem | null>(null);
   const [isProcessingPortfolio, setIsProcessingPortfolio] = useState(false);
+
+  const [brandLogos, setBrandLogos] = useState<BrandLogoItem[]>([]);
+  const [isLoadingBrandLogos, setIsLoadingBrandLogos] = useState(true);
+  const [isBrandLogoDialogOpen, setIsBrandLogoDialogOpen] = useState(false);
+  const [editingBrandLogo, setEditingBrandLogo] = useState<BrandLogoItem | null>(null);
+  const [brandLogoToDelete, setBrandLogoToDelete] = useState<BrandLogoItem | null>(null);
+  const [isProcessingBrandLogo, setIsProcessingBrandLogo] = useState(false);
+
+
   const [activeSection, setActiveSection] = useState('websiteContent');
 
   const websiteContentRef = useRef<HTMLDivElement>(null);
   const portfolioRef = useRef<HTMLDivElement>(null);
+  const brandLogosRef = useRef<HTMLDivElement>(null);
   const blogRef = useRef<HTMLDivElement>(null);
 
   const cmsNavItems: CmsNavItem[] = [
     { id: 'websiteContent', label: 'Section Content', icon: <Images className="mr-2 h-5 w-5" />, ref: websiteContentRef },
     { id: 'portfolio', label: 'Portfolio Items', icon: <Briefcase className="mr-2 h-5 w-5" />, ref: portfolioRef },
+    { id: 'brandLogos', label: 'Brand Logos', icon: <Building className="mr-2 h-5 w-5" />, ref: brandLogosRef },
     { id: 'blog', label: 'Blog & Pages', icon: <BookOpen className="mr-2 h-5 w-5" />, ref: blogRef },
   ];
 
@@ -263,6 +282,33 @@ const CmsPage: FC = () => {
     setEditingPortfolioItem(null);
     setIsLoadingPortfolio(true); 
     await fetchPortfolioItems(); 
+  };
+
+  const fetchBrandLogos = useCallback(async () => {
+    try {
+      const logos = await getBrandLogosAction();
+      setBrandLogos(logos);
+    } catch (error) {
+      console.error("CMS Page: Error fetching brand logos:", error);
+      toast({ title: "Error", description: "Could not fetch brand logos.", variant: "destructive" });
+      setBrandLogos([]);
+    } finally {
+       setIsLoadingBrandLogos(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (firebaseUser) {
+      setIsLoadingBrandLogos(true);
+      fetchBrandLogos();
+    }
+  }, [firebaseUser, fetchBrandLogos]);
+
+  const handleBrandLogoSave = async () => {
+    setIsBrandLogoDialogOpen(false);
+    setEditingBrandLogo(null);
+    setIsLoadingBrandLogos(true); 
+    await fetchBrandLogos(); 
   };
 
 
@@ -382,24 +428,59 @@ const CmsPage: FC = () => {
     setIsPortfolioDialogOpen(true);
   };
 
-  const handleDeletePortfolioItem = async (itemId: string) => {
-    if (!firebaseUser?.uid) {
-      toast({ title: "Authentication Error", variant: "destructive" }); return;
+  const handleDeletePortfolioItem = async () => {
+    if (!portfolioItemToDelete || !firebaseUser?.uid) {
+      toast({ title: "Error", variant: "destructive" }); 
+      setPortfolioItemToDelete(null);
+      return;
     }
     setIsProcessingPortfolio(true);
-    const result = await deletePortfolioItemAction(itemId, firebaseUser.uid);
+    const result = await deletePortfolioItemAction(portfolioItemToDelete.id!, firebaseUser.uid);
     if (result.success) {
       toast({ title: "Success", description: result.message });
       await handlePortfolioSave();
     } else {
       toast({ title: "Error", description: result.message, variant: "destructive" });
     }
+    setPortfolioItemToDelete(null);
     setIsProcessingPortfolio(false);
+  };
+
+  const handleOpenBrandLogoDialog = (logo?: BrandLogoItem) => {
+    setEditingBrandLogo(logo || null);
+    setIsBrandLogoDialogOpen(true);
+  };
+
+  const handleDeleteBrandLogo = async () => {
+    if (!brandLogoToDelete || !firebaseUser?.uid) {
+      toast({ title: "Error", variant: "destructive" });
+      setBrandLogoToDelete(null);
+      return;
+    }
+    setIsProcessingBrandLogo(true);
+    const result = await deleteBrandLogoAction(brandLogoToDelete.id!, firebaseUser.uid);
+    if (result.success) {
+      toast({ title: "Success", description: result.message });
+      await handleBrandLogoSave();
+    } else {
+      toast({ title: "Error", description: result.message, variant: "destructive" });
+    }
+    setBrandLogoToDelete(null);
+    setIsProcessingBrandLogo(false);
   };
 
 
   return (
-    <AlertDialog open={!!postToDelete} onOpenChange={(isOpen) => { if (!isOpen) setPostToDelete(null); }}>
+    <AlertDialog 
+      open={!!postToDelete || !!portfolioItemToDelete || !!brandLogoToDelete} 
+      onOpenChange={(isOpen) => { 
+        if (!isOpen) {
+          setPostToDelete(null); 
+          setPortfolioItemToDelete(null);
+          setBrandLogoToDelete(null);
+        }
+      }}
+    >
       <TooltipProvider>
       <div className="flex flex-col md:flex-row gap-8 h-full">
         <aside className="md:w-64 lg:w-72 shrink-0">
@@ -425,8 +506,8 @@ const CmsPage: FC = () => {
           </Card>
         </aside>
 
-        <main className="flex-1 min-w-0"> {/* Ensure main content area can shrink if needed */}
-          <ScrollArea className="h-[calc(100vh-5.5rem)] md:h-[calc(100vh-6rem)]"> {/* Adjust height based on header/footer/padding */}
+        <main className="flex-1 min-w-0"> 
+          <ScrollArea className="h-[calc(100vh-5.5rem)] md:h-[calc(100vh-6rem)]"> 
             <div className="space-y-12 pb-12 md:pr-4">
               <section id="websiteContent" ref={websiteContentRef} className="pt-1">
                 <Card>
@@ -597,7 +678,7 @@ const CmsPage: FC = () => {
                               <TableCell className="text-right space-x-1">
                                 <Button variant="outline" size="icon" onClick={() => handleOpenPortfolioDialog(item)}><Edit3 className="h-4 w-4"/></Button>
                                 <AlertDialogTrigger asChild>
-                                  <Button variant="destructive" size="icon" onClick={() => setEditingPortfolioItem(item)}><Trash2 className="h-4 w-4"/></Button>
+                                  <Button variant="destructive" size="icon" onClick={() => setPortfolioItemToDelete(item)}><Trash2 className="h-4 w-4"/></Button>
                                 </AlertDialogTrigger>
                               </TableCell>
                             </TableRow>
@@ -622,29 +703,73 @@ const CmsPage: FC = () => {
                   onCancel={() => {setIsPortfolioDialogOpen(false); setEditingPortfolioItem(null);}}
                 />
               </Dialog>
+              
+              <Separator />
 
-              {editingPortfolioItem && !isPortfolioDialogOpEn && ( 
-                  <AlertDialog open={!!editingPortfolioItem} onOpenChange={(open) => { if(!open) setEditingPortfolioItem(null)}}>
-                      <AlertDialogContent>
-                          <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Portfolio Item?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                              Are you sure you want to delete the portfolio item: &quot;{editingPortfolioItem?.title}&quot;? This action cannot be undone.
-                          </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setEditingPortfolioItem(null)} disabled={isProcessingPortfolio}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                              onClick={() => editingPortfolioItem?.id && handleDeletePortfolioItem(editingPortfolioItem.id)}
-                              disabled={isProcessingPortfolio || !editingPortfolioItem?.id}
-                              className="bg-destructive hover:bg-destructive/90"
-                          >
-                              {isProcessingPortfolio ? <LottieLoader size={16} /> : "Delete"}
-                          </AlertDialogAction>
-                          </AlertDialogFooter>
-                      </AlertDialogContent>
-                  </AlertDialog>
-              )}
+              <section id="brandLogos" ref={brandLogosRef} className="pt-4">
+                <Card>
+                  <CardHeader className="flex flex-row justify-between items-center">
+                    <div>
+                      <CardTitle className="flex items-center"><Building className="mr-2 h-6 w-6 text-accent" /> Manage Brand Logos</CardTitle>
+                      <CardDescription>Add, edit, or remove brand logos for the homepage marquee.</CardDescription>
+                    </div>
+                    <Button onClick={() => handleOpenBrandLogoDialog()} disabled={!firebaseUser}>
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add Brand Logo
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingBrandLogos ? (
+                      <div className="flex justify-center items-center py-10"><LottieLoader size={48} /><p className="ml-2">Loading brand logos...</p></div>
+                    ) : brandLogos.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-10">No brand logos added yet.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-1/4">Logo</TableHead>
+                            <TableHead>Brand Name</TableHead>
+                            <TableHead>Order</TableHead>
+                            <TableHead>Visible</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {brandLogos.map(logo => (
+                            <TableRow key={logo.id} className={cn(!logo.isVisible && "opacity-50")}>
+                              <TableCell>
+                                <Image src={logo.logoUrl || "https://placehold.co/100x50.png?text=Logo"} alt={logo.name} width={100} height={50} className="rounded-md object-contain bg-muted/30 p-1" />
+                              </TableCell>
+                              <TableCell className="font-medium">{logo.name}</TableCell>
+                              <TableCell>{logo.order}</TableCell>
+                              <TableCell>{logo.isVisible ? <Eye className="h-5 w-5 text-green-500"/> : <EyeOff className="h-5 w-5 text-muted-foreground"/>}</TableCell>
+                              <TableCell className="text-right space-x-1">
+                                <Button variant="outline" size="icon" onClick={() => handleOpenBrandLogoDialog(logo)}><Edit3 className="h-4 w-4"/></Button>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="icon" onClick={() => setBrandLogoToDelete(logo)}><Trash2 className="h-4 w-4"/></Button>
+                                </AlertDialogTrigger>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </section>
+
+              <Dialog open={isBrandLogoDialogOpen} onOpenChange={(open) => {
+                  if (!open) {
+                      setEditingBrandLogo(null); 
+                  }
+                  setIsBrandLogoDialogOpen(open);
+              }}>
+                <BrandLogoForm
+                  logoItem={editingBrandLogo}
+                  adminUserId={firebaseUser?.uid || ''}
+                  onSave={handleBrandLogoSave}
+                  onCancel={() => {setIsBrandLogoDialogOpen(false); setEditingBrandLogo(null);}}
+                />
+              </Dialog>
 
 
               <Separator />
@@ -777,6 +902,46 @@ const CmsPage: FC = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         )}
+        {portfolioItemToDelete && ( 
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Delete Portfolio Item?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Are you sure you want to delete the portfolio item: &quot;{portfolioItemToDelete?.title}&quot;? This action cannot be undone.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setPortfolioItemToDelete(null)} disabled={isProcessingPortfolio}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDeletePortfolioItem}
+                    disabled={isProcessingPortfolio}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    {isProcessingPortfolio ? <LottieLoader size={16} /> : "Delete"}
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        )}
+         {brandLogoToDelete && ( 
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Delete Brand Logo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Are you sure you want to delete the brand logo: &quot;{brandLogoToDelete?.name}&quot;? This action cannot be undone.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setBrandLogoToDelete(null)} disabled={isProcessingBrandLogo}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDeleteBrandLogo}
+                    disabled={isProcessingBrandLogo}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    {isProcessingBrandLogo ? <LottieLoader size={16} /> : "Delete"}
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        )}
       </div>
       </TooltipProvider>
     </AlertDialog>
@@ -868,6 +1033,83 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
 };
 
 
+interface BrandLogoFormProps {
+  logoItem: BrandLogoItem | null;
+  adminUserId: string;
+  onSave: () => Promise<void>;
+  onCancel: () => void;
+}
+
+const BrandLogoForm: FC<BrandLogoFormProps> = ({ logoItem, adminUserId, onSave, onCancel }) => {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const defaultValues = {
+    name: logoItem?.name || '',
+    logoUrl: logoItem?.logoUrl || '',
+    websiteUrl: logoItem?.websiteUrl || '',
+    order: logoItem?.order || 0,
+    isVisible: logoItem?.isVisible === undefined ? true : logoItem.isVisible,
+  };
+
+  const form = useForm({ defaultValues });
+
+  useEffect(() => {
+    form.reset(defaultValues);
+  }, [logoItem, form]); // Removed defaultValues from dependency array as it's recreated
+
+  const handleSubmit = async (data: typeof defaultValues) => {
+    if (!adminUserId) {
+      toast({ title: 'Authentication Error', variant: 'destructive' });
+      return;
+    }
+    setIsSubmitting(true);
+    const payload: Omit<BrandLogoItem, 'id' | 'createdAt' | 'updatedAt'> = {
+        ...data,
+        websiteUrl: data.websiteUrl || null, // Ensure null if empty string
+    };
+    let result: BrandLogoOperationResult;
+
+    if (logoItem?.id) {
+      result = await updateBrandLogoAction(logoItem.id, payload, adminUserId);
+    } else {
+      result = await addBrandLogoAction(payload, adminUserId);
+    }
+
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
+      await onSave();
+    } else {
+      toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
+    setIsSubmitting(false);
+  };
+
+  return (
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>{logoItem ? 'Edit' : 'Add New'} Brand Logo</DialogTitle>
+      </DialogHeader>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
+        <div><Label htmlFor="brandName">Brand Name</Label><Input id="brandName" {...form.register('name')} disabled={isSubmitting} placeholder="e.g. Acme Corp"/></div>
+        <div><Label htmlFor="logoUrl">Logo Image URL (direct link)</Label><Input id="logoUrl" {...form.register('logoUrl')} disabled={isSubmitting} placeholder="https://example.com/logo.png"/></div>
+        <div><Label htmlFor="websiteUrl">Website URL (Optional)</Label><Input id="websiteUrl" {...form.register('websiteUrl')} disabled={isSubmitting} placeholder="https://acme.com"/></div>
+        <div><Label htmlFor="brandOrder">Display Order</Label><Input id="brandOrder" type="number" {...form.register('order', { valueAsNumber: true })} disabled={isSubmitting} /></div>
+        <div className="flex items-center space-x-2">
+          <Switch id="brandIsVisible" checked={form.watch('isVisible')} onCheckedChange={(checked) => form.setValue('isVisible', checked)} disabled={isSubmitting} />
+          <Label htmlFor="brandIsVisible">Visible in marquee</Label>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancel</Button></DialogClose>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <LottieLoader className="mr-2" size={16}/> : <Save className="mr-2 h-4 w-4"/>}
+            {isSubmitting ? (logoItem ? 'Saving...' : 'Adding...') : (logoItem ? 'Save Changes' : 'Add Logo')}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  );
+};
+
+
 export default CmsPage;
     
-
