@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch'; // Import Switch
+import { Switch } from '@/components/ui/switch'; 
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -46,21 +46,23 @@ interface ManagedSection {
   newTitle: string;
   currentText: string | null;
   newText: string;
-  currentIsVisible: boolean; // Added
-  newIsVisible: boolean;     // Added
+  currentIsVisible: boolean;
+  newIsVisible: boolean;
   isLoading: boolean;
   placeholderHint?: string;
 }
 
-const initialStaticSectionsData = [
-  { id: 'hero', name: 'Hero Section', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant', defaultIsVisible: true },
-  { id: 'onboarding-overview', name: 'Onboarding Overview Section', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps', defaultIsVisible: true },
-  { id: 'services-intro', name: 'Services Introduction', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services', defaultIsVisible: true },
-  { id: 'tools', name: 'Tools We Master Section', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage', defaultIsVisible: true },
-  { id: 'pricing', name: 'Pricing Section Image & Intro', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES', defaultIsVisible: true },
-  { id: 'testimonials', name: 'Testimonials Section Image & Intro', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients', defaultIsVisible: true },
-  { id: 'blog-intro', name: 'Blog Introduction Image & Text', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas', defaultIsVisible: true },
-  { id: 'cta', name: 'Call to Action Section Image & Text', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration', defaultIsVisible: true },
+const initialStaticSectionsData: Omit<ManagedSection, 'currentImageUrl' | 'newImageUrl' | 'currentTitle' | 'newTitle' | 'currentText' | 'newText' | 'currentIsVisible' | 'newIsVisible' | 'isLoading'>[] = [
+  { id: 'hero', name: 'Hero Section (Homepage)', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant', defaultIsVisible: true },
+  { id: 'onboarding-overview', name: 'Onboarding Overview (Homepage)', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps', defaultIsVisible: true },
+  { id: 'services-intro', name: 'Services Introduction (Homepage)', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services', defaultIsVisible: true },
+  { id: 'tools', name: 'Tools We Master Section (Homepage)', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage', defaultIsVisible: true },
+  { id: 'portfolio-intro', name: 'Portfolio Introduction (Homepage)', description: 'Introductory content for the portfolio section.', defaultTitle: 'Our Recent Work & Case Studies', defaultText: "Explore a selection of projects where Tiny Tasks has made a significant impact, delivering quality and driving growth for our clients.", placeholderHint: 'portfolio showcase design', defaultIsVisible: true },
+  { id: 'pricing', name: 'Pricing Section Intro (Homepage)', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES', defaultIsVisible: true },
+  { id: 'testimonials', name: 'Testimonials Intro (Homepage)', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients', defaultIsVisible: true },
+  { id: 'blog-intro', name: 'Blog Introduction (Homepage)', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas', defaultIsVisible: true },
+  { id: 'cta', name: 'Call to Action (Homepage)', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration', defaultIsVisible: true },
+  { id: 'about-us-content', name: 'About Us Page Content', description: 'Main content for the About Us page, including banner.', defaultTitle: 'About Tiny Tasks', defaultText: "Founded with a passion for productivity and a commitment to excellence, Tiny Tasks is dedicated to providing top-tier virtual assistant services. Learn more about our mission, values, and the team that makes it all happen.", placeholderHint: 'team collaboration office', defaultIsVisible: true },
 ];
 
 
@@ -103,7 +105,7 @@ const CmsPage: FC = () => {
       currentImageUrl: null, newImageUrl: '', 
       currentTitle: s.defaultTitle, newTitle: s.defaultTitle,
       currentText: s.defaultText, newText: s.defaultText,
-      currentIsVisible: s.defaultIsVisible, newIsVisible: s.defaultIsVisible, // Initialize visibility
+      currentIsVisible: s.defaultIsVisible, newIsVisible: s.defaultIsVisible,
       isLoading: true 
     }))
   );
@@ -126,14 +128,14 @@ const CmsPage: FC = () => {
         const fetchedData: SectionData | null = await getSectionDataAction(staticSection.id);
         return {
           ...staticSection,
-          currentImageUrl: fetchedData?.imageUrl || null,
-          newImageUrl: fetchedData?.imageUrl || '',
+          currentImageUrl: fetchedData?.imageUrl ?? null,
+          newImageUrl: fetchedData?.imageUrl ?? '',
           currentTitle: fetchedData?.title ?? staticSection.defaultTitle,
           newTitle: fetchedData?.title ?? staticSection.defaultTitle,
           currentText: fetchedData?.text ?? staticSection.defaultText,
           newText: fetchedData?.text ?? staticSection.defaultText,
-          currentIsVisible: fetchedData?.isVisible ?? staticSection.defaultIsVisible,
-          newIsVisible: fetchedData?.isVisible ?? staticSection.defaultIsVisible,
+          currentIsVisible: fetchedData?.isVisible === undefined ? staticSection.defaultIsVisible : fetchedData.isVisible,
+          newIsVisible: fetchedData?.isVisible === undefined ? staticSection.defaultIsVisible : fetchedData.isVisible,
           isLoading: false,
         };
       })
@@ -303,7 +305,7 @@ const CmsPage: FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Content</CardTitle>
             <CardDescription>
-              Update images (use direct links: .jpg, .png), text, and visibility for key sections of your public website. 
+              Update images (use direct image links like from Unsplash: `https://images.unsplash.com/...` or `https://source.unsplash.com/...`), text, and visibility for key sections.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -362,7 +364,7 @@ const CmsPage: FC = () => {
                     <Label htmlFor={`imageUrl-${section.id}`}>Image URL (direct link: .jpg, .png)</Label>
                     <Input
                       id={`imageUrl-${section.id}`}
-                      placeholder="Paste direct image URL (e.g., from images.unsplash.com)"
+                      placeholder="Paste direct image URL (e.g., https://images.unsplash.com/...)"
                       value={section.newImageUrl}
                       onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
                       disabled={section.isLoading || !firebaseUser}
@@ -413,7 +415,7 @@ const CmsPage: FC = () => {
                         (section.newImageUrl === section.currentImageUrl && 
                          section.newTitle === section.currentTitle &&
                          section.newText === section.currentText &&
-                         section.newIsVisible === section.currentIsVisible) // Check visibility change
+                         section.newIsVisible === section.currentIsVisible)
                     }
                   >
                     {section.isLoading && <LottieLoader className="mr-1" size={16}/>}

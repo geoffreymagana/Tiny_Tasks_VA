@@ -1,5 +1,5 @@
 
-"use client"; // Add this directive
+"use client"; 
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -22,11 +22,17 @@ export function Header() {
           <Link href="/#services" className="transition-colors hover:text-primary">
             Services
           </Link>
+          <Link href="/#portfolio" className="transition-colors hover:text-primary">
+            Portfolio
+          </Link>
           <Link href="/#pricing" className="transition-colors hover:text-primary">
             Pricing
           </Link>
           <Link href="/#tools" className="transition-colors hover:text-primary">
             Tools
+          </Link>
+          <Link href="/about" className="transition-colors hover:text-primary">
+            About Us
           </Link>
           <Link href="/blog" className="transition-colors hover:text-primary">
             Blog
@@ -59,11 +65,17 @@ export function Header() {
                 <Link href="/#services" className="hover:text-primary">
                   Services
                 </Link>
+                 <Link href="/#portfolio" className="hover:text-primary">
+                  Portfolio
+                </Link>
                 <Link href="/#pricing" className="hover:text-primary">
                   Pricing
                 </Link>
                 <Link href="/#tools" className="hover:text-primary">
                   Tools
+                </Link>
+                <Link href="/about" className="hover:text-primary">
+                  About Us
                 </Link>
                 <Link href="/blog" className="hover:text-primary">
                   Blog
