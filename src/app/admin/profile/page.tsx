@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'; // Keep if used elsewhere, but no
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { LottieLoader } from '@/components/ui/lottie-loader';
-import { User, Shield, Users2, Bell, Trash2, Save, Camera, UploadCloud, Pencil } from 'lucide-react';
+import { User, Shield, Users2, Bell, Trash2, Save, Camera, UploadCloud, Pencil, BadgeCheck } from 'lucide-react';
 import { updateUserProfileServerAction, type UserProfileUpdateResult } from './actions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -192,6 +192,9 @@ const AdminProfilePage: FC = () => {
                           <h1 className="text-2xl sm:text-3xl font-bold text-primary truncate" title={userData?.displayName || 'User Name'}>
                             {userData?.displayName || 'User Name'}
                           </h1>
+                          {userData?.role === 'admin' && (
+                            <BadgeCheck className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" style={{ color: "#ef3da6" }} title="Verified Admin" />
+                          )}
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -312,5 +315,3 @@ const AdminProfilePage: FC = () => {
 };
 
 export default AdminProfilePage;
-
-    
