@@ -122,7 +122,7 @@ const FileManagerPage: FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10"></TableHead> {/* Icon */}
+                    <TableHead className="w-10"></TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead className="hidden sm:table-cell">Size</TableHead>
                     <TableHead className="hidden md:table-cell">Last Modified</TableHead>
@@ -202,3 +202,5 @@ const FileManagerPage: FC = () => {
 };
 
 export default FileManagerPage;
+
+    
