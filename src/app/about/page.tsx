@@ -43,10 +43,9 @@ export default async function AboutUsPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
-      <main className="flex-grow"> {/* Container removed for potential full-width banner */}
+      <main className="flex-grow"> 
         
-        {/* Banner Section */}
-        <section className="relative w-full h-64 md:h-80 lg:h-[450px] bg-secondary/30">
+        <section className="relative w-full h-56 md:h-72 lg:h-[400px] bg-secondary/30">
           {bannerImageUrl ? (
             <Image
               src={bannerImageUrl}
@@ -54,11 +53,11 @@ export default async function AboutUsPage() {
               fill
               style={{ objectFit: 'cover' }}
               priority
-              data-ai-hint={defaultBannerPlaceholderHint} // Keep a generic hint even if CMS provides image
+              data-ai-hint={defaultBannerPlaceholderHint} 
             />
           ) : (
             <Image
-              src={`https://placehold.co/1600x500.png`} 
+              src={`https://placehold.co/1600x400.png`} 
               alt={defaultBannerDescription}
               fill
               style={{ objectFit: 'cover' }}
@@ -66,16 +65,9 @@ export default async function AboutUsPage() {
               data-ai-hint={defaultBannerPlaceholderHint}
             />
           )}
-           {/* Optional: Overlay title on banner if design calls for it 
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-               <h1 className="font-headline text-4xl md:text-5xl lg:text-6xl font-bold text-white text-center p-4">
-                 {titleToDisplay}
-               </h1>
-            </div>
-           */}
         </section>
 
-        <div className="container mx-auto"> {/* Container for the rest of the content */}
+        <div className="container mx-auto"> 
           <div className="py-8 md:py-12">
             <div className="mb-8">
               <Button variant="outline" asChild>
@@ -85,9 +77,7 @@ export default async function AboutUsPage() {
               </Button>
             </div>
 
-            {/* CMS Controlled Title (if not overlaid on banner) & Main Content */}
-            <section className="max-w-3xl mx-auto bg-card p-6 md:p-10 rounded-xl shadow-xl mb-16 md:mb-24 relative z-10 -mt-24 md:-mt-32">
-               {/* If title is not on banner, render it here */}
+            <section className="max-w-3xl mx-auto bg-card p-6 md:p-10 rounded-xl shadow-xl mb-16 md:mb-24 relative z-10 -mt-20 md:-mt-28">
                <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-bold text-primary mb-8 text-center">
                 {titleToDisplay}
               </h1>
@@ -109,9 +99,8 @@ export default async function AboutUsPage() {
               </div>
             </section>
 
-            {/* Static additional sections if needed, e.g., Our Mission, Our Values */}
             <section className="py-16 md:py-20 bg-secondary/10 rounded-xl">
-              <div className="container mx-auto"> {/* This container is nested, which is fine */}
+              <div className="container mx-auto"> 
                 <div className="grid md:grid-cols-2 gap-12 items-center max-w-4xl mx-auto">
                   <div className="bg-card p-8 rounded-xl shadow-lg">
                     <Target className="h-12 w-12 text-accent mb-4" />

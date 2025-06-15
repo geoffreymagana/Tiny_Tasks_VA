@@ -19,7 +19,7 @@ import {
   CalendarDays, Users, Phone, Video, MessageSquare as MessageCircleIcon, FileTextIcon, ListChecks, CheckSquare, MonitorSmartphone, Slack, Trello, ThumbsUp, TrendingUp, Brush, LayoutGrid, Crop, ShoppingCart, Aperture
 } from 'lucide-react';
 import Link from 'next/link';
-import { getSectionDataAction, type SectionData } from '@/app/admin/cms/actions';
+import { getSectionDataAction, type SectionData, getPortfolioItemsAction, type PortfolioItem } from '@/app/admin/cms/actions';
 
 interface StaticSectionContent {
   id: string;
@@ -128,12 +128,6 @@ const toolsDataStatic = {
   ],
 };
 
-const portfolioItemsStatic = [
-  { title: "Brand Identity for Startup X", description: "Complete branding package including logo, style guide, and social media assets.", imageHint: "modern logo design", placeholderImage: "https://placehold.co/600x400.png" },
-  { title: "Social Media Campaign for Biz Y", description: "Managed a 3-month campaign, increasing engagement by 40%.", imageHint: "social media analytics", placeholderImage: "https://placehold.co/600x400.png" },
-  { title: "Executive Support for CEO Z", description: "Provided comprehensive calendar, email, and travel management.", imageHint: "organized calendar schedule", placeholderImage: "https://placehold.co/600x400.png" },
-];
-
 const pricingDataStatic = {
   tiers: [
     { tier: "Essential VA Support", price: "KES 15,000/month", description: "Perfect for individuals or small businesses needing core administrative help.", features: ["10 hours of VA support", "Basic Admin Tasks", "Email Management (limited)", "Scheduling Assistance"], isPopular: false, ctaLink: "/auth" },
@@ -158,6 +152,10 @@ export default async function HomePage() {
     fetchedSectionData[section.id] = await getSectionDataAction(section.id);
   }
 
+  const portfolioItems: PortfolioItem[] = await getPortfolioItemsAction();
+  const visiblePortfolioItems = portfolioItems.filter(item => item.isVisible);
+
+
   const getSectionContent = (sectionId: string, field: 'title' | 'text' | 'imageUrl' | 'isVisible') => {
     const cmsData = fetchedSectionData[sectionId];
     const staticConfig = cmsSectionsConfig.find(s => s.id === sectionId);
@@ -172,13 +170,13 @@ export default async function HomePage() {
       case 'imageUrl':
         return cmsData?.imageUrl ?? null;
       case 'isVisible':
-        return cmsData?.isVisible === undefined ? true : cmsData.isVisible;
+        return cmsData?.isVisible === undefined ? staticConfig.defaultIsVisible : cmsData.isVisible;
       default:
         return '';
     }
   };
 
-  const renderAiImageSection = (sectionId: string) => {
+  const renderAiImageSection = (sectionId: string, currentImagePlacement: 'left' | 'right') => {
     const staticConfig = cmsSectionsConfig.find(s => s.id === sectionId);
     if (!staticConfig) return null;
 
@@ -208,7 +206,7 @@ export default async function HomePage() {
         title={title}
         text={text}
         imageInfo={imageInfo}
-        imagePlacement={staticConfig.imagePlacement}
+        imagePlacement={currentImagePlacement} // Use the passed in placement
         className={sectionId === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
         titleClassName={titleClass}
         textClassName={textClass}
@@ -230,7 +228,7 @@ export default async function HomePage() {
       <Header />
       <main className="flex-grow">
         
-        {renderAiImageSection('hero')}
+        {renderAiImageSection('hero', 'right')}
 
         <section id="features" className="py-16 md:py-24 bg-secondary/50">
           <div className="container mx-auto text-center">
@@ -253,9 +251,9 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {renderAiImageSection('onboarding-overview')}
+        {renderAiImageSection('onboarding-overview', 'left')}
         
-        {renderAiImageSection('services-intro')}
+        {renderAiImageSection('services-intro', 'right')}
 
         <section id="services-cards" className="py-16 md:py-24">
           <div className="container mx-auto">
@@ -293,11 +291,10 @@ export default async function HomePage() {
             </div>
         </section>
 
-        {renderAiImageSection('tools')}
+        {renderAiImageSection('tools', 'left')}
 
         <section id="tools-static" className="py-16 md:py-24 bg-background">
           <div className="container mx-auto">
-             {/* Title and text for tools are now part of the CMS-managed section above */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
               {toolsDataStatic.categories.map((category) => (
                 <div key={category.name} className="p-6 bg-card rounded-xl shadow-lg hover:shadow-xl transition-shadow">
@@ -319,43 +316,45 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Portfolio Section */}
-        {(getSectionContent('portfolio-intro', 'isVisible') as boolean) && (
-          <section id="portfolio" className="py-16 md:py-24 bg-secondary/30">
+        {renderAiImageSection('portfolio-intro', 'right')}
+         <section id="portfolio-items" className="py-16 md:py-24 bg-secondary/30">
             <div className="container mx-auto">
-              {renderAiImageSection('portfolio-intro')}
-              <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {portfolioItemsStatic.map((item, index) => (
-                  <Card key={index} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                    <div className="aspect-[3/2] relative w-full bg-muted">
-                      <Image
-                        src={item.placeholderImage}
-                        alt={item.title}
-                        fill
-                        style={{ objectFit: 'cover' }}
-                        data-ai-hint={item.imageHint}
-                      />
-                    </div>
-                    <CardContent className="p-6">
-                      <h3 className="font-headline text-xl text-primary mb-2">{item.title}</h3>
-                      <p className="text-sm text-foreground/70">{item.description}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-               <div className="text-center mt-12">
-                <Button variant="outline" size="lg" disabled>View Full Portfolio (Coming Soon)</Button>
-              </div>
+              {visiblePortfolioItems.length > 0 ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {visiblePortfolioItems.map((item) => (
+                    <Card key={item.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+                      <div className="aspect-[3/2] relative w-full bg-muted">
+                        <Image
+                          src={item.imageUrl || "https://placehold.co/600x400.png"}
+                          alt={item.title}
+                          fill
+                          style={{ objectFit: 'cover' }}
+                          data-ai-hint={item.imageHint || "portfolio project"}
+                        />
+                      </div>
+                      <CardContent className="p-6">
+                        <h3 className="font-headline text-xl text-primary mb-2">{item.title}</h3>
+                        <p className="text-sm text-foreground/70">{item.description}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                 (getSectionContent('portfolio-intro', 'isVisible') as boolean) &&
+                <p className="text-center text-muted-foreground text-lg">Our portfolio is currently being updated. Check back soon!</p>
+              )}
+               {(getSectionContent('portfolio-intro', 'isVisible') as boolean) && (
+                <div className="text-center mt-12">
+                  <Button variant="outline" size="lg" disabled>View Full Portfolio (Coming Soon)</Button>
+                </div>
+               )}
             </div>
           </section>
-        )}
 
 
-        {renderAiImageSection('pricing')}
-
+        {renderAiImageSection('pricing', 'left')}
         <section id="pricing-static" className="py-16 md:py-24 bg-background">
           <div className="container mx-auto">
-            {/* Title and text for pricing are now part of the CMS-managed section above */}
             <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
               {pricingDataStatic.tiers.map((tier) => (
                 <PricingCard
@@ -372,11 +371,9 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {renderAiImageSection('testimonials')}
-        
+        {renderAiImageSection('testimonials', 'right')}
         <section id="testimonials-static" className="py-16 md:py-24 bg-secondary/30">
           <div className="container mx-auto">
-             {/* Title and text for testimonials are now part of the CMS-managed section above */}
             <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
               {testimonialsDataStatic.reviews.map((review) => (
                 <TestimonialCard
@@ -392,20 +389,19 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {(getSectionContent('blog-intro', 'isVisible') as boolean) && (
-          <section id="blog-intro-wrapper" className="py-16 md:py-24 bg-background">
-            <div className="container mx-auto">
-              {renderAiImageSection('blog-intro')}
-              <div className="text-center md:text-left mt-8 md:mt-0">
-                  <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                    <Link href="/blog">
-                      Explore Our Blog <Rocket className="ml-2 h-5 w-5" />
-                    </Link>
-                  </Button>
-              </div>
-            </div>
-          </section>
+        {renderAiImageSection('blog-intro', 'left')}
+         {(getSectionContent('blog-intro', 'isVisible') as boolean) && (
+            <section id="blog-cta" className="pb-16 md:pb-24 pt-8 bg-background">
+                 <div className="container mx-auto text-center md:text-left">
+                    <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                        <Link href="/blog">
+                        Explore Our Blog <Rocket className="ml-2 h-5 w-5" />
+                        </Link>
+                    </Button>
+                </div>
+            </section>
         )}
+
 
         {(getSectionContent('cta', 'isVisible') as boolean) && (
           <section key="cta" id="cta" className="py-20 md:py-28 bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
@@ -425,9 +421,9 @@ export default async function HomePage() {
                               description: cmsSectionsConfig.find(s => s.id === 'cta')?.imageDescriptionForHint || '',
                               placeholderHint: cmsSectionsConfig.find(s => s.id === 'cta')?.imageDescriptionForHint
                           }}
-                          imagePlacement="right"
-                          className="!p-0" // Remove padding from AiImageSection when nested
-                          titleClassName="hidden" // Hide default title/text of AiImageSection
+                          imagePlacement="right" // This section's image is inherently on the right due to layout
+                          className="!p-0" 
+                          titleClassName="hidden"
                           textClassName="hidden"
                         />
                   </div>

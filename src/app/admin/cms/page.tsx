@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff } from 'lucide-react';
+import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -31,8 +31,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getSectionDataAction, updateSectionDataAction, type SectionData } from './actions';
+import { 
+  getSectionDataAction, 
+  updateSectionDataAction, 
+  type SectionData,
+  addPortfolioItemAction,
+  getPortfolioItemsAction,
+  updatePortfolioItemAction,
+  deletePortfolioItemAction,
+  type PortfolioItem,
+  type PortfolioOperationResult
+} from './actions';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogClose } from '@/components/ui/dialog'; 
 
 interface ManagedSection {
   id: string;
@@ -50,6 +63,7 @@ interface ManagedSection {
   newIsVisible: boolean;
   isLoading: boolean;
   placeholderHint?: string;
+  defaultIsVisible: boolean;
 }
 
 const initialStaticSectionsData: Omit<ManagedSection, 'currentImageUrl' | 'newImageUrl' | 'currentTitle' | 'newTitle' | 'currentText' | 'newText' | 'currentIsVisible' | 'newIsVisible' | 'isLoading'>[] = [
@@ -109,6 +123,13 @@ const CmsPage: FC = () => {
       isLoading: true 
     }))
   );
+
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(true);
+  const [isPortfolioDialogOpEn, setIsPortfolioDialogOpen] = useState(false);
+  const [editingPortfolioItem, setEditingPortfolioItem] = useState<PortfolioItem | null>(null);
+  const [isProcessingPortfolio, setIsProcessingPortfolio] = useState(false);
+
 
   const fetchAllSectionData = useCallback(async () => {
     if (!firebaseUser) return;
@@ -183,6 +204,24 @@ const CmsPage: FC = () => {
 
     return () => unsubscribe();
   }, [toast]);
+
+  const fetchPortfolioItems = useCallback(async () => {
+    setIsLoadingPortfolio(true);
+    try {
+      const items = await getPortfolioItemsAction();
+      setPortfolioItems(items);
+    } catch (error) {
+      toast({ title: "Error", description: "Could not fetch portfolio items.", variant: "destructive" });
+    } finally {
+      setIsLoadingPortfolio(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (firebaseUser) {
+      fetchPortfolioItems();
+    }
+  }, [firebaseUser, fetchPortfolioItems]);
 
 
   const handleDeletePostWithConfirmation = async () => {
@@ -296,6 +335,26 @@ const CmsPage: FC = () => {
     }
   };
 
+  const handleOpenPortfolioDialog = (item?: PortfolioItem) => {
+    setEditingPortfolioItem(item || null);
+    setIsPortfolioDialogOpen(true);
+  };
+
+  const handleDeletePortfolioItem = async (itemId: string) => {
+    if (!firebaseUser?.uid) {
+      toast({ title: "Authentication Error", variant: "destructive" }); return;
+    }
+    setIsProcessingPortfolio(true);
+    const result = await deletePortfolioItemAction(itemId, firebaseUser.uid);
+    if (result.success) {
+      toast({ title: "Success", description: result.message });
+      fetchPortfolioItems();
+    } else {
+      toast({ title: "Error", description: result.message, variant: "destructive" });
+    }
+    setIsProcessingPortfolio(false);
+  };
+
 
   return (
     <AlertDialog open={!!postToDelete} onOpenChange={(isOpen) => { if (!isOpen) setPostToDelete(null); }}>
@@ -305,7 +364,8 @@ const CmsPage: FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Content</CardTitle>
             <CardDescription>
-              Update images (use direct image links like from Unsplash: `https://images.unsplash.com/...` or `https://source.unsplash.com/...`), text, and visibility for key sections.
+              Update images (use direct image links like from Unsplash: `https://images.unsplash.com/your-image-id.jpg` or `https://source.unsplash.com/random/800x600?keyword`), 
+              text, and visibility for key sections.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -338,7 +398,7 @@ const CmsPage: FC = () => {
                         <Image 
                           src={section.currentImageUrl} 
                           alt={`Current ${section.name} image`} 
-                          fill 
+                          fill
                           style={{ objectFit: 'contain' }}
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           priority={section.id === 'hero'} 
@@ -364,7 +424,7 @@ const CmsPage: FC = () => {
                     <Label htmlFor={`imageUrl-${section.id}`}>Image URL (direct link: .jpg, .png)</Label>
                     <Input
                       id={`imageUrl-${section.id}`}
-                      placeholder="Paste direct image URL (e.g., https://images.unsplash.com/...)"
+                      placeholder="Paste direct image URL..."
                       value={section.newImageUrl}
                       onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
                       disabled={section.isLoading || !firebaseUser}
@@ -427,6 +487,90 @@ const CmsPage: FC = () => {
           </CardContent>
         </Card>
         
+        <Separator />
+
+        <Card>
+          <CardHeader className="flex flex-row justify-between items-center">
+            <div>
+              <CardTitle className="flex items-center"><Briefcase className="mr-2 h-6 w-6 text-accent" /> Manage Portfolio Items</CardTitle>
+              <CardDescription>Add, edit, or remove items from your website's portfolio.</CardDescription>
+            </div>
+            <Button onClick={() => handleOpenPortfolioDialog()} disabled={!firebaseUser}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Portfolio Item
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {isLoadingPortfolio ? (
+              <div className="flex justify-center items-center py-10"><LottieLoader size={48} /><p className="ml-2">Loading portfolio...</p></div>
+            ) : portfolioItems.length === 0 ? (
+              <p className="text-center text-muted-foreground py-10">No portfolio items yet. Click "Add Portfolio Item" to start.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-1/4">Image</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Visible</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {portfolioItems.map(item => (
+                    <TableRow key={item.id} className={cn(!item.isVisible && "opacity-50")}>
+                      <TableCell>
+                        <Image src={item.imageUrl || "https://placehold.co/100x75.png"} alt={item.title} width={100} height={75} className="rounded-md object-cover bg-muted" data-ai-hint={item.imageHint || "portfolio item"}/>
+                      </TableCell>
+                      <TableCell className="font-medium">{item.title}</TableCell>
+                      <TableCell>{item.order}</TableCell>
+                      <TableCell>{item.isVisible ? <Eye className="h-5 w-5 text-green-500"/> : <EyeOff className="h-5 w-5 text-muted-foreground"/>}</TableCell>
+                      <TableCell className="text-right space-x-1">
+                        <Button variant="outline" size="icon" onClick={() => handleOpenPortfolioDialog(item)}><Edit3 className="h-4 w-4"/></Button>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="icon" onClick={() => setEditingPortfolioItem(item)}><Trash2 className="h-4 w-4"/></Button>
+                        </AlertDialogTrigger>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Dialog open={isPortfolioDialogOpEn} onOpenChange={setIsPortfolioDialogOpen}>
+          <PortfolioItemForm
+            item={editingPortfolioItem}
+            adminUserId={firebaseUser?.uid || ''}
+            onSave={() => { fetchPortfolioItems(); setIsPortfolioDialogOpen(false); setEditingPortfolioItem(null);}}
+            onCancel={() => {setIsPortfolioDialogOpen(false); setEditingPortfolioItem(null);}}
+          />
+        </Dialog>
+
+        {editingPortfolioItem && !isPortfolioDialogOpEn && ( // For delete confirmation if dialog closes unexpectedly
+            <AlertDialog open={!!editingPortfolioItem} onOpenChange={() => setEditingPortfolioItem(null)}>
+                 <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Portfolio Item?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Are you sure you want to delete the portfolio item: &quot;{editingPortfolioItem?.title}&quot;? This action cannot be undone.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setEditingPortfolioItem(null)} disabled={isProcessingPortfolio}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={() => editingPortfolioItem?.id && handleDeletePortfolioItem(editingPortfolioItem.id)}
+                        disabled={isProcessingPortfolio || !editingPortfolioItem?.id}
+                        className="bg-destructive hover:bg-destructive/90"
+                    >
+                        {isProcessingPortfolio ? <LottieLoader size={16} /> : "Delete"}
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        )}
+
+
         <Separator />
 
         <div className="grid lg:grid-cols-3 gap-8">
@@ -539,6 +683,79 @@ const CmsPage: FC = () => {
     </AlertDialog>
   );
 };
+
+interface PortfolioItemFormProps {
+  item: PortfolioItem | null;
+  adminUserId: string;
+  onSave: () => void;
+  onCancel: () => void;
+}
+
+const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSave, onCancel }) => {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const defaultValues = {
+    title: item?.title || '',
+    description: item?.description || '',
+    imageUrl: item?.imageUrl || '',
+    imageHint: item?.imageHint || '',
+    order: item?.order || 0,
+    isVisible: item?.isVisible === undefined ? true : item.isVisible,
+  };
+
+  const form = useForm({ defaultValues });
+
+  const handleSubmit = async (data: typeof defaultValues) => {
+    if (!adminUserId) {
+      toast({ title: 'Authentication Error', variant: 'destructive' });
+      return;
+    }
+    setIsSubmitting(true);
+    const payload: Omit<PortfolioItem, 'id' | 'createdAt' | 'updatedAt'> = data;
+    let result: PortfolioOperationResult;
+
+    if (item?.id) {
+      result = await updatePortfolioItemAction(item.id, payload, adminUserId);
+    } else {
+      result = await addPortfolioItemAction(payload, adminUserId);
+    }
+
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
+      onSave();
+    } else {
+      toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
+    setIsSubmitting(false);
+  };
+
+  return (
+    <DialogContent className="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>{item ? 'Edit' : 'Add New'} Portfolio Item</DialogTitle>
+      </DialogHeader>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
+        <div><Label htmlFor="title">Title</Label><Input id="title" {...form.register('title')} disabled={isSubmitting} /></div>
+        <div><Label htmlFor="description">Description</Label><Textarea id="description" {...form.register('description')} disabled={isSubmitting} /></div>
+        <div><Label htmlFor="imageUrl">Image URL (direct link)</Label><Input id="imageUrl" {...form.register('imageUrl')} disabled={isSubmitting} placeholder="https://images.unsplash.com/...jpg"/></div>
+        <div><Label htmlFor="imageHint">Image AI Hint (1-2 keywords)</Label><Input id="imageHint" {...form.register('imageHint')} disabled={isSubmitting} placeholder="e.g. modern design"/></div>
+        <div><Label htmlFor="order">Display Order</Label><Input id="order" type="number" {...form.register('order', { valueAsNumber: true })} disabled={isSubmitting} /></div>
+        <div className="flex items-center space-x-2">
+          <Switch id="isVisible" checked={form.watch('isVisible')} onCheckedChange={(checked) => form.setValue('isVisible', checked)} disabled={isSubmitting} />
+          <Label htmlFor="isVisible">Visible on website</Label>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancel</Button></DialogClose>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <LottieLoader className="mr-2" size={16}/> : <Save className="mr-2 h-4 w-4"/>}
+            {isSubmitting ? (item ? 'Saving...' : 'Adding...') : (item ? 'Save Changes' : 'Add Item')}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  );
+};
+
 
 export default CmsPage;
     
