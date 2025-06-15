@@ -1,5 +1,4 @@
 
-import { use } from 'react'; 
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
@@ -7,16 +6,12 @@ import Link from 'next/link';
 import { ArrowLeft, CalendarDays, Tag, UserCircle } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { BlogPost } from '@/app/admin/blog/actions'; // Ensure this path is correct and BlogPost has refined date types
+import type { BlogPost } from '@/app/admin/blog/actions';
 import ReactMarkdown from 'react-markdown';
 import { notFound } from 'next/navigation';
 
-interface ResolvedPageParams {
-  slug: string;
-}
-
-interface BlogSlugPageServerProps {
-  params: any; 
+interface BlogSlugPageProps {
+  params: { slug: string };
 }
 
 // Helper to convert various timestamp formats to ISO string or null
@@ -29,7 +24,6 @@ const convertDbTimestampToISO = (dbTimestamp: any): string | null => {
   if (dbTimestamp instanceof Date) { // Plain JS Date
     return dbTimestamp.toISOString();
   }
-  // Handle cases where timestamp might be an object with seconds/nanoseconds (e.g. after JSON stringify/parse)
   if (typeof dbTimestamp === 'object' && dbTimestamp !== null && 
       typeof dbTimestamp.seconds === 'number' && typeof dbTimestamp.nanoseconds === 'number') {
     try {
@@ -39,24 +33,19 @@ const convertDbTimestampToISO = (dbTimestamp: any): string | null => {
         return null;
     }
   }
-  // Handle Firestore ServerTimestamp placeholder or other objects with toDate()
-  // This handles cases where toDate might exist but isn't a standard Timestamp or Date
   if (typeof dbTimestamp === 'object' && dbTimestamp !== null && typeof dbTimestamp.toDate === 'function') {
     try {
         const dateObj = dbTimestamp.toDate();
         if (dateObj instanceof Date && !isNaN(dateObj.getTime())) {
              return dateObj.toISOString();
         }
-        // If toDate() doesn't return a valid Date, it might be an uncommitted ServerTimestamp
-        // For ServerTimestamp placeholders, we might return null or current time as a fallback
         console.warn("toDate() did not return a valid Date. It might be an uncommitted ServerTimestamp:", dbTimestamp);
-        return new Date().toISOString(); // Or return null if preferred for uncommitted timestamps
+        return new Date().toISOString(); 
     } catch (e) {
         console.warn("Failed to convert object with toDate method:", e, dbTimestamp);
         return null; 
     }
   }
-  // If it's already a string, try to parse it to ensure it's valid, then re-stringify to ISO
   if (typeof dbTimestamp === 'string') {
     const d = new Date(dbTimestamp);
     if (!isNaN(d.getTime())) {
@@ -73,6 +62,7 @@ const convertDbTimestampToISO = (dbTimestamp: any): string | null => {
 async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
   try {
     const postsCollection = collection(db, 'blogPosts');
+    // Ensure we only fetch published posts matching the slug
     const q = query(postsCollection, where('slug', '==', slug), where('status', '==', 'published'));
     const querySnapshot = await getDocs(q);
 
@@ -80,17 +70,17 @@ async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
       return null;
     }
 
-    const doc = querySnapshot.docs[0];
-    const data = doc.data();
+    const docSnap = querySnapshot.docs[0];
+    const data = docSnap.data();
     
     const postData: BlogPost = {
-      id: doc.id,
+      id: docSnap.id,
       title: data.title || '',
       content: data.content || '',
       category: data.category || '',
       excerpt: data.excerpt || '',
       slug: data.slug || '',
-      status: data.status || 'draft', // Should always be 'published' due to query, but good fallback
+      status: data.status || 'draft', // Should be 'published' from query
       authorId: data.authorId || '',
       authorName: data.authorName || null,
       createdAt: convertDbTimestampToISO(data.createdAt),
@@ -101,13 +91,15 @@ async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
 
   } catch (error) {
     console.error("Error fetching blog post by slug:", error);
+    // Throwing the error can help Next.js show a proper error page or for further debugging
+    // For now, returning null will lead to a 404, which might be desired if the post can't be fetched.
+    // throw new Error(`Failed to fetch blog post: ${error}`); 
     return null;
   }
 }
 
-export default async function BlogSlugPage({ params: incomingParams }: BlogSlugPageServerProps) {
-  const resolvedParams: ResolvedPageParams = use(incomingParams);
-  const slug = resolvedParams.slug;
+export default async function BlogSlugPage({ params }: BlogSlugPageProps) {
+  const slug = params.slug;
 
   const post = await getBlogPostBySlug(slug);
 
@@ -184,3 +176,28 @@ export default async function BlogSlugPage({ params: incomingParams }: BlogSlugP
     </div>
   );
 }
+
+// This function is important for Next.js to know which slugs to pre-render at build time.
+// Or, it can be omitted if all blog posts are to be rendered on-demand (SSR).
+// For now, let's keep it to indicate dynamic segment handling.
+export async function generateStaticParams() {
+  try {
+    const postsCollection = collection(db, 'blogPosts');
+    const q = query(postsCollection, where('status', '==', 'published'));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => ({
+      slug: doc.data().slug,
+    }));
+  } catch (error) {
+    console.error("Error fetching slugs for generateStaticParams:", error);
+    return [];
+  }
+}
+
+// Optional: If you want to ensure that requests for slugs not generated by generateStaticParams
+// still attempt to render dynamically (SSR), you can set dynamicParams = true.
+// export const dynamicParams = true; // Default is true if generateStaticParams is present
+// If you want to return 404 for any slug not in generateStaticParams:
+// export const dynamicParams = false;
+```
