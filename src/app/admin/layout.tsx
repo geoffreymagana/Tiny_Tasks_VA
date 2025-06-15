@@ -100,7 +100,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 
   const accountItems = [
     { href: "/admin/profile", icon: <User />, label: "Profile", tooltip: "My Profile" },
-    { href: "/admin/settings", icon: <Settings2 />, label: "Settings", tooltip: "Admin Settings (coming soon)" },
+    { href: "/admin/settings", icon: <Settings2 />, label: "Settings", tooltip: "Admin Settings" },
   ];
 
   const getRolePill = () => {
@@ -203,3 +203,5 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 };
 
 export default AdminLayout;
+
+    
