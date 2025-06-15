@@ -215,22 +215,33 @@ const CmsPage: FC = () => {
   }, [toast]);
 
   const fetchPortfolioItems = useCallback(async () => {
-    setIsLoadingPortfolio(true);
+    // isLoadingPortfolio is set by the caller (handlePortfolioSave or useEffect)
     try {
       const items = await getPortfolioItemsAction();
+      console.log("CMS Page: Fetched portfolio items in fetchPortfolioItems:", items); 
       setPortfolioItems(items);
     } catch (error) {
+      console.error("CMS Page: Error fetching portfolio items:", error);
       toast({ title: "Error", description: "Could not fetch portfolio items.", variant: "destructive" });
+      setPortfolioItems([]); // Ensure it's empty on error
     } finally {
-      setIsLoadingPortfolio(false);
+       setIsLoadingPortfolio(false); // Set loading to false *after* items are set or error handled
     }
-  }, [toast]);
+  }, [toast]); // toast is stable, no other direct dependencies for getPortfolioItemsAction
 
   useEffect(() => {
     if (firebaseUser) {
+      setIsLoadingPortfolio(true); // Set loading true before initial fetch
       fetchPortfolioItems();
     }
   }, [firebaseUser, fetchPortfolioItems]);
+
+  const handlePortfolioSave = async () => {
+    setIsPortfolioDialogOpen(false);
+    setEditingPortfolioItem(null);
+    setIsLoadingPortfolio(true); // Set loading to true before fetching
+    await fetchPortfolioItems(); // Re-fetch. This will set isLoadingPortfolio to false.
+  };
 
 
   const handleDeletePostWithConfirmation = async () => {
@@ -357,7 +368,7 @@ const CmsPage: FC = () => {
     const result = await deletePortfolioItemAction(itemId, firebaseUser.uid);
     if (result.success) {
       toast({ title: "Success", description: result.message });
-      fetchPortfolioItems();
+      await handlePortfolioSave(); // Re-fetch after delete
     } else {
       toast({ title: "Error", description: result.message, variant: "destructive" });
     }
@@ -547,17 +558,22 @@ const CmsPage: FC = () => {
           </CardContent>
         </Card>
 
-        <Dialog open={isPortfolioDialogOpEn} onOpenChange={setIsPortfolioDialogOpen}>
+        <Dialog open={isPortfolioDialogOpEn} onOpenChange={(open) => {
+            if (!open) {
+                setEditingPortfolioItem(null); // Clear editing item when dialog closes
+            }
+            setIsPortfolioDialogOpen(open);
+        }}>
           <PortfolioItemForm
             item={editingPortfolioItem}
             adminUserId={firebaseUser?.uid || ''}
-            onSave={() => { fetchPortfolioItems(); setIsPortfolioDialogOpen(false); setEditingPortfolioItem(null);}}
+            onSave={handlePortfolioSave}
             onCancel={() => {setIsPortfolioDialogOpen(false); setEditingPortfolioItem(null);}}
           />
         </Dialog>
 
         {editingPortfolioItem && !isPortfolioDialogOpEn && ( 
-            <AlertDialog open={!!editingPortfolioItem} onOpenChange={() => setEditingPortfolioItem(null)}>
+            <AlertDialog open={!!editingPortfolioItem} onOpenChange={(open) => { if(!open) setEditingPortfolioItem(null)}}>
                  <AlertDialogContent>
                     <AlertDialogHeader>
                     <AlertDialogTitle>Delete Portfolio Item?</AlertDialogTitle>
@@ -696,7 +712,7 @@ const CmsPage: FC = () => {
 interface PortfolioItemFormProps {
   item: PortfolioItem | null;
   adminUserId: string;
-  onSave: () => void;
+  onSave: () => Promise<void>; // Changed to Promise<void>
   onCancel: () => void;
 }
 
@@ -743,7 +759,7 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
 
     if (result.success) {
       toast({ title: 'Success', description: result.message });
-      onSave();
+      await onSave(); // Await onSave
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
