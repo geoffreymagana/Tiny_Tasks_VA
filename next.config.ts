@@ -34,6 +34,12 @@ const nextConfig: NextConfig = {
         hostname: 'unsplash.com', // General Unsplash domain if direct links are used
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'gsbneivhlwaahcqssimc.supabase.co', // Your Supabase project ref
+        port: '',
+        pathname: '/storage/v1/object/public/**', // Adjust if your bucket or paths differ
       }
     ],
   },
