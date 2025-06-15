@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, addDoc, serverTimestamp, doc, getDoc, query, where, getDocs, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, query, where, getDocs, updateDoc, deleteDoc, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import slugify from 'slugify';
 
@@ -85,6 +85,10 @@ const convertDbTimestampToISO = (dbTimestamp: any): string | null => {
   }
   if (typeof dbTimestamp === 'object' && dbTimestamp !== null && typeof dbTimestamp.toDate === 'function') {
     try {
+        // Check if it's a server timestamp placeholder before committing
+        if (Object.keys(dbTimestamp).length === 0) { // Heuristic for an uncommitted server timestamp
+            return new Date().toISOString(); // Or null, or a specific string like 'Pending'
+        }
         return dbTimestamp.toDate().toISOString();
     } catch (e) {
         console.warn("Failed to convert object with toDate method:", e, dbTimestamp);
@@ -258,5 +262,35 @@ export async function deleteBlogPostAction(
   } catch (error: any) {
     console.error('Error deleting blog post:', error);
     return { success: false, message: error.message || 'Failed to delete blog post.' };
+  }
+}
+
+
+export async function getAllBlogPostsAdminAction(): Promise<BlogPost[]> {
+  try {
+    const postsCollection = collection(db, 'blogPosts');
+    const q = query(postsCollection, orderBy('updatedAt', 'desc')); // Order by most recently updated
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title || '',
+        content: data.content || '',
+        category: data.category || '',
+        excerpt: data.excerpt || '',
+        slug: data.slug || '',
+        status: data.status || 'draft',
+        authorId: data.authorId || '',
+        authorName: data.authorName || null,
+        createdAt: convertDbTimestampToISO(data.createdAt),
+        updatedAt: convertDbTimestampToISO(data.updatedAt),
+        publishedAt: data.publishedAt ? convertDbTimestampToISO(data.publishedAt) : null,
+      } as BlogPost;
+    });
+  } catch (error) {
+    console.error("Error fetching all blog posts for admin:", error);
+    return [];
   }
 }

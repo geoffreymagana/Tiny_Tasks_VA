@@ -3,7 +3,7 @@
 
 import type { FC } from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form'; // Keep this for PortfolioItemForm and BrandLogoForm
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building } from 'lucide-react';
+import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building, ShieldAlert } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -174,7 +174,7 @@ const CmsPage: FC = () => {
     { id: 'websiteContent', label: 'Section Content', icon: <Images className="mr-2 h-5 w-5" />, ref: websiteContentRef },
     { id: 'portfolio', label: 'Portfolio Items', icon: <Briefcase className="mr-2 h-5 w-5" />, ref: portfolioRef },
     { id: 'brandLogos', label: 'Brand Logos', icon: <Building className="mr-2 h-5 w-5" />, ref: brandLogosRef },
-    { id: 'blog', label: 'Blog & Pages', icon: <BookOpen className="mr-2 h-5 w-5" />, ref: blogRef },
+    { id: 'blog', label: 'Blog Management', icon: <BookOpen className="mr-2 h-5 w-5" />, ref: blogRef },
   ];
 
   const scrollToSection = (sectionRef: React.RefObject<HTMLDivElement>, sectionId: string) => {
@@ -777,28 +777,17 @@ const CmsPage: FC = () => {
               <section id="blog" ref={blogRef} className="pt-4">
                 <div className="grid lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                    <Card>
-                        <CardHeader>
-                        <CardTitle className="flex items-center"><BookOpen className="mr-2 h-6 w-6 text-accent" /> Blog Content Management</CardTitle>
-                        <CardDescription>Create, edit, and manage your website's blog posts here.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                        <Button asChild size="lg">
-                            <Link href="/admin/blog/create">Create New Blog Post</Link>
-                        </Button>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-xl">Website Pages Overview</CardTitle>
-                            <CardDescription>Manage static pages of your website (Coming Soon).</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-muted-foreground">Functionality to edit pages like 'About Us', 'Services' will be available here.</p>
-                            <Button disabled className="mt-4">Manage Pages (Coming Soon)</Button>
-                        </CardContent>
-                    </Card>
+                      <Card>
+                          <CardHeader>
+                          <CardTitle className="flex items-center"><BookOpen className="mr-2 h-6 w-6 text-accent" /> Blog Content Management</CardTitle>
+                          <CardDescription>Create, edit, and manage your website's blog posts here.</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                          <Button asChild size="lg">
+                              <Link href="/admin/blog/create">Create New Blog Post</Link>
+                          </Button>
+                          </CardContent>
+                      </Card>
                     </div>
 
                     <div className="lg:col-span-1 space-y-6">
@@ -828,18 +817,24 @@ const CmsPage: FC = () => {
                                 <div className="flex space-x-1 mt-2">
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" asChild disabled={post.status !== 'published'}>
-                                                <Link href={`/blog/${post.slug}`} target="_blank">
-                                                    <Eye className="h-4 w-4 text-accent" />
-                                                </Link>
+                                            <Button variant="ghost" size="icon" asChild={post.status === 'published'}>
+                                                {post.status === 'published' ? (
+                                                    <Link href={`/blog/${post.slug}`} target="_blank" aria-label="View Post">
+                                                        <Eye className="h-4 w-4 text-accent" />
+                                                    </Link>
+                                                ) : (
+                                                    <span className="cursor-not-allowed">
+                                                         <Eye className="h-4 w-4 text-muted-foreground" />
+                                                    </span>
+                                                )}
                                             </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent><p>View Post</p></TooltipContent>
+                                        <TooltipContent><p>{post.status === 'published' ? "View Post" : "Post not published"}</p></TooltipContent>
                                     </Tooltip>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button variant="ghost" size="icon" asChild>
-                                                <Link href={`/admin/blog/edit/${post.id}`}>
+                                                <Link href={`/admin/blog/edit/${post.id}`} aria-label="Edit Post">
                                                     <Edit3 className="h-4 w-4" />
                                                 </Link>
                                             </Button>
@@ -854,6 +849,7 @@ const CmsPage: FC = () => {
                                                     size="icon" 
                                                     onClick={() => setPostToDelete(post)}
                                                     disabled={isDeletingPost && postToDelete?.id === post.id}
+                                                    aria-label="Delete Post"
                                                 >
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
@@ -884,7 +880,9 @@ const CmsPage: FC = () => {
         {postToDelete && (
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure you want to delete this post?</AlertDialogTitle>
+              <AlertDialogTitle className="flex items-center">
+                <ShieldAlert className="mr-2 h-5 w-5 text-destructive"/> Are you sure you want to delete this post?
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete the blog post titled &quot;{postToDelete.title}&quot;.
               </AlertDialogDescription>
@@ -905,7 +903,7 @@ const CmsPage: FC = () => {
         {portfolioItemToDelete && ( 
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>Delete Portfolio Item?</AlertDialogTitle>
+                <AlertDialogTitle className="flex items-center"><ShieldAlert className="mr-2 h-5 w-5 text-destructive"/>Delete Portfolio Item?</AlertDialogTitle>
                 <AlertDialogDescription>
                     Are you sure you want to delete the portfolio item: &quot;{portfolioItemToDelete?.title}&quot;? This action cannot be undone.
                 </AlertDialogDescription>
@@ -915,9 +913,10 @@ const CmsPage: FC = () => {
                 <AlertDialogAction
                     onClick={handleDeletePortfolioItem}
                     disabled={isProcessingPortfolio}
-                    className="bg-destructive hover:bg-destructive/90"
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                 >
-                    {isProcessingPortfolio ? <LottieLoader size={16} /> : "Delete"}
+                    {isProcessingPortfolio ? <LottieLoader size={16} className="mr-2"/> : null}
+                    {isProcessingPortfolio ? "Deleting..." : "Delete"}
                 </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -925,7 +924,7 @@ const CmsPage: FC = () => {
          {brandLogoToDelete && ( 
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>Delete Brand Logo?</AlertDialogTitle>
+                <AlertDialogTitle className="flex items-center"><ShieldAlert className="mr-2 h-5 w-5 text-destructive"/>Delete Brand Logo?</AlertDialogTitle>
                 <AlertDialogDescription>
                     Are you sure you want to delete the brand logo: &quot;{brandLogoToDelete?.name}&quot;? This action cannot be undone.
                 </AlertDialogDescription>
@@ -935,9 +934,10 @@ const CmsPage: FC = () => {
                 <AlertDialogAction
                     onClick={handleDeleteBrandLogo}
                     disabled={isProcessingBrandLogo}
-                    className="bg-destructive hover:bg-destructive/90"
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                 >
-                    {isProcessingBrandLogo ? <LottieLoader size={16} /> : "Delete"}
+                    {isProcessingBrandLogo ? <LottieLoader size={16} className="mr-2"/> : null}
+                    {isProcessingBrandLogo ? "Deleting..." : "Delete"}
                 </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -1054,8 +1054,14 @@ const BrandLogoForm: FC<BrandLogoFormProps> = ({ logoItem, adminUserId, onSave, 
   const form = useForm({ defaultValues });
 
   useEffect(() => {
-    form.reset(defaultValues);
-  }, [logoItem, form]); // Removed defaultValues from dependency array as it's recreated
+    form.reset({
+        name: logoItem?.name || '',
+        logoUrl: logoItem?.logoUrl || '',
+        websiteUrl: logoItem?.websiteUrl || '',
+        order: logoItem?.order || 0,
+        isVisible: logoItem?.isVisible === undefined ? true : logoItem.isVisible,
+    });
+  }, [logoItem, form]);
 
   const handleSubmit = async (data: typeof defaultValues) => {
     if (!adminUserId) {
