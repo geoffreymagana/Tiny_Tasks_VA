@@ -3,6 +3,7 @@
 
 import type { FC } from 'react';
 import { useState, useEffect, useCallback } from 'react';
+import { useForm } from 'react-hook-form'; // Added import for useForm
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -705,6 +706,18 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
 
   const form = useForm({ defaultValues });
 
+  useEffect(() => { // Reset form when item changes (e.g., opening dialog for different item)
+    form.reset({
+        title: item?.title || '',
+        description: item?.description || '',
+        imageUrl: item?.imageUrl || '',
+        imageHint: item?.imageHint || '',
+        order: item?.order || 0,
+        isVisible: item?.isVisible === undefined ? true : item.isVisible,
+    });
+  }, [item, form]);
+
+
   const handleSubmit = async (data: typeof defaultValues) => {
     if (!adminUserId) {
       toast({ title: 'Authentication Error', variant: 'destructive' });
@@ -759,3 +772,4 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
 
 export default CmsPage;
     
+
