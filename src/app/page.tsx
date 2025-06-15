@@ -29,6 +29,7 @@ interface StaticSectionContent {
   cta?: { text: string; href: string };
   icon?: React.ReactNode;
   imageDescriptionForHint: string; 
+  defaultIsVisible: boolean;
 }
 
 const cmsSectionsConfig: StaticSectionContent[] = [
@@ -39,6 +40,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     imagePlacement: 'right',
     cta: { text: 'Get Started', href: '/auth' },
     imageDescriptionForHint: "professional virtual assistant",
+    defaultIsVisible: true,
   },
   {
     id: 'onboarding-overview',
@@ -47,6 +49,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     imagePlacement: 'left',
     cta: { text: 'View Detailed Onboarding', href: '/onboarding-steps' },
     imageDescriptionForHint: "onboarding steps",
+    defaultIsVisible: true,
   },
    {
     id: 'services-intro',
@@ -54,6 +57,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.",
     imagePlacement: 'right', 
     imageDescriptionForHint: "virtual assistance services",
+    defaultIsVisible: true,
   },
   {
     id: 'tools', 
@@ -61,6 +65,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.",
     imagePlacement: 'left', 
     imageDescriptionForHint: "business tools collage",
+    defaultIsVisible: true,
   },
   {
     id: 'portfolio-intro',
@@ -68,6 +73,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultText: "Explore a selection of projects where Tiny Tasks has made a significant impact, delivering quality and driving growth for our clients.",
     imagePlacement: 'right',
     imageDescriptionForHint: "portfolio showcase design",
+    defaultIsVisible: true,
   },
   {
     id: 'pricing', 
@@ -75,13 +81,15 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.",
     imagePlacement: 'left', 
     imageDescriptionForHint: "pricing plans KES",
+    defaultIsVisible: true,
   },
   {
     id: 'testimonials', 
     defaultTitle: 'Client Success Stories',
-    defaultText: "Visually representing client satisfaction through placeholder imagery.",
+    defaultText: "Hear from businesses that have transformed their productivity and growth with Tiny Tasks.",
     imagePlacement: 'right', 
     imageDescriptionForHint: "happy clients",
+    defaultIsVisible: true,
   },
   {
     id: 'blog-intro',
@@ -89,6 +97,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.",
     imagePlacement: 'left', 
     imageDescriptionForHint: "blog ideas",
+    defaultIsVisible: true,
   },
   {
     id: 'cta', 
@@ -96,6 +105,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!",
     imagePlacement: 'right', 
     imageDescriptionForHint: "business collaboration",
+    defaultIsVisible: true,
   },
 ];
 
@@ -153,7 +163,7 @@ export default async function HomePage() {
   }
 
   const portfolioItems: PortfolioItem[] = await getPortfolioItemsAction();
-  const visiblePortfolioItems = portfolioItems.filter(item => item.isVisible);
+  const visiblePortfolioItems = portfolioItems.filter(item => item.isVisible !== false);
 
 
   const getSectionContent = (sectionId: string, field: 'title' | 'text' | 'imageUrl' | 'isVisible') => {
@@ -176,7 +186,7 @@ export default async function HomePage() {
     }
   };
 
-  const renderAiImageSection = (sectionId: string, currentImagePlacement: 'left' | 'right') => {
+  const renderAiImageSection = (sectionId: string) => {
     const staticConfig = cmsSectionsConfig.find(s => s.id === sectionId);
     if (!staticConfig) return null;
 
@@ -206,7 +216,7 @@ export default async function HomePage() {
         title={title}
         text={text}
         imageInfo={imageInfo}
-        imagePlacement={currentImagePlacement} // Use the passed in placement
+        imagePlacement={staticConfig.imagePlacement}
         className={sectionId === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
         titleClassName={titleClass}
         textClassName={textClass}
@@ -228,7 +238,7 @@ export default async function HomePage() {
       <Header />
       <main className="flex-grow">
         
-        {renderAiImageSection('hero', 'right')}
+        {renderAiImageSection('hero')}
 
         <section id="features" className="py-16 md:py-24 bg-secondary/50">
           <div className="container mx-auto text-center">
@@ -251,26 +261,27 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {renderAiImageSection('onboarding-overview', 'left')}
+        {renderAiImageSection('onboarding-overview')}
         
-        {renderAiImageSection('services-intro', 'right')}
-
-        <section id="services-cards" className="py-16 md:py-24">
-          <div className="container mx-auto">
-            <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
-              {services.map((service) => (
-                <ServiceCard
-                  key={service.title}
-                  mainIcon={service.mainIcon}
-                  title={service.title}
-                  description={service.description}
-                  serviceItems={service.serviceItems}
-                  learnMoreLink={service.learnMoreLink}
-                />
-              ))}
+        {renderAiImageSection('services-intro')}
+        {getSectionContent('services-intro', 'isVisible') && (
+            <section id="services-cards" className="py-16 md:py-24">
+            <div className="container mx-auto">
+                <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
+                {services.map((service) => (
+                    <ServiceCard
+                    key={service.title}
+                    mainIcon={service.mainIcon}
+                    title={service.title}
+                    description={service.description}
+                    serviceItems={service.serviceItems}
+                    learnMoreLink={service.learnMoreLink}
+                    />
+                ))}
+                </div>
             </div>
-          </div>
-        </section>
+            </section>
+        )}
         
         <section id="copy-comparison" className="py-16 md:py-24 bg-secondary/30">
             <div className="container mx-auto">
@@ -291,105 +302,108 @@ export default async function HomePage() {
             </div>
         </section>
 
-        {renderAiImageSection('tools', 'left')}
-
-        <section id="tools-static" className="py-16 md:py-24 bg-background">
-          <div className="container mx-auto">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-              {toolsDataStatic.categories.map((category) => (
-                <div key={category.name} className="p-6 bg-card rounded-xl shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="flex items-center mb-4">
-                    {category.icon}
-                    <h3 className="font-headline text-xl text-primary ml-3">{category.name}</h3>
-                  </div>
-                  <ul className="space-y-2">
-                    {category.tools.map(tool => (
-                      <li key={tool.name} className="flex items-center text-foreground/80">
-                        <span className="mr-2 text-primary/70">{tool.icon}</span>
-                        {tool.name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {renderAiImageSection('portfolio-intro', 'right')}
-         <section id="portfolio-items" className="py-16 md:py-24 bg-secondary/30">
+        {renderAiImageSection('tools')}
+        {getSectionContent('tools', 'isVisible') && (
+            <section id="tools-static" className="py-16 md:py-24 bg-background">
             <div className="container mx-auto">
-              {visiblePortfolioItems.length > 0 ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {visiblePortfolioItems.map((item) => (
-                    <Card key={item.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                      <div className="aspect-[3/2] relative w-full bg-muted">
-                        <Image
-                          src={item.imageUrl || "https://placehold.co/600x400.png"}
-                          alt={item.title}
-                          fill
-                          style={{ objectFit: 'cover' }}
-                          data-ai-hint={item.imageHint || "portfolio project"}
-                        />
-                      </div>
-                      <CardContent className="p-6">
-                        <h3 className="font-headline text-xl text-primary mb-2">{item.title}</h3>
-                        <p className="text-sm text-foreground/70">{item.description}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+                {toolsDataStatic.categories.map((category) => (
+                    <div key={category.name} className="p-6 bg-card rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                    <div className="flex items-center mb-4">
+                        {category.icon}
+                        <h3 className="font-headline text-xl text-primary ml-3">{category.name}</h3>
+                    </div>
+                    <ul className="space-y-2">
+                        {category.tools.map(tool => (
+                        <li key={tool.name} className="flex items-center text-foreground/80">
+                            <span className="mr-2 text-primary/70">{tool.icon}</span>
+                            {tool.name}
+                        </li>
+                        ))}
+                    </ul>
+                    </div>
+                ))}
                 </div>
-              ) : (
-                 (getSectionContent('portfolio-intro', 'isVisible') as boolean) &&
-                <p className="text-center text-muted-foreground text-lg">Our portfolio is currently being updated. Check back soon!</p>
-              )}
-               {(getSectionContent('portfolio-intro', 'isVisible') as boolean) && (
+            </div>
+            </section>
+        )}
+
+        {renderAiImageSection('portfolio-intro')}
+        {(getSectionContent('portfolio-intro', 'isVisible') as boolean) && (
+            <section id="portfolio-items" className="py-16 md:py-24 bg-secondary/30">
+                <div className="container mx-auto">
+                {visiblePortfolioItems.length > 0 ? (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {visiblePortfolioItems.map((item) => (
+                        <Card key={item.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+                        <div className="aspect-[3/2] relative w-full bg-muted">
+                            <Image
+                            src={item.imageUrl || "https://placehold.co/600x400.png"}
+                            alt={item.title}
+                            fill
+                            style={{ objectFit: 'cover' }}
+                            data-ai-hint={item.imageHint || "portfolio project"}
+                            />
+                        </div>
+                        <CardContent className="p-6">
+                            <h3 className="font-headline text-xl text-primary mb-2">{item.title}</h3>
+                            <p className="text-sm text-foreground/70">{item.description}</p>
+                        </CardContent>
+                        </Card>
+                    ))}
+                    </div>
+                ) : (
+                    <p className="text-center text-muted-foreground text-lg">Our portfolio is currently being updated. Check back soon!</p>
+                )}
                 <div className="text-center mt-12">
-                  <Button variant="outline" size="lg" disabled>View Full Portfolio (Coming Soon)</Button>
+                    <Button variant="outline" size="lg" disabled>View Full Portfolio (Coming Soon)</Button>
                 </div>
-               )}
+                </div>
+            </section>
+        )}
+
+        {renderAiImageSection('pricing')}
+        {getSectionContent('pricing', 'isVisible') && (
+            <section id="pricing-static" className="py-16 md:py-24 bg-background">
+            <div className="container mx-auto">
+                <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+                {pricingDataStatic.tiers.map((tier) => (
+                    <PricingCard
+                    key={tier.tier}
+                    tier={tier.tier}
+                    price={tier.price}
+                    description={tier.description}
+                    features={tier.features}
+                    isPopular={tier.isPopular}
+                    ctaLink={tier.ctaLink}
+                    />
+                ))}
+                </div>
             </div>
-          </section>
-
-
-        {renderAiImageSection('pricing', 'left')}
-        <section id="pricing-static" className="py-16 md:py-24 bg-background">
-          <div className="container mx-auto">
-            <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-              {pricingDataStatic.tiers.map((tier) => (
-                <PricingCard
-                  key={tier.tier}
-                  tier={tier.tier}
-                  price={tier.price}
-                  description={tier.description}
-                  features={tier.features}
-                  isPopular={tier.isPopular}
-                  ctaLink={tier.ctaLink}
-                />
-              ))}
+            </section>
+        )}
+        
+        {renderAiImageSection('testimonials')}
+        {getSectionContent('testimonials', 'isVisible') && (
+            <section id="testimonials-static" className="py-16 md:py-24 bg-secondary/30">
+            <div className="container mx-auto">
+                <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
+                {testimonialsDataStatic.reviews.map((review) => (
+                    <TestimonialCard
+                    key={review.name}
+                    name={review.name}
+                    role={review.role}
+                    testimonial={review.testimonial}
+                    avatarFallback={review.avatarFallback}
+                    rating={review.rating}
+                    />
+                ))}
+                </div>
             </div>
-          </div>
-        </section>
+            </section>
+        )}
 
-        {renderAiImageSection('testimonials', 'right')}
-        <section id="testimonials-static" className="py-16 md:py-24 bg-secondary/30">
-          <div className="container mx-auto">
-            <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
-              {testimonialsDataStatic.reviews.map((review) => (
-                <TestimonialCard
-                  key={review.name}
-                  name={review.name}
-                  role={review.role}
-                  testimonial={review.testimonial}
-                  avatarFallback={review.avatarFallback}
-                  rating={review.rating}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {renderAiImageSection('blog-intro', 'left')}
+        {renderAiImageSection('blog-intro')}
          {(getSectionContent('blog-intro', 'isVisible') as boolean) && (
             <section id="blog-cta" className="pb-16 md:pb-24 pt-8 bg-background">
                  <div className="container mx-auto text-center md:text-left">
@@ -421,7 +435,7 @@ export default async function HomePage() {
                               description: cmsSectionsConfig.find(s => s.id === 'cta')?.imageDescriptionForHint || '',
                               placeholderHint: cmsSectionsConfig.find(s => s.id === 'cta')?.imageDescriptionForHint
                           }}
-                          imagePlacement="right" // This section's image is inherently on the right due to layout
+                          imagePlacement="right" 
                           className="!p-0" 
                           titleClassName="hidden"
                           textClassName="hidden"
