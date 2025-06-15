@@ -200,4 +200,3 @@ export async function generateStaticParams() {
 // export const dynamicParams = true; // Default is true if generateStaticParams is present
 // If you want to return 404 for any slug not in generateStaticParams:
 // export const dynamicParams = false;
-```
