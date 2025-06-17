@@ -2,12 +2,15 @@
 'use server';
 
 import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, updateDoc, deleteDoc, query, where, Timestamp, writeBatch, setDoc, orderBy } from 'firebase/firestore';
-import { db, functions, auth as firebaseAuthClient } from '@/lib/firebase'; // Added firebaseAuthClient for direct auth operations
+import { db, functions } from '@/lib/firebase'; 
 import { httpsCallable } from 'firebase/functions';
 import { z } from 'zod';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import nodemailer from 'nodemailer';
+import { render } from 'react-email/render';
+import { StaffInviteEmail } from '@/emails/staff-invite-email';
+import { getAgencySettingsAction } from '@/app/admin/settings/actions';
 
-// Zod schema for staff form data validation (department validation handled by Select component)
+
 const staffFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(100),
   email: z.string().email("Invalid email address.").max(100),
@@ -16,7 +19,6 @@ const staffFormSchema = z.object({
 });
 export type StaffFormData = z.infer<typeof staffFormSchema>;
 
-// Extended form data for creation action to include password and invite flag
 export interface CreateStaffActionData extends StaffFormData {
   passwordForNewUser: string;
   sendInviteEmail?: boolean;
@@ -67,25 +69,10 @@ export async function addStaffAction(
   }
 
   try {
-    // 1. Create Firebase Auth user directly - This part is tricky in a Server Action
-    // Firebase Admin SDK should be used for this, typically in a Cloud Function
-    // or a backend environment. Client SDK createUserWithEmailAndPassword cannot
-    // be directly used in a Server Action without re-authenticating or complex setup.
-    // FOR SIMULATION: We will assume the Cloud Function approach is still preferred for security,
-    // and the Cloud Function is adapted to optionally send the email.
-    // OR, if the user *really* wants direct creation here (less secure for password handling):
-    // This section would need careful thought on how to handle auth creation securely from server action.
-    //
-    // **Revised Approach: Using the Cloud Function as it's more robust for Auth creation.**
-    // The Cloud Function will need to be updated to accept the password if provided,
-    // or generate one if not, and return it for the email.
-    // For now, we'll stick to the existing Cloud Function and assume it handles password (default or provided).
-    // The UI will collect a password and the invite flag.
-
     const createStaffAuthUserCallable = httpsCallable(functions, 'createStaffAuthUser');
     const authResult = await createStaffAuthUserCallable({
       email: formData.email,
-      password: formData.passwordForNewUser, // Pass the admin-set password
+      password: formData.passwordForNewUser, 
       displayName: formData.name,
       department: formData.department,
     }) as { data: { success: boolean; uid?: string; message?: string } };
@@ -95,7 +82,6 @@ export async function addStaffAction(
     }
     const authUid = authResult.data.uid;
 
-    // 2. Create Firestore document in /staff collection (this remains local to this action)
     const newStaffDocRef = doc(collection(db, 'staff'));
     await setDoc(newStaffDocRef, {
       authUid: authUid,
@@ -107,19 +93,55 @@ export async function addStaffAction(
       updatedAt: serverTimestamp(),
     });
 
-    // 3. Conceptually send email if requested
+    let emailSentMessage = "";
     if (formData.sendInviteEmail) {
-      // In a real app, you'd render the React Email template and send it
-      console.log(`TODO: Send staff invite email to ${formData.email} with password: ${formData.passwordForNewUser}`);
-      // Example:
-      // const emailHtml = render(<StaffInviteEmail staffName={formData.name} staffEmail={formData.email} temporaryPassword={formData.passwordForNewUser} ... />);
-      // await sendEmail({ to: formData.email, subject: "Welcome to the Team!", html: emailHtml });
-      // This part requires an actual email sending service setup.
+      try {
+        const agencySettings = await getAgencySettingsAction();
+        const agencyName = agencySettings?.agencyName || "Tiny Tasks VA Services";
+        const agencyLogoUrl = agencySettings?.agencyLogoUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002'}/static/agency-logo.png`; // Placeholder
+
+        const emailHtml = render(
+          <StaffInviteEmail
+            staffName={formData.name}
+            staffEmail={formData.email}
+            temporaryPassword={formData.passwordForNewUser}
+            agencyName={agencyName}
+            agencyLogoUrl={agencyLogoUrl}
+            signInLink={`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002'}/auth`}
+            adminUsername={adminId} // Or fetch admin's display name
+          />
+        );
+
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || "587"),
+          secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+
+        const mailOptions = {
+          from: `"${process.env.SMTP_FROM_NAME || 'Tiny Tasks VA'}" <${process.env.SMTP_FROM_EMAIL || 'noreply@tinytasks.com'}>`,
+          to: formData.email,
+          subject: `You're Invited to Join ${agencyName}!`,
+          html: emailHtml,
+        };
+
+        await transporter.sendMail(mailOptions);
+        emailSentMessage = " Invitation email sent.";
+        console.log(`Staff invitation email sent to ${formData.email}`);
+      } catch (emailError: any) {
+        console.error('Error sending staff invitation email:', emailError);
+        emailSentMessage = ` Staff member created, but failed to send invitation email: ${emailError.message}`;
+        // Do not throw error here, account is created, just email failed.
+      }
     }
 
     return { 
         success: true, 
-        message: `Staff member ${formData.name} created. Auth account and user record handled by Cloud Function. ${formData.sendInviteEmail ? 'Invite email queued (simulated).' : ''}`, 
+        message: `Staff member ${formData.name} created successfully.${emailSentMessage}`, 
         staffId: newStaffDocRef.id, 
         authUid 
     };
