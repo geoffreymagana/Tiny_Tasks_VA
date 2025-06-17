@@ -2,7 +2,7 @@
 'use server';
 
 import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, updateDoc, deleteDoc, query, where, Timestamp, writeBatch, setDoc, orderBy } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase'; 
+import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { z } from 'zod';
 import nodemailer from 'nodemailer';
@@ -11,10 +11,25 @@ import { StaffInviteEmail } from '@/emails/staff-invite-email';
 import { getAgencySettingsAction } from '@/app/admin/settings/actions';
 
 
+// Department Configuration
+const STAFF_DEPARTMENTS_CONFIG: Record<string, { name: string; color: string; textColor?: string }> = {
+  'Client Success & Onboarding': { name: 'Client Success & Onboarding', color: 'hsl(207, 70%, 50%)', textColor: 'hsl(0, 0%, 100%)' },
+  'VA Operations': { name: 'VA Operations', color: 'hsl(145, 63%, 42%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Sales & Account Management': { name: 'Sales & Account Management', color: 'hsl(30, 90%, 50%)', textColor: 'hsl(0, 0%, 100%)' },
+  'HR / VA Talent': { name: 'HR / VA Talent', color: 'hsl(260, 60%, 55%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Automation & AI': { name: 'Automation & AI', color: 'hsl(180, 50%, 45%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Marketing & Content': { name: 'Marketing & Content', color: 'hsl(330, 70%, 55%)', textColor: 'hsl(0, 0%, 100%)' },
+  'IT Support': { name: 'IT Support', color: 'hsl(0, 0%, 40%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Finance & Billing': { name: 'Finance & Billing', color: 'hsl(45, 100%, 50%)', textColor: 'hsl(210, 29%, 10%)' },
+  'QA & Training': { name: 'QA & Training', color: 'hsl(240, 60%, 65%)', textColor: 'hsl(0, 0%, 100%)' },
+  'Product/UX': { name: 'Product/UX', color: 'hsl(350, 75%, 60%)', textColor: 'hsl(0, 0%, 100%)' },
+};
+const STAFF_DEPARTMENT_NAMES = Object.keys(STAFF_DEPARTMENTS_CONFIG);
+
 const staffFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(100),
   email: z.string().email("Invalid email address.").max(100),
-  department: z.string().min(1, "Department is required."), 
+  department: z.enum(STAFF_DEPARTMENT_NAMES as [string, ...string[]]),
   phone: z.string().max(20).optional().or(z.literal('')),
 });
 export type StaffFormData = z.infer<typeof staffFormSchema>;
@@ -38,6 +53,11 @@ export interface StaffOperationResult {
   message: string;
   staffId?: string;
   authUid?: string;
+}
+
+interface AdminUserData {
+    displayName?: string | null;
+    email?: string | null;
 }
 
 async function verifyAdmin(adminId: string): Promise<boolean> {
@@ -68,6 +88,15 @@ export async function addStaffAction(
      return { success: false, message: 'This email address is already in use by an existing staff record.' };
   }
 
+  let adminUserData: AdminUserData | null = null;
+  if (adminId) {
+      const adminDocRef = doc(db, 'users', adminId);
+      const adminDocSnap = await getDoc(adminDocRef);
+      if (adminDocSnap.exists()) {
+          adminUserData = adminDocSnap.data() as AdminUserData;
+      }
+  }
+
   try {
     const createStaffAuthUserCallable = httpsCallable(functions, 'createStaffAuthUser');
     const authResult = await createStaffAuthUserCallable({
@@ -82,7 +111,7 @@ export async function addStaffAction(
     }
     const authUid = authResult.data.uid;
 
-    const newStaffDocRef = doc(collection(db, 'staff'));
+    const newStaffDocRef = doc(collection(db, 'staff')); 
     await setDoc(newStaffDocRef, {
       authUid: authUid,
       name: formData.name,
@@ -98,28 +127,33 @@ export async function addStaffAction(
       try {
         const agencySettings = await getAgencySettingsAction();
         const agencyName = agencySettings?.agencyName || "Tiny Tasks VA Services";
-        const agencyLogoUrl = agencySettings?.agencyLogoUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002'}/static/agency-logo.png`; // Placeholder
+        const agencyLogoUrl = agencySettings?.agencyLogoUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002'}/static/agency-logo.png`;
+        
+        let adminDisplayNameForEmail = adminUserData?.displayName || adminUserData?.email || adminId;
 
-        const emailHtml = render(
-          <StaffInviteEmail
-            staffName={formData.name}
-            staffEmail={formData.email}
-            temporaryPassword={formData.passwordForNewUser}
-            agencyName={agencyName}
-            agencyLogoUrl={agencyLogoUrl}
-            signInLink={`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002'}/auth`}
-            adminUsername={adminId} // Or fetch admin's display name
-          />
-        );
+        const emailProps = {
+          staffName: formData.name,
+          staffEmail: formData.email,
+          temporaryPassword: formData.passwordForNewUser,
+          agencyName: agencyName,
+          agencyLogoUrl: agencyLogoUrl,
+          signInLink: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002'}/auth`,
+          adminUsername: adminDisplayNameForEmail,
+        };
+        const emailComponent = <StaffInviteEmail {...emailProps} />;
+        const emailHtml = render(emailComponent);
 
         const transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
           port: parseInt(process.env.SMTP_PORT || "587"),
-          secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+          secure: process.env.SMTP_SECURE === 'true', 
           auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
           },
+          tls: {
+            rejectUnauthorized: process.env.NODE_ENV === 'production', 
+          }
         });
 
         const mailOptions = {
@@ -135,15 +169,14 @@ export async function addStaffAction(
       } catch (emailError: any) {
         console.error('Error sending staff invitation email:', emailError);
         emailSentMessage = ` Staff member created, but failed to send invitation email: ${emailError.message}`;
-        // Do not throw error here, account is created, just email failed.
       }
     }
 
-    return { 
-        success: true, 
-        message: `Staff member ${formData.name} created successfully.${emailSentMessage}`, 
-        staffId: newStaffDocRef.id, 
-        authUid 
+    return {
+        success: true,
+        message: `Staff member ${formData.name} created successfully.${emailSentMessage}`,
+        staffId: newStaffDocRef.id,
+        authUid
     };
   } catch (error: any) {
     console.error('Error in addStaffAction:', error);
@@ -170,13 +203,18 @@ const convertDbTimestamp = (timestamp: any): string | null => {
        return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate().toISOString();
     }
     try {
-        if (timestamp && typeof timestamp.toDate === 'function') { 
+        if (timestamp && typeof timestamp.toDate === 'function') {
+            const dateObj = timestamp.toDate();
+            if (dateObj instanceof Date && !isNaN(dateObj.getTime())) {
+                 return dateObj.toISOString();
+            }
+             console.warn("toDate() did not return a valid Date for staff actions. It might be an uncommitted ServerTimestamp:", timestamp);
             return new Date().toISOString(); 
         }
         const d = new Date(timestamp);
         if (!isNaN(d.getTime())) return d.toISOString();
     } catch (e) {
-        // ignore
+       console.warn("Error converting timestamp in convertDbTimestamp for staff:", e, timestamp);
     }
     console.warn("Unsupported timestamp format encountered in convertDbTimestamp for staff:", timestamp);
     return null;
@@ -187,35 +225,42 @@ export async function getAllStaffAction(): Promise<StaffMember[]> {
     const staffCollectionRef = collection(db, 'staff');
     const staffQuery = query(staffCollectionRef, orderBy('createdAt', 'desc'));
     const staffSnapshot = await getDocs(staffQuery);
-    
+
     const staffList: StaffMember[] = [];
 
     for (const staffDoc of staffSnapshot.docs) {
       const staffData = staffDoc.data();
-      let isDisabled = false; 
+      let isDisabled = false;
       let departmentFromUser = staffData.department;
-      
+      let nameFromUser = staffData.name;
+      let emailFromUser = staffData.email;
+      let phoneFromUser = staffData.phone;
+
+
       if (staffData.authUid) {
         const userDocRef = doc(db, 'users', staffData.authUid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
           isDisabled = userData?.isDisabled === undefined ? false : userData.isDisabled;
-          departmentFromUser = userData?.department || staffData.department; 
+          departmentFromUser = userData?.department || staffData.department;
+          nameFromUser = userData?.displayName || staffData.name;
+          emailFromUser = userData?.email || staffData.email;
+          phoneFromUser = userData?.phone || staffData.phone;
         } else {
-          console.warn(`User document not found for staff authUid: ${staffData.authUid}. Using staff record data for status/department.`);
+          console.warn(`User document not found for staff authUid: ${staffData.authUid}. Using staff record data.`);
         }
       } else {
-         console.warn(`Staff record ${staffDoc.id} is missing authUid. Status and department might not be fully synced with user account.`);
+         console.warn(`Staff record ${staffDoc.id} is missing authUid. Data might not be fully synced with user account.`);
       }
 
 
       staffList.push({
         id: staffDoc.id,
-        name: staffData.name || '',
-        email: staffData.email || '',
-        department: departmentFromUser, 
-        phone: staffData.phone || '',
+        name: nameFromUser || '',
+        email: emailFromUser || '',
+        department: departmentFromUser,
+        phone: phoneFromUser || '',
         authUid: staffData.authUid || null,
         createdAt: convertDbTimestamp(staffData.createdAt),
         updatedAt: convertDbTimestamp(staffData.updatedAt),
@@ -240,6 +285,9 @@ export async function getStaffAction(staffId: string): Promise<StaffMember | nul
     const data = staffDocSnap.data();
     let isDisabled = false;
     let departmentFromUser = data.department;
+    let nameFromUser = data.name;
+    let emailFromUser = data.email;
+    let phoneFromUser = data.phone;
 
     if (data.authUid) {
       const userDocRef = doc(db, 'users', data.authUid);
@@ -248,15 +296,18 @@ export async function getStaffAction(staffId: string): Promise<StaffMember | nul
         const userData = userDocSnap.data();
         isDisabled = userData?.isDisabled === undefined ? false : userData.isDisabled;
         departmentFromUser = userData?.department || data.department;
+        nameFromUser = userData?.displayName || data.name;
+        emailFromUser = userData?.email || data.email;
+        phoneFromUser = userData?.phone || data.phone;
       }
     }
 
     return {
       id: staffDocSnap.id,
-      name: data.name || '',
-      email: data.email || '',
+      name: nameFromUser || '',
+      email: emailFromUser || '',
       department: departmentFromUser,
-      phone: data.phone || '',
+      phone: phoneFromUser || '',
       authUid: data.authUid || null,
       createdAt: convertDbTimestamp(data.createdAt),
       updatedAt: convertDbTimestamp(data.updatedAt),
@@ -290,21 +341,22 @@ export async function updateStaffAction(
 
   try {
     const batch = writeBatch(db);
-    
+
     batch.update(staffRef, {
       name: formData.name,
       department: formData.department,
-      phone: formData.phone,
+      phone: formData.phone || '', 
       updatedAt: serverTimestamp(),
     });
 
     if (existingStaffData.authUid) {
       const userRef = doc(db, 'users', existingStaffData.authUid);
-      const userSnap = await getDoc(userRef); 
+      const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
           const userUpdateData: any = {
             displayName: formData.name,
             department: formData.department,
+            phone: formData.phone || userSnap.data()?.phone || '', 
             updatedAt: serverTimestamp(),
           };
           batch.update(userRef, userUpdateData);
@@ -319,14 +371,16 @@ export async function updateStaffAction(
              const userUpdateData: any = {
                 displayName: formData.name,
                 department: formData.department,
+                phone: formData.phone || usersSnapshot.docs[0].data()?.phone || '',
                 updatedAt: serverTimestamp(),
             };
             batch.update(userRef, userUpdateData);
+            batch.update(staffRef, { authUid: usersSnapshot.docs[0].id });
         } else {
             console.warn(`User document not found for staff email: ${existingStaffData.email} during update (no authUid). Only local staff record updated.`);
         }
     }
-    
+
     await batch.commit();
     return { success: true, message: 'Staff member details updated successfully!', staffId };
   } catch (error: any) {
@@ -337,7 +391,7 @@ export async function updateStaffAction(
 
 export async function deleteStaffAction(
   staffId: string,
-  authUid: string | null | undefined, 
+  authUid: string | null | undefined,
   adminId: string
 ): Promise<StaffOperationResult> {
   if (!(await verifyAdmin(adminId))) {
@@ -350,12 +404,12 @@ export async function deleteStaffAction(
       return { success: false, message: 'Staff record not found for deletion.' };
   }
   const staffData = staffSnap.data();
-  const effectiveAuthUid = authUid || staffData.authUid; 
+  const effectiveAuthUid = authUid || staffData.authUid;
 
   if (!effectiveAuthUid) {
     await deleteDoc(staffRef);
-    console.warn(`Staff record ${staffId} deleted, but no authUid was found. Corresponding Auth user/user record might need manual review/deletion.`);
-    return { success: true, message: 'Local staff record deleted. Linked Auth user/user record could not be automatically processed due to missing authUid.' };
+    console.warn(`Staff record ${staffId} deleted from Firestore. No authUid was found, so Firebase Auth user and /users record might need manual review/deletion if they exist under a different linkage.`);
+    return { success: true, message: 'Local staff record deleted. Corresponding Auth user/user record could not be automatically processed due to missing authUid. Please verify manually.' };
   }
 
   try {
@@ -363,9 +417,11 @@ export async function deleteStaffAction(
     const authDeletionResult = await deleteStaffAuthUserCallable({ uid: effectiveAuthUid }) as { data: { success: boolean; message?: string } };
 
     if (!authDeletionResult.data.success) {
-      throw new Error(authDeletionResult.data.message || 'Cloud Function "deleteStaffAuthUser" failed to delete user.');
+      console.warn(`Cloud Function "deleteStaffAuthUser" failed for UID ${effectiveAuthUid}: ${authDeletionResult.data.message}. Attempting to delete local staff record.`);
+      await deleteDoc(staffRef); 
+      return { success: false, message: `Auth/User record deletion failed via Cloud Function: ${authDeletionResult.data.message}. Local staff record was deleted. Please verify Firebase Auth users.` };
     }
-    
+
     await deleteDoc(staffRef);
 
     return { success: true, message: 'Staff member, their Auth account, and user record were deleted successfully via Cloud Function. Local staff record also removed.' };
@@ -373,9 +429,15 @@ export async function deleteStaffAction(
     console.error('Full error details in deleteStaffAction:', error);
     let detailedMessage = 'Failed to delete staff member.';
      if (error.code === 'functions/not-found' || (error.message && error.message.toLowerCase().includes("deleteStaffAuthUser".toLowerCase()) && error.message.toLowerCase().includes("not found"))) {
-        detailedMessage = 'Failed to delete staff member: The "deleteStaffAuthUser" Cloud Function was not found. Please ensure it is correctly deployed and the name matches.';
+        detailedMessage = 'Failed to delete staff member: The "deleteStaffAuthUser" Cloud Function was not found or is misconfigured. Please ensure it is deployed and the name matches.';
     } else if (error.message) {
         detailedMessage = `Failed to delete staff member: ${error.message}`;
+    }
+    try {
+        if (staffSnap.exists()) await deleteDoc(staffRef);
+    } catch (fsDelError) {
+        console.error("Failed to delete local staff record after other error:", fsDelError);
+        detailedMessage += " Also failed to cleanup local staff record.";
     }
     return { success: false, message: detailedMessage };
   }
@@ -383,7 +445,7 @@ export async function deleteStaffAction(
 
 
 export async function toggleStaffAccountDisabledStatusAction(
-  authUid: string, 
+  authUid: string,
   adminId: string
 ): Promise<StaffOperationResult> {
   if (!(await verifyAdmin(adminId))) {
@@ -419,3 +481,4 @@ export async function toggleStaffAccountDisabledStatusAction(
     return { success: false, message: error.message || 'Failed to toggle staff account status.' };
   }
 }
+
