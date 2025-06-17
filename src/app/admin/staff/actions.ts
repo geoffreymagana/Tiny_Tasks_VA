@@ -6,9 +6,10 @@ import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { z } from 'zod';
 import nodemailer from 'nodemailer';
-import { render } from 'react-email/render';
+import { render } from 'react-email'; // Corrected import
 import { StaffInviteEmail } from '@/emails/staff-invite-email';
 import { getAgencySettingsAction } from '@/app/admin/settings/actions';
+import React from 'react'; // Ensure React is imported for React.createElement
 
 
 // Department Configuration
@@ -101,7 +102,7 @@ export async function addStaffAction(
     const createStaffAuthUserCallable = httpsCallable(functions, 'createStaffAuthUser');
     const authResult = await createStaffAuthUserCallable({
       email: formData.email,
-      password: formData.passwordForNewUser, 
+      password: formData.passwordForNewUser, // Make sure CF uses this
       displayName: formData.name,
       department: formData.department,
     }) as { data: { success: boolean; uid?: string; message?: string } };
@@ -111,7 +112,7 @@ export async function addStaffAction(
     }
     const authUid = authResult.data.uid;
 
-    const newStaffDocRef = doc(collection(db, 'staff')); 
+    const newStaffDocRef = doc(collection(db, 'staff'));
     await setDoc(newStaffDocRef, {
       authUid: authUid,
       name: formData.name,
@@ -140,19 +141,19 @@ export async function addStaffAction(
           signInLink: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002'}/auth`,
           adminUsername: adminDisplayNameForEmail,
         };
-        const emailComponent = <StaffInviteEmail {...emailProps} />;
+        const emailComponent = React.createElement(StaffInviteEmail, emailProps);
         const emailHtml = render(emailComponent);
 
         const transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
           port: parseInt(process.env.SMTP_PORT || "587"),
-          secure: process.env.SMTP_SECURE === 'true', 
+          secure: process.env.SMTP_SECURE === 'true',
           auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
           },
           tls: {
-            rejectUnauthorized: process.env.NODE_ENV === 'production', 
+            rejectUnauthorized: process.env.NODE_ENV === 'production',
           }
         });
 
@@ -209,7 +210,7 @@ const convertDbTimestamp = (timestamp: any): string | null => {
                  return dateObj.toISOString();
             }
              console.warn("toDate() did not return a valid Date for staff actions. It might be an uncommitted ServerTimestamp:", timestamp);
-            return new Date().toISOString(); 
+            return new Date().toISOString();
         }
         const d = new Date(timestamp);
         if (!isNaN(d.getTime())) return d.toISOString();
@@ -345,7 +346,7 @@ export async function updateStaffAction(
     batch.update(staffRef, {
       name: formData.name,
       department: formData.department,
-      phone: formData.phone || '', 
+      phone: formData.phone || '',
       updatedAt: serverTimestamp(),
     });
 
@@ -356,7 +357,7 @@ export async function updateStaffAction(
           const userUpdateData: any = {
             displayName: formData.name,
             department: formData.department,
-            phone: formData.phone || userSnap.data()?.phone || '', 
+            phone: formData.phone || userSnap.data()?.phone || '',
             updatedAt: serverTimestamp(),
           };
           batch.update(userRef, userUpdateData);
@@ -418,7 +419,7 @@ export async function deleteStaffAction(
 
     if (!authDeletionResult.data.success) {
       console.warn(`Cloud Function "deleteStaffAuthUser" failed for UID ${effectiveAuthUid}: ${authDeletionResult.data.message}. Attempting to delete local staff record.`);
-      await deleteDoc(staffRef); 
+      await deleteDoc(staffRef);
       return { success: false, message: `Auth/User record deletion failed via Cloud Function: ${authDeletionResult.data.message}. Local staff record was deleted. Please verify Firebase Auth users.` };
     }
 
@@ -481,4 +482,3 @@ export async function toggleStaffAccountDisabledStatusAction(
     return { success: false, message: error.message || 'Failed to toggle staff account status.' };
   }
 }
-
