@@ -59,7 +59,8 @@ interface AdminUserData {
 
 async function verifyAdmin(adminId: string): Promise<boolean> {
   if (!adminDb) {
-    console.error("Firebase Admin DB is not initialized. Cannot verify admin.");
+    // This path should ideally not be hit if firebase-admin-init throws on failure
+    console.error("CRITICAL (verifyAdmin): Firebase Admin DB is not initialized. Cannot verify admin.");
     return false;
   }
   if (!adminId) return false;
@@ -70,8 +71,8 @@ async function verifyAdmin(adminId: string): Promise<boolean> {
 
 async function isEmailUniqueInStaffCollection(email: string, currentStaffId?: string): Promise<boolean> {
   if (!adminDb) {
-    console.error("Firebase Admin DB is not initialized. Cannot check email uniqueness.");
-    return false;
+    console.error("CRITICAL (isEmailUniqueInStaffCollection): Firebase Admin DB is not initialized. Cannot check email uniqueness.");
+    return false; 
   }
   const q = adminDb.collection('staff').where('email', '==', email);
   const querySnapshot = await q.get();
@@ -85,8 +86,8 @@ export async function addStaffAction(
   formData: CreateStaffActionData,
   adminId: string
 ): Promise<StaffOperationResult> {
-  if (!admin || !adminAuth || !adminDb) {
-    return { success: false, message: 'Firebase Admin SDK not initialized. Cannot add staff.' };
+  if (!adminAuth || !adminDb) { 
+    return { success: false, message: 'Firebase Admin SDK not initialized properly. Cannot add staff.' };
   }
   if (!(await verifyAdmin(adminId))) {
     return { success: false, message: 'User does not have admin privileges.' };
@@ -161,7 +162,7 @@ export async function addStaffAction(
           adminUsername: adminDisplayNameForEmail,
         };
         const emailComponent = React.createElement(StaffInviteEmail, emailProps);
-        const emailHtml = render(emailComponent);
+        const emailHtml = render(emailComponent); // render() comes from 'react-email'
 
         const transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
@@ -209,31 +210,38 @@ export async function addStaffAction(
 
 const convertDbTimestamp = (timestampField: any): string | null => {
     if (!timestampField) return null;
-    if (timestampField instanceof Timestamp) {
+    if (admin && admin.firestore && timestampField instanceof admin.firestore.Timestamp) { 
         return timestampField.toDate().toISOString();
     }
-    if (timestampField instanceof admin.firestore.Timestamp) { // Explicit check for Admin SDK Timestamp
+    if (typeof Timestamp !== 'undefined' && timestampField instanceof Timestamp) { // Client-side Timestamp (less likely here)
         return timestampField.toDate().toISOString();
     }
-    if (typeof timestampField === 'object' && timestampField !== null && typeof timestampField.seconds === 'number' && typeof timestampField.nanoseconds === 'number' && typeof timestampField.toDate === 'function') {
-      return timestampField.toDate().toISOString();
+    if (typeof timestampField === 'object' && timestampField !== null && typeof timestampField.toDate === 'function') {
+      try {
+        const dateObj = timestampField.toDate();
+        if (dateObj instanceof Date && !isNaN(dateObj.getTime())) {
+             return dateObj.toISOString();
+        }
+        console.warn("toDate() did not return a valid Date for staff actions:", timestampField);
+        return new Date().toISOString(); 
+      } catch (e) {
+        console.warn("Error calling toDate() on timestamp-like object:", e, timestampField);
+        return null;
+      }
+    }
+    if (timestampField instanceof Date) {
+        return timestampField.toISOString();
     }
     if (typeof timestampField === 'string' && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestampField)) {
       return timestampField;
     }
-    try {
-        if (timestampField && typeof timestampField.toDate === 'function') {
-            const dateObj = timestampField.toDate();
-            if (dateObj instanceof Date && !isNaN(dateObj.getTime())) {
-                 return dateObj.toISOString();
-            }
-            console.warn("toDate() did not return a valid Date for staff actions:", timestampField);
-            return new Date().toISOString();
-        }
-        const d = new Date(timestampField);
-        if (!isNaN(d.getTime())) return d.toISOString();
-    } catch (e) {
-       console.warn("Error converting timestamp in convertDbTimestamp for staff:", e, timestampField);
+     if (typeof timestampField === 'object' && timestampField !== null && typeof timestampField.seconds === 'number' && typeof timestampField.nanoseconds === 'number') {
+       try {
+         return new Date(timestampField.seconds * 1000 + timestampField.nanoseconds / 1000000).toISOString();
+       } catch (e) {
+         console.warn("Error converting object with sec/ns to Timestamp for staff:", e, timestampField);
+         return null;
+       }
     }
     console.warn("Unsupported timestamp format encountered in convertDbTimestamp for staff:", timestampField);
     return null;
@@ -241,11 +249,12 @@ const convertDbTimestamp = (timestampField: any): string | null => {
 
 export async function getAllStaffAction(): Promise<StaffMember[]> {
   if (!adminDb) {
-    console.error("Firebase Admin DB is not initialized. Cannot get all staff.");
+    console.error("CRITICAL (getAllStaffAction): Firebase Admin DB is not initialized. Cannot get all staff.");
     return [];
   }
   try {
-    const staffCollectionRef = adminDb.collection('staff') as CollectionReference<Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt' | 'isDisabled' | 'department' | 'name' | 'email' | 'phone'> & { createdAt: any, updatedAt: any, authUid?: string, department?: string, name?:string, email?:string, phone?:string }>;
+    type StaffDocDataType = Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt' | 'isDisabled' | 'department' | 'name' | 'email' | 'phone'> & { createdAt: any, updatedAt: any, authUid?: string, department?: string, name?:string, email?:string, phone?:string };
+    const staffCollectionRef = adminDb.collection('staff') as CollectionReference<StaffDocDataType>;
     const staffQuery = staffCollectionRef.orderBy('createdAt', 'desc');
     const staffSnapshot = await staffQuery.get();
 
@@ -298,7 +307,7 @@ export async function getAllStaffAction(): Promise<StaffMember[]> {
 
 export async function getStaffAction(staffId: string): Promise<StaffMember | null> {
   if (!adminDb) {
-    console.error("Firebase Admin DB is not initialized. Cannot get staff member.");
+    console.error("CRITICAL (getStaffAction): Firebase Admin DB is not initialized. Cannot get staff member.");
     return null;
   }
   try {
@@ -348,12 +357,12 @@ export async function getStaffAction(staffId: string): Promise<StaffMember | nul
 export async function updateStaffAction(
   staffId: string,
   formData: StaffFormData,
-  adminId: string
+  adminUserId: string
 ): Promise<StaffOperationResult> {
-  if (!admin || !adminAuth || !adminDb) {
-    return { success: false, message: 'Firebase Admin SDK not initialized. Cannot update staff.' };
+  if (!adminAuth || !adminDb) {
+    return { success: false, message: 'Firebase Admin SDK not initialized properly. Cannot update staff.' };
   }
-  if (!(await verifyAdmin(adminId))) {
+  if (!(await verifyAdmin(adminUserId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
 
@@ -395,7 +404,7 @@ export async function updateStaffAction(
         console.warn(`User document not found for staff authUid: ${existingStaffData.authUid} during update. Only local staff record updated.`);
       }
     } else {
-        const usersCollectionRef = adminDb.collection('users');
+        const usersCollectionRef = adminDb.collection('users') as CollectionReference<{phone?:string}>;
         const usersQuery = usersCollectionRef.where('email', '==', existingStaffData.email).where('role', '==', 'staff');
         const usersSnapshot = await usersQuery.get();
         if (!usersSnapshot.empty) {
@@ -425,12 +434,12 @@ export async function updateStaffAction(
 export async function deleteStaffAction(
   staffId: string,
   authUid: string | null | undefined,
-  adminId: string
+  adminUserId: string
 ): Promise<StaffOperationResult> {
-  if (!admin || !adminAuth || !adminDb) {
-    return { success: false, message: 'Firebase Admin SDK not initialized. Cannot delete staff.' };
+  if (!adminAuth || !adminDb) {
+    return { success: false, message: 'Firebase Admin SDK not initialized properly. Cannot delete staff.' };
   }
-  if (!(await verifyAdmin(adminId))) {
+  if (!(await verifyAdmin(adminUserId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
 
@@ -477,12 +486,12 @@ export async function deleteStaffAction(
 
 export async function toggleStaffAccountDisabledStatusAction(
   authUid: string,
-  adminId: string
+  adminUserId: string
 ): Promise<StaffOperationResult> {
-  if (!admin || !adminAuth || !adminDb) {
-    return { success: false, message: 'Firebase Admin SDK not initialized. Cannot toggle staff status.' };
+  if (!adminAuth || !adminDb) {
+    return { success: false, message: 'Firebase Admin SDK not initialized properly. Cannot toggle staff status.' };
   }
-  if (!(await verifyAdmin(adminId))) {
+  if (!(await verifyAdmin(adminUserId))) {
     return { success: false, message: 'User does not have admin privileges to change account status.' };
   }
 
