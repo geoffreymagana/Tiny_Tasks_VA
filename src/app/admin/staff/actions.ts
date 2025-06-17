@@ -2,14 +2,16 @@
 'use server';
 
 import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, updateDoc, deleteDoc, query, where, Timestamp, writeBatch, setDoc, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase'; // For client-side SDK (if any parts still use it, though admin actions should use adminDb)
-import { admin, adminAuth, adminDb } from '@/lib/firebase-admin-init'; // Firebase Admin SDK
+// Ensure client 'db' is used only if absolutely necessary and appropriate for the context
+// For admin operations, always prefer 'adminDb' from firebase-admin-init
+// import { db } from '@/lib/firebase'; 
+import { admin, adminAuth, adminDb } from '@/lib/firebase-admin-init'; 
 import { z } from 'zod';
 import nodemailer from 'nodemailer';
-import { render } from 'react-email';
+import { render } from '@react-email/render'; // Corrected import
 import { StaffInviteEmail } from '@/emails/staff-invite-email';
 import { getAgencySettingsAction } from '@/app/admin/settings/actions';
-import React from 'react';
+import React from 'react'; 
 
 // Department Configuration
 const STAFF_DEPARTMENTS_CONFIG: Record<string, { name: string; color: string; textColor?: string }> = {
@@ -60,15 +62,19 @@ interface AdminUserData {
 }
 
 async function verifyAdmin(adminId: string): Promise<boolean> {
-  if (!adminId) return false;
+  if (!adminId || !adminDb) return false;
   const adminUserDocRef = adminDb.doc(`users/${adminId}`);
   const adminDoc = await adminUserDocRef.get();
   return adminDoc.exists && adminDoc.data()?.role === 'admin';
 }
 
 async function isEmailUniqueInStaffCollection(email: string, currentStaffId?: string): Promise<boolean> {
-  const q = query(collection(adminDb, 'staff'), where('email', '==', email));
-  const querySnapshot = await getDocs(q);
+  if (!adminDb) {
+    console.error("Admin SDK (adminDb) not initialized. Cannot check email uniqueness.");
+    return false; // Or throw an error
+  }
+  const q = adminDb.collection('staff').where('email', '==', email);
+  const querySnapshot = await q.get();
   if (querySnapshot.empty) return true;
   if (currentStaffId && querySnapshot.docs[0].id === currentStaffId) return true;
   return false;
@@ -77,8 +83,11 @@ async function isEmailUniqueInStaffCollection(email: string, currentStaffId?: st
 
 export async function addStaffAction(
   formData: CreateStaffActionData,
-  adminId: string // UID of the admin performing the action
+  adminId: string 
 ): Promise<StaffOperationResult> {
+  if (!adminAuth || !adminDb || !admin) {
+    return { success: false, message: 'Firebase Admin SDK not initialized. Staff creation failed.' };
+  }
   if (!(await verifyAdmin(adminId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
@@ -97,16 +106,14 @@ export async function addStaffAction(
   }
 
   try {
-    // Create Firebase Auth user
     const userRecord = await adminAuth.createUser({
       email: formData.email,
       password: formData.passwordForNewUser,
       displayName: formData.name,
-      emailVerified: false, // Or true, if you have a verification flow
+      emailVerified: false, 
     });
     const authUid = userRecord.uid;
 
-    // Create corresponding documents in Firestore
     const batch = adminDb.batch();
 
     const userDocRef = adminDb.doc(`users/${authUid}`);
@@ -122,7 +129,7 @@ export async function addStaffAction(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    const newStaffDocRef = adminDb.collection('staff').doc(); // Auto-generate ID for staff collection
+    const newStaffDocRef = adminDb.collection('staff').doc(); 
     batch.set(newStaffDocRef, {
       authUid: authUid,
       name: formData.name,
@@ -153,6 +160,7 @@ export async function addStaffAction(
           signInLink: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002'}/auth`,
           adminUsername: adminDisplayNameForEmail,
         };
+        
         const emailComponent = React.createElement(StaffInviteEmail, emailProps);
         const emailHtml = render(emailComponent);
 
@@ -202,11 +210,13 @@ export async function addStaffAction(
 
 const convertDbTimestamp = (timestamp: any): string | null => {
     if (!timestamp) return null;
-    if (timestamp instanceof Timestamp) { // Check for Firestore Timestamp first
-      return timestamp.toDate().toISOString();
-    }
-    if (timestamp instanceof admin.firestore.Timestamp) { // Check for Admin SDK Timestamp
+    // Check for Firebase Admin SDK Timestamp first
+    if (timestamp instanceof admin.firestore.Timestamp) { 
         return timestamp.toDate().toISOString();
+    }
+    // Check for client-side SDK Timestamp (less likely in server actions but good for completeness)
+    if (typeof Timestamp !== 'undefined' && timestamp instanceof Timestamp) {
+      return timestamp.toDate().toISOString();
     }
     if (typeof timestamp === 'string' && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp)) {
       return timestamp;
@@ -233,15 +243,19 @@ const convertDbTimestamp = (timestamp: any): string | null => {
 };
 
 export async function getAllStaffAction(): Promise<StaffMember[]> {
+  if (!adminDb) {
+    console.error("Admin SDK (adminDb) not initialized. Cannot fetch staff.");
+    return [];
+  }
   try {
     const staffCollectionRef = adminDb.collection('staff');
-    const staffQuery = query(staffCollectionRef, orderBy('createdAt', 'desc'));
-    const staffSnapshot = await getDocs(staffQuery);
+    const staffQuery = staffCollectionRef.orderBy('createdAt', 'desc');
+    const staffSnapshot = await staffQuery.get();
 
     const staffList: StaffMember[] = [];
 
     for (const staffDoc of staffSnapshot.docs) {
-      const staffData = staffDoc.data();
+      const staffData = staffDoc.data() as Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt' | 'isDisabled'> & { createdAt: any, updatedAt: any };
       let isDisabled = false;
       let departmentFromUser = staffData.department;
       let nameFromUser = staffData.name;
@@ -253,7 +267,7 @@ export async function getAllStaffAction(): Promise<StaffMember[]> {
         const userDocRef = adminDb.doc(`users/${staffData.authUid}`);
         const userDocSnap = await userDocRef.get();
         if (userDocSnap.exists) {
-          const userData = userDocSnap.data();
+          const userData = userDocSnap.data() as Partial<StaffMember> & {isDisabled?: boolean, department?: string, displayName?: string, email?: string, phone?: string };
           isDisabled = userData?.isDisabled === undefined ? false : userData.isDisabled;
           departmentFromUser = userData?.department || staffData.department;
           nameFromUser = userData?.displayName || staffData.name;
@@ -287,6 +301,10 @@ export async function getAllStaffAction(): Promise<StaffMember[]> {
 }
 
 export async function getStaffAction(staffId: string): Promise<StaffMember | null> {
+  if (!adminDb) {
+    console.error("Admin SDK (adminDb) not initialized. Cannot fetch staff member.");
+    return null;
+  }
   try {
     const staffDocRef = adminDb.doc(`staff/${staffId}`);
     const staffDocSnap = await staffDocRef.get();
@@ -294,7 +312,7 @@ export async function getStaffAction(staffId: string): Promise<StaffMember | nul
     if (!staffDocSnap.exists) {
       return null;
     }
-    const data = staffDocSnap.data()!; // Added non-null assertion
+    const data = staffDocSnap.data()  as Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt' | 'isDisabled'> & { createdAt: any, updatedAt: any };
     let isDisabled = false;
     let departmentFromUser = data.department;
     let nameFromUser = data.name;
@@ -305,7 +323,7 @@ export async function getStaffAction(staffId: string): Promise<StaffMember | nul
       const userDocRef = adminDb.doc(`users/${data.authUid}`);
       const userDocSnap = await userDocRef.get();
       if (userDocSnap.exists) {
-        const userData = userDocSnap.data()!; // Added non-null assertion
+        const userData = userDocSnap.data() as Partial<StaffMember> & {isDisabled?: boolean, department?: string, displayName?: string, email?: string, phone?: string };
         isDisabled = userData?.isDisabled === undefined ? false : userData.isDisabled;
         departmentFromUser = userData?.department || data.department;
         nameFromUser = userData?.displayName || data.name;
@@ -336,6 +354,9 @@ export async function updateStaffAction(
   formData: StaffFormData,
   adminId: string
 ): Promise<StaffOperationResult> {
+  if (!adminDb || !admin) {
+     return { success: false, message: 'Firebase Admin SDK not initialized. Staff update failed.' };
+  }
   if (!(await verifyAdmin(adminId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
@@ -345,7 +366,7 @@ export async function updateStaffAction(
   if (!staffSnap.exists) {
     return { success: false, message: 'Staff member not found in "staff" collection.' };
   }
-  const existingStaffData = staffSnap.data()!;
+  const existingStaffData = staffSnap.data() as Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt' | 'isDisabled'>;
 
   if (formData.email !== existingStaffData.email) {
       return { success: false, message: "Email address cannot be changed through this form."};
@@ -365,10 +386,11 @@ export async function updateStaffAction(
       const userRef = adminDb.doc(`users/${existingStaffData.authUid}`);
       const userSnap = await userRef.get();
       if (userSnap.exists) {
+          const userDataFromDb = userSnap.data();
           const userUpdateData: any = {
             displayName: formData.name,
             department: formData.department,
-            phone: formData.phone || userSnap.data()?.phone || '',
+            phone: formData.phone || userDataFromDb?.phone || '',
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           };
           batch.update(userRef, userUpdateData);
@@ -376,19 +398,18 @@ export async function updateStaffAction(
         console.warn(`User document not found for staff authUid: ${existingStaffData.authUid} during update. Only local staff record updated.`);
       }
     } else {
-        // Attempt to find user by email if authUid was missing on staff record
-        const usersQuery = query(adminDb.collection('users'), where('email', '==', existingStaffData.email), where('role', '==', 'staff'));
-        const usersSnapshot = await getDocs(usersQuery);
+        const usersQuery = adminDb.collection('users').where('email', '==', existingStaffData.email).where('role', '==', 'staff');
+        const usersSnapshot = await usersQuery.get();
         if (!usersSnapshot.empty) {
             const userRef = usersSnapshot.docs[0].ref;
+            const userDataFromDb = usersSnapshot.docs[0].data();
              const userUpdateData: any = {
                 displayName: formData.name,
                 department: formData.department,
-                phone: formData.phone || usersSnapshot.docs[0].data()?.phone || '',
+                phone: formData.phone || userDataFromDb?.phone || '',
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
             batch.update(userRef, userUpdateData);
-            // Also update staff record with the found authUid
             batch.update(staffRef, { authUid: usersSnapshot.docs[0].id });
         } else {
             console.warn(`User document not found for staff email: ${existingStaffData.email} during update (no authUid). Only local staff record updated.`);
@@ -408,6 +429,9 @@ export async function deleteStaffAction(
   authUid: string | null | undefined,
   adminId: string
 ): Promise<StaffOperationResult> {
+  if (!adminDb || !adminAuth) {
+     return { success: false, message: 'Firebase Admin SDK not initialized. Staff deletion failed.' };
+  }
   if (!(await verifyAdmin(adminId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
@@ -417,28 +441,26 @@ export async function deleteStaffAction(
   if (!staffSnap.exists()) {
     return { success: false, message: 'Staff record not found for deletion.' };
   }
-  const staffData = staffSnap.data()!;
+  const staffData = staffSnap.data() as Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt' | 'isDisabled'>;
   const effectiveAuthUid = authUid || staffData.authUid;
 
   try {
     const batch = adminDb.batch();
-    batch.delete(staffRef); // Delete the /staff/{staffId} document
+    batch.delete(staffRef); 
 
     if (effectiveAuthUid) {
       try {
-        await adminAuth.deleteUser(effectiveAuthUid); // Delete Firebase Auth user
+        await adminAuth.deleteUser(effectiveAuthUid); 
         console.log(`Successfully deleted Firebase Auth user: ${effectiveAuthUid}`);
       } catch (authError: any) {
-        // If user not found in Auth, it might have been deleted already or never existed properly.
-        // Log this but don't necessarily fail the whole operation if Firestore deletions can proceed.
         if (authError.code === 'auth/user-not-found') {
           console.warn(`Firebase Auth user ${effectiveAuthUid} not found, possibly already deleted.`);
         } else {
-          throw authError; // Re-throw other Auth errors
+          throw authError; 
         }
       }
       const userDocRef = adminDb.doc(`users/${effectiveAuthUid}`);
-      batch.delete(userDocRef); // Delete the /users/{authUid} document
+      batch.delete(userDocRef); 
     } else {
       console.warn(`Staff record ${staffId} deleted from Firestore. No authUid was found, so Firebase Auth user and /users record might need manual review/deletion if they exist under a different linkage.`);
     }
@@ -456,6 +478,9 @@ export async function toggleStaffAccountDisabledStatusAction(
   authUid: string,
   adminId: string
 ): Promise<StaffOperationResult> {
+  if (!adminAuth || !adminDb || !admin) {
+     return { success: false, message: 'Firebase Admin SDK not initialized. Cannot toggle status.' };
+  }
   if (!(await verifyAdmin(adminId))) {
     return { success: false, message: 'User does not have admin privileges to change account status.' };
   }
@@ -471,16 +496,14 @@ export async function toggleStaffAccountDisabledStatusAction(
       return { success: false, message: 'Staff user account not found in users collection. Cannot toggle status.' };
     }
 
-    const userData = userDocSnap.data()!;
+    const userData = userDocSnap.data() as Partial<StaffMember> & {isDisabled?: boolean};
     const currentDisabledStatus = userData.isDisabled === undefined ? false : userData.isDisabled;
     const newDisabledStatus = !currentDisabledStatus;
 
-    // Update Firebase Auth user status
     await adminAuth.updateUser(authUid, {
       disabled: newDisabledStatus,
     });
 
-    // Update Firestore user document
     await userDocRef.update({
       isDisabled: newDisabledStatus,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -496,3 +519,4 @@ export async function toggleStaffAccountDisabledStatusAction(
   }
 }
 
+    
