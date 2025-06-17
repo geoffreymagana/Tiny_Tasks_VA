@@ -19,7 +19,6 @@ import {
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import Image from 'next/image';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import { createClient } from '@/lib/supabase/client';
 import { getAgencySettingsAction, updateAgencySettingsAction, type AgencySettingsData, type SettingsOperationResult } from './actions';
 
 
@@ -47,9 +46,6 @@ const AdminSettingsPage: FC = () => {
   const agencyLogoFileRef = useRef<HTMLInputElement>(null);
   const agencyBannerFileRef = useRef<HTMLInputElement>(null);
   
-  const supabase = createClient();
-
-  // Refs for scrolling
   const generalRef = useRef<HTMLDivElement>(null);
   const userManagementRef = useRef<HTMLDivElement>(null);
   const vaManagementRef = useRef<HTMLDivElement>(null);
@@ -67,7 +63,6 @@ const AdminSettingsPage: FC = () => {
     { id: 'general', label: 'General', icon: <Palette className="mr-2 h-5 w-5" />, ref: generalRef },
     { id: 'userManagement', label: 'User Management', icon: <Users className="mr-2 h-5 w-5" />, ref: userManagementRef },
     { id: 'vaManagement', label: 'VA Management', icon: <Briefcase className="mr-2 h-5 w-5" />, ref: vaManagementRef },
-    // ... other nav items (omitted for brevity in this diff, but they exist in the original code)
     { id: 'clientSettings', label: 'Client Settings', icon: <Users2 className="mr-2 h-5 w-5" />, ref: clientSettingsRef },
     { id: 'communication', label: 'Communication', icon: <MessageSquareText className="mr-2 h-5 w-5" />, ref: communicationRef },
     { id: 'taskWorkflow', label: 'Task & Workflow', icon: <ListChecks className="mr-2 h-5 w-5" />, ref: taskWorkflowRef },
@@ -90,7 +85,6 @@ const AdminSettingsPage: FC = () => {
       setSelectedTimezone(settings.timezone || 'Africa/Nairobi');
       setSelectedCurrency(settings.defaultCurrency || 'KES');
     } else {
-      // Set defaults if no settings found
       setAgencyName('Tiny Tasks VA Services');
     }
     setIsLoadingSettings(false);
@@ -100,20 +94,18 @@ const AdminSettingsPage: FC = () => {
     loadAgencySettings();
   }, [loadAgencySettings]);
 
-
   const scrollToSection = (sectionRef: React.RefObject<HTMLDivElement>, sectionId: string) => {
     sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setActiveSection(sectionId);
   };
   
   const handleImageUpload = async (imageType: 'logo' | 'banner', file: File) => {
-    if (!firebaseUser?.uid) {
-      toast({ title: 'Authentication Error', variant: 'destructive' });
+    if (!firebaseUser?.uid || !process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || !process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET) {
+      toast({ title: 'Configuration Error', description: 'Cloudinary settings are missing.', variant: 'destructive' });
       return;
     }
     if (!file) return;
 
-    const bucketName = imageType === 'logo' ? 'logos' : 'banners';
     const setLoading = (isLoading: boolean) => setIsSaving(prev => ({ ...prev, [`upload-${imageType}`]: isLoading }));
     const setPreview = imageType === 'logo' ? setAgencyLogoUrl : setAgencyBannerUrl;
     const currentUrl = imageType === 'logo' ? agencyLogoUrl : agencyBannerUrl;
@@ -121,24 +113,28 @@ const AdminSettingsPage: FC = () => {
     setLoading(true);
     setPreview(URL.createObjectURL(file)); 
 
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
+    
+    // Define a folder structure within the main asset folder from Cloudinary preset
+    const folderPath = imageType === 'logo' ? 'agency_logos' : 'agency_banners';
+    formData.append('folder', folderPath);
+
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `agency-${imageType}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`; 
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+      const data = await response.json();
 
-      const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(filePath);
-      const publicUrl = urlData.publicUrl;
+      if (data.error || !data.secure_url) {
+        throw new Error(data.error?.message || 'Cloudinary upload failed.');
+      }
+      const publicUrl = data.secure_url;
 
       const updatePayload: Partial<AgencySettingsData> = {};
       if (imageType === 'logo') updatePayload.agencyLogoUrl = publicUrl;
@@ -148,7 +144,7 @@ const AdminSettingsPage: FC = () => {
 
       if (result.success) {
         toast({ title: `Agency ${imageType} Updated`, description: `Agency ${imageType} successfully updated.` });
-        if (result.data) { // Update state with potentially merged data from server
+        if (result.data) { 
             if (imageType === 'logo') setAgencyLogoUrl(result.data.agencyLogoUrl || null);
             if (imageType === 'banner') setAgencyBannerUrl(result.data.agencyBannerUrl || null);
         }
@@ -157,7 +153,7 @@ const AdminSettingsPage: FC = () => {
       }
     } catch (error: any) {
       toast({ title: `Upload Failed`, description: error.message || `Could not upload agency ${imageType}.`, variant: 'destructive' });
-      setPreview(currentUrl); // Revert to old URL on failure
+      setPreview(currentUrl); 
     } finally {
       setLoading(false);
       if (imageType === 'logo' && agencyLogoFileRef.current) agencyLogoFileRef.current.value = "";
@@ -182,7 +178,7 @@ const AdminSettingsPage: FC = () => {
     const result = await updateAgencySettingsAction(settingsToSave, firebaseUser.uid);
     if (result.success) {
         toast({ title: "General Settings Saved", description: "Your changes have been saved." });
-         if (result.data) { // Refresh local state from server response
+         if (result.data) { 
             setAgencyName(result.data.agencyName || 'Tiny Tasks VA Services');
             setSelectedTheme(result.data.theme || 'light');
             setSelectedTimezone(result.data.timezone || 'Africa/Nairobi');
@@ -192,6 +188,18 @@ const AdminSettingsPage: FC = () => {
         toast({ title: "Save Failed", description: result.message, variant: "destructive" });
     }
     setIsSaving(prev => ({ ...prev, general: false }));
+  };
+  
+  const handleSaveSection = async (sectionId: string) => {
+    if (!firebaseUser?.uid) {
+      toast({ title: 'Authentication Error', variant: 'destructive' });
+      return;
+    }
+    setIsSaving(prev => ({ ...prev, [sectionId]: true }));
+    // Placeholder: Implement actual save logic for other sections later
+    await new Promise(resolve => setTimeout(resolve, 1500)); 
+    toast({ title: `${sectionId.charAt(0).toUpperCase() + sectionId.slice(1)} Settings`, description: `Settings for ${sectionId} would be saved here.` });
+    setIsSaving(prev => ({ ...prev, [sectionId]: false }));
   };
 
 
@@ -203,7 +211,6 @@ const AdminSettingsPage: FC = () => {
       </div>
     );
   }
-
 
   return (
     <div className="flex flex-col md:flex-row gap-8 h-full">
@@ -256,7 +263,7 @@ const AdminSettingsPage: FC = () => {
                             width={100} height={40} 
                             className="bg-muted rounded p-1 object-contain h-10" 
                             data-ai-hint="agency logo"
-                            key={agencyLogoUrl} 
+                            key={agencyLogoUrl || 'default-agency-logo'} 
                         />
                         <input type="file" ref={agencyLogoFileRef} hidden accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload('logo', e.target.files[0])} />
                         <Button variant="outline" size="sm" onClick={() => agencyLogoFileRef.current?.click()} disabled={isSaving['upload-logo']}>
@@ -274,7 +281,7 @@ const AdminSettingsPage: FC = () => {
                             width={150} height={50} 
                             className="bg-muted rounded p-1 object-contain h-12" 
                             data-ai-hint="website banner wide"
-                            key={agencyBannerUrl}
+                            key={agencyBannerUrl || 'default-agency-banner'}
                         />
                         <input type="file" ref={agencyBannerFileRef} hidden accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload('banner', e.target.files[0])} />
                         <Button variant="outline" size="sm" onClick={() => agencyBannerFileRef.current?.click()} disabled={isSaving['upload-banner']}>
@@ -336,7 +343,7 @@ const AdminSettingsPage: FC = () => {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button onClick={handleSaveGeneralSettings} disabled={isSaving['general']}>
+                  <Button onClick={handleSaveGeneralSettings} disabled={isSaving['general'] || isSaving['upload-logo'] || isSaving['upload-banner']}>
                     {isSaving['general'] && <LottieLoader className="mr-2" size={16} />}
                     <Save className="mr-2 h-4 w-4"/> Save General Settings
                   </Button>

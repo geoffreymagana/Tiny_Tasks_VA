@@ -17,7 +17,6 @@ import { LottieLoader } from '@/components/ui/lottie-loader';
 import { User, Shield, Users2, Bell, Trash2, Save, Camera, UploadCloud, Pencil, BadgeCheck } from 'lucide-react';
 import { updateUserProfileServerAction, type UserProfileUpdateResult } from './actions';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { createClient } from '@/lib/supabase/client';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, "Name must be at least 2 characters").max(50, "Name is too long"),
@@ -52,8 +51,6 @@ const AdminProfilePage: FC = () => {
   const notificationsRef = useRef<HTMLDivElement>(null);
   const deleteRef = useRef<HTMLDivElement>(null);
   
-  const supabase = createClient();
-
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
@@ -112,38 +109,46 @@ const AdminProfilePage: FC = () => {
   };
 
   const handleImageUpload = async (imageType: 'avatar' | 'banner', file: File) => {
-    if (!firebaseUser?.uid) {
-      toast({ title: 'Authentication Error', variant: 'destructive' });
+    if (!firebaseUser?.uid || !process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || !process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET) {
+      toast({ title: 'Configuration Error', description: 'Cloudinary settings are missing.', variant: 'destructive' });
       return;
     }
     if (!file) return;
 
-    const bucketName = imageType === 'avatar' ? 'avatars' : 'banners';
     const setLoading = imageType === 'avatar' ? setIsUploadingAvatar : setIsUploadingBanner;
     const setPreview = imageType === 'avatar' ? setAvatarPreview : setBannerPreview;
+    const currentUrl = imageType === 'avatar' ? userData?.photoURL : userData?.bannerURL;
 
     setLoading(true);
     setPreview(URL.createObjectURL(file)); // Show local preview immediately
 
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
+    
+    // Organize uploads within the main asset folder defined in the Cloudinary preset
+    const folderPath = imageType === 'avatar' 
+      ? `avatars/${firebaseUser.uid}` 
+      : `profile_banners/${firebaseUser.uid}`;
+    formData.append('folder', folderPath);
+
+
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${firebaseUser.uid}-${Date.now()}.${fileExt}`;
-      const filePath = `${firebaseUser.uid}/${fileName}`; // Organize by user UID in Supabase
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
 
-      const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true, // Overwrite if file with same path exists
-        });
+      const data = await response.json();
 
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(filePath);
+      if (data.error || !data.secure_url) {
+        throw new Error(data.error?.message || 'Cloudinary upload failed.');
+      }
       
-      const publicUrl = urlData.publicUrl;
+      const publicUrl = data.secure_url;
 
       const updates: { photoURL?: string | null; bannerURL?: string | null } = {};
       if (imageType === 'avatar') updates.photoURL = publicUrl;
@@ -153,17 +158,15 @@ const AdminProfilePage: FC = () => {
 
       if (result.success) {
         toast({ title: `${imageType === 'avatar' ? 'Avatar' : 'Banner'} Updated`, description: `Your ${imageType} has been successfully updated.` });
-        refetchUserData?.(); // This will fetch new userData which includes the new URL
+        refetchUserData?.(); 
       } else {
         throw new Error(result.message);
       }
     } catch (error: any) {
       toast({ title: `Upload Failed`, description: error.message || `Could not upload ${imageType}.`, variant: 'destructive' });
-      // Revert preview if upload failed
-      setPreview(imageType === 'avatar' ? userData?.photoURL || null : userData?.bannerURL || null);
+      setPreview(currentUrl || null); 
     } finally {
       setLoading(false);
-      // Clear file input
       if (imageType === 'avatar' && avatarFileRef.current) avatarFileRef.current.value = "";
       if (imageType === 'banner' && bannerFileRef.current) bannerFileRef.current.value = "";
     }
@@ -213,11 +216,11 @@ const AdminProfilePage: FC = () => {
                     <Image
                       src={bannerPreview || "https://placehold.co/1200x400.png"}
                       alt="Profile Banner"
-                      layout="fill"
-                      objectFit="cover"
+                      fill
+                      style={{objectFit:"cover"}}
                       className="rounded-t-lg"
                       data-ai-hint="abstract gradient modern"
-                      key={bannerPreview} // Force re-render on URL change
+                      key={bannerPreview || 'default-banner'} // Force re-render on URL change
                     />
                      <input 
                       type="file" 
@@ -244,11 +247,11 @@ const AdminProfilePage: FC = () => {
                       <Image
                         src={avatarPreview || "https://placehold.co/160x160.png"}
                         alt={userData?.displayName || "User Avatar"}
-                        layout="fill"
-                        objectFit="cover"
+                        fill
+                        style={{objectFit:"cover"}}
                         className="rounded-full border-4 border-card bg-card"
                         data-ai-hint="professional avatar"
-                        key={avatarPreview} // Force re-render on URL change
+                        key={avatarPreview || 'default-avatar'} // Force re-render on URL change
                       />
                        <input 
                         type="file" 
@@ -277,7 +280,7 @@ const AdminProfilePage: FC = () => {
                             {userData?.displayName || 'User Name'}
                           </h1>
                           {userData?.role === 'admin' && (
-                            <BadgeCheck className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" style={{ color: "#ef3da6" }} title="Verified Admin" />
+                            <BadgeCheck className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" style={{color: "#ef3da6"}} title="Verified Admin" />
                           )}
                           <Button 
                             variant="ghost" 

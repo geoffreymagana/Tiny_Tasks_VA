@@ -1,50 +1,17 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+
+// This file will be deleted as Supabase middleware is no longer needed.
+// If you have other middleware logic here, ensure it's still relevant.
+// For now, we'll make it an empty export to prevent build errors if referenced elsewhere.
+
 import { type NextRequest, NextResponse } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
+  // Placeholder if other middleware logic is added in the future
+  return NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          // If the cookie is set, update the request and response.
-          request.cookies.set({ name, value, ...options });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          // If the cookie is removed, update the request and response.
-          request.cookies.set({ name, value: '', ...options });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
-
-  // Refresh session if expired - crucial!
-  // This also Eagerly loads the session in server components and server actions
-  await supabase.auth.getUser();
-
-  return response;
 }
 
 export const config = {

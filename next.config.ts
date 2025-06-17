@@ -19,27 +19,27 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com', // More specific to images subdomain
+        hostname: 'images.unsplash.com', 
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'source.unsplash.com', // For random images
+        hostname: 'source.unsplash.com', 
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'unsplash.com', // General Unsplash domain if direct links are used
+        hostname: 'unsplash.com', 
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'gsbneivhlwaahcqssimc.supabase.co', // Your Supabase project ref
+        hostname: 'res.cloudinary.com', // Added Cloudinary hostname
         port: '',
-        pathname: '/storage/v1/object/public/**', // Adjust if your bucket or paths differ
+        pathname: `/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/**`, // Scoped to your cloud
       }
     ],
   },
