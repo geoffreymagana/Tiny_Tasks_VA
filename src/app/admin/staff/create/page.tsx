@@ -10,17 +10,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Label } from '@/components/ui/label'; // Keep Label for direct use
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { ArrowLeft, Save, UserPlus, Eye, EyeOff } from 'lucide-react';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { addStaffAction, type CreateStaffActionData, type StaffOperationResult } from '../actions';
+
 
 // Department Configuration
 const STAFF_DEPARTMENTS_CONFIG: Record<string, { name: string; color: string; textColor?: string }> = {
@@ -41,100 +41,70 @@ const STAFF_DEPARTMENT_NAMES = Object.keys(STAFF_DEPARTMENTS_CONFIG);
 const staffFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(100, "Name too long."),
   email: z.string().email("Invalid email address.").max(100, "Email too long."),
-  password: z.string().min(6, "Password must be at least 6 characters."),
+  passwordForNewUser: z.string().min(6, "Password must be at least 6 characters."),
   department: z.enum(STAFF_DEPARTMENT_NAMES as [string, ...string[]], {
     errorMap: () => ({ message: "Please select a valid department." }),
   }),
   phone: z.string().max(20, "Phone number too long.").optional().or(z.literal('')),
+  sendInviteEmail: z.boolean().default(false),
 });
 
-export type StaffFormData = z.infer<typeof staffFormSchema>;
+export type StaffFormValues = z.infer<typeof staffFormSchema>;
 
 const CreateStaffPage: FC = () => {
   const { toast } = useToast();
   const router = useRouter();
-  const { user: adminFirebaseUser } = useAdminAuth(); // Renamed to avoid conflict
+  const { user: adminFirebaseUser } = useAdminAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const form = useForm<StaffFormData>({
+  const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffFormSchema),
     defaultValues: {
       name: '',
       email: '',
-      password: '',
+      passwordForNewUser: '',
       department: undefined, 
       phone: '',
+      sendInviteEmail: true, // Default to true
     },
   });
 
-  const handleSaveStaff: SubmitHandler<StaffFormData> = async (data) => {
+  const handleSaveStaff: SubmitHandler<StaffFormValues> = async (data) => {
     setIsSubmitting(true);
-    if (!adminFirebaseUser?.uid) { // Check original admin user
+    if (!adminFirebaseUser?.uid) {
       toast({ title: 'Authentication Error', description: 'Admin not authenticated.', variant: 'destructive' });
       setIsSubmitting(false);
       return;
     }
-
-    try {
-      // 1. Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      const newStaffUser = userCredential.user;
-
-      // 2. Update Firebase Auth profile (displayName)
-      await updateProfile(newStaffUser, { displayName: data.name });
-
-      // 3. Create Firestore document in /users collection
-      const userDocRef = doc(db, 'users', newStaffUser.uid);
-      await setDoc(userDocRef, {
-        uid: newStaffUser.uid,
-        email: newStaffUser.email,
-        displayName: data.name,
-        role: 'staff',
-        department: data.department,
-        isDisabled: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // 4. Create Firestore document in /staff collection
-      const staffCollectionRef = collection(db, 'staff');
-      const newStaffDocRef = doc(staffCollectionRef); // Auto-generate ID for staff specific record
-      await setDoc(newStaffDocRef, {
-        authUid: newStaffUser.uid,
+    
+    const actionData: CreateStaffActionData = {
         name: data.name,
         email: data.email,
+        passwordForNewUser: data.passwordForNewUser,
         department: data.department,
-        phone: data.phone || '',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      
+        phone: data.phone,
+        sendInviteEmail: data.sendInviteEmail,
+    };
+
+    const result: StaffOperationResult = await addStaffAction(actionData, adminFirebaseUser.uid);
+    
+    if (result.success) {
       toast({
-        title: 'Staff Member Created',
-        description: `${data.name} has been successfully created. You are now logged in as this new staff member. To continue admin tasks, please sign out and sign back in with your admin credentials.`,
-        duration: 10000, // Longer duration for this important message
+        title: 'Staff Member Action Initiated',
+        description: result.message,
+        duration: 8000, 
       });
-
-      // After this, the onAuthStateChanged listener in useAdminAuth should pick up the new user,
-      // and redirectToDashboard in auth/page.tsx (if it's still part of that flow)
-      // or a similar logic should redirect to the staff portal.
-      // If not, we might need to explicitly call router.push here for the staff portal.
-      // For now, relying on the auth state change to trigger redirection.
-      // Explicitly push to a known location to ensure admin sees they are logged in as new user.
-      router.push('/admin/staff'); // Or '/staff-portal' once that's ready
-
-    } catch (error: any) {
-      console.error('Error creating staff member:', error);
+      router.push('/admin/staff');
+    } else {
       toast({
         title: 'Staff Creation Failed',
-        description: error.message || 'An unexpected error occurred.',
+        description: result.message || 'An unexpected error occurred.',
         variant: 'destructive',
         duration: 7000,
       });
-    } finally {
-      setIsSubmitting(false);
     }
+    setIsSubmitting(false);
   };
 
   return (
@@ -150,8 +120,7 @@ const CreateStaffPage: FC = () => {
             <UserPlus className="mr-3 h-7 w-7" /> Add New Staff Member
           </CardTitle>
           <CardDescription>
-            Enter details for the new staff member. This will create a new user account.
-            The admin performing this action will be temporarily signed in as the new staff member.
+            Enter details for the new staff member. An account will be created using the provided email and password.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -185,15 +154,15 @@ const CreateStaffPage: FC = () => {
               />
               <FormField
                 control={form.control}
-                name="password"
+                name="passwordForNewUser"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password *</FormLabel>
+                    <FormLabel>Set Initial Password *</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Enter a strong password"
+                          placeholder="Enter initial password for staff"
                           {...field}
                           disabled={isSubmitting}
                           className="pr-10"
@@ -249,6 +218,27 @@ const CreateStaffPage: FC = () => {
                       <Input type="tel" placeholder="e.g., +1 555-987-6543" {...field} value={field.value ?? ''} disabled={isSubmitting} />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="sendInviteEmail"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Send Invitation Email</FormLabel>
+                      <FormDescription>
+                        If checked, an email with login details will be sent to the staff member.
+                      </FormDescription>
+                    </div>
                   </FormItem>
                 )}
               />

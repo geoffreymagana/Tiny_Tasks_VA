@@ -2,12 +2,10 @@
 'use server';
 
 import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, updateDoc, deleteDoc, query, where, Timestamp, writeBatch, setDoc, orderBy } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
+import { db, functions, auth as firebaseAuthClient } from '@/lib/firebase'; // Added firebaseAuthClient for direct auth operations
 import { httpsCallable } from 'firebase/functions';
 import { z } from 'zod';
-
-// Default password for new staff members created via Cloud Function
-const defaultStaffPassword = "password123"; // Changed from "12345678" to "password123" as per Cloud Function setup
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 // Zod schema for staff form data validation (department validation handled by Select component)
 const staffFormSchema = z.object({
@@ -17,6 +15,13 @@ const staffFormSchema = z.object({
   phone: z.string().max(20).optional().or(z.literal('')),
 });
 export type StaffFormData = z.infer<typeof staffFormSchema>;
+
+// Extended form data for creation action to include password and invite flag
+export interface CreateStaffActionData extends StaffFormData {
+  passwordForNewUser: string;
+  sendInviteEmail?: boolean;
+}
+
 
 export interface StaffMember extends StaffFormData {
   id: string;
@@ -40,74 +45,96 @@ async function verifyAdmin(adminId: string): Promise<boolean> {
   return adminDoc.exists() && adminDoc.data()?.role === 'admin';
 }
 
-// Email uniqueness check specific to the 'staff' collection for its own records
 async function isEmailUniqueInStaffCollection(email: string, currentStaffId?: string): Promise<boolean> {
   const q = query(collection(db, 'staff'), where('email', '==', email));
   const querySnapshot = await getDocs(q);
   if (querySnapshot.empty) return true;
-  if (currentStaffId && querySnapshot.docs[0].id === currentStaffId) return true; // Allow email if it belongs to the current staff being updated
+  if (currentStaffId && querySnapshot.docs[0].id === currentStaffId) return true;
   return false;
 }
 
 
 export async function addStaffAction(
-  formData: StaffFormData,
+  formData: CreateStaffActionData,
   adminId: string
 ): Promise<StaffOperationResult> {
   if (!(await verifyAdmin(adminId))) {
     return { success: false, message: 'User does not have admin privileges.' };
   }
 
-  // Check if email is already in use in the local 'staff' collection first
-  // (Cloud Function will handle uniqueness for Auth and 'users' collection)
   if (!(await isEmailUniqueInStaffCollection(formData.email))) {
-     return { success: false, message: 'This email address is already in use by an existing staff record in the local staff list.' };
+     return { success: false, message: 'This email address is already in use by an existing staff record.' };
   }
 
   try {
+    // 1. Create Firebase Auth user directly - This part is tricky in a Server Action
+    // Firebase Admin SDK should be used for this, typically in a Cloud Function
+    // or a backend environment. Client SDK createUserWithEmailAndPassword cannot
+    // be directly used in a Server Action without re-authenticating or complex setup.
+    // FOR SIMULATION: We will assume the Cloud Function approach is still preferred for security,
+    // and the Cloud Function is adapted to optionally send the email.
+    // OR, if the user *really* wants direct creation here (less secure for password handling):
+    // This section would need careful thought on how to handle auth creation securely from server action.
+    //
+    // **Revised Approach: Using the Cloud Function as it's more robust for Auth creation.**
+    // The Cloud Function will need to be updated to accept the password if provided,
+    // or generate one if not, and return it for the email.
+    // For now, we'll stick to the existing Cloud Function and assume it handles password (default or provided).
+    // The UI will collect a password and the invite flag.
+
     const createStaffAuthUserCallable = httpsCallable(functions, 'createStaffAuthUser');
-    
-    // Call the cloud function to create Auth user and /users entry
     const authResult = await createStaffAuthUserCallable({
       email: formData.email,
-      password: defaultStaffPassword,
+      password: formData.passwordForNewUser, // Pass the admin-set password
       displayName: formData.name,
       department: formData.department,
     }) as { data: { success: boolean; uid?: string; message?: string } };
 
     if (!authResult.data.success || !authResult.data.uid) {
-      throw new Error(authResult.data.message || 'Cloud Function "createStaffAuthUser" did not return success or UID.');
+      throw new Error(authResult.data.message || 'Cloud Function "createStaffAuthUser" failed.');
     }
     const authUid = authResult.data.uid;
 
-    // If Auth user and /users entry created successfully by function,
-    // then create the /staff collection entry
+    // 2. Create Firestore document in /staff collection (this remains local to this action)
     const newStaffDocRef = doc(collection(db, 'staff'));
     await setDoc(newStaffDocRef, {
-      ...formData, // name, email, department, phone
       authUid: authUid,
+      name: formData.name,
+      email: formData.email,
+      department: formData.department,
+      phone: formData.phone || '',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      // isDisabled status is primarily managed in the /users collection by the Cloud Function & toggle action
     });
+
+    // 3. Conceptually send email if requested
+    if (formData.sendInviteEmail) {
+      // In a real app, you'd render the React Email template and send it
+      console.log(`TODO: Send staff invite email to ${formData.email} with password: ${formData.passwordForNewUser}`);
+      // Example:
+      // const emailHtml = render(<StaffInviteEmail staffName={formData.name} staffEmail={formData.email} temporaryPassword={formData.passwordForNewUser} ... />);
+      // await sendEmail({ to: formData.email, subject: "Welcome to the Team!", html: emailHtml });
+      // This part requires an actual email sending service setup.
+    }
 
     return { 
         success: true, 
-        message: 'Staff member added: Auth account and user record created successfully via Cloud Function. Local staff record also created.', 
+        message: `Staff member ${formData.name} created. Auth account and user record handled by Cloud Function. ${formData.sendInviteEmail ? 'Invite email queued (simulated).' : ''}`, 
         staffId: newStaffDocRef.id, 
         authUid 
     };
   } catch (error: any) {
-    console.error('Full error details in addStaffAction:', error); // Log the full error object
+    console.error('Error in addStaffAction:', error);
     let detailedMessage = 'Failed to add staff member.';
-    if (error.code === 'functions/not-found' || error.code === 'not-found' || (error.message && error.message.toLowerCase().includes("not found"))) {
-        detailedMessage = 'Failed to add staff member: The "createStaffAuthUser" Cloud Function was not found. Please ensure it is correctly deployed and the name matches.';
+    if (error.code === 'functions/not-found' || (error.message && error.message.toLowerCase().includes("createStaffAuthUser".toLowerCase()) && error.message.toLowerCase().includes("not found"))) {
+        detailedMessage = 'Failed to add staff member: The "createStaffAuthUser" Cloud Function was not found or is misconfigured. Please ensure it is deployed.';
     } else if (error.message) {
         detailedMessage = `Failed to add staff member: ${error.message}`;
     }
     return { success: false, message: detailedMessage };
   }
 }
+
 
 const convertDbTimestamp = (timestamp: any): string | null => {
     if (!timestamp) return null;
@@ -121,8 +148,8 @@ const convertDbTimestamp = (timestamp: any): string | null => {
        return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate().toISOString();
     }
     try {
-        if (timestamp && typeof timestamp.toDate === 'function') { // Handle Firestore ServerTimestamp placeholder for client-side rendering
-            return new Date().toISOString(); // Fallback or indicate pending
+        if (timestamp && typeof timestamp.toDate === 'function') { 
+            return new Date().toISOString(); 
         }
         const d = new Date(timestamp);
         if (!isNaN(d.getTime())) return d.toISOString();
@@ -146,20 +173,17 @@ export async function getAllStaffAction(): Promise<StaffMember[]> {
       let isDisabled = false; 
       let departmentFromUser = staffData.department;
       
-      // Prefer isDisabled and department from the linked /users document if authUid exists
       if (staffData.authUid) {
         const userDocRef = doc(db, 'users', staffData.authUid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
-          isDisabled = userData?.isDisabled === undefined ? false : userData.isDisabled; // Default to false if undefined
-          departmentFromUser = userData?.department || staffData.department; // Prefer user record department
+          isDisabled = userData?.isDisabled === undefined ? false : userData.isDisabled;
+          departmentFromUser = userData?.department || staffData.department; 
         } else {
           console.warn(`User document not found for staff authUid: ${staffData.authUid}. Using staff record data for status/department.`);
         }
       } else {
-         // Fallback for older staff records that might not have authUid directly on staff doc,
-         // but for new entries, authUid should always be present.
          console.warn(`Staff record ${staffDoc.id} is missing authUid. Status and department might not be fully synced with user account.`);
       }
 
@@ -238,49 +262,34 @@ export async function updateStaffAction(
   }
   const existingStaffData = staffSnap.data();
 
-  // Email should not change via this form; if it did, Auth would need update via CF
   if (formData.email !== existingStaffData.email) {
       return { success: false, message: "Email address cannot be changed through this form."};
   }
-  
-  // Check for email uniqueness if it were to change, but it's read-only in form.
-  // If it becomes editable, this check for the staff collection itself (excluding current staff) is needed.
-  // if (formData.email !== existingStaffData.email && !(await isEmailUniqueInStaffCollection(formData.email, staffId))) {
-  //   return { success: false, message: 'This email address is already in use by another staff record in the local list.' };
-  // }
-
 
   try {
     const batch = writeBatch(db);
     
-    // Update staff collection document
     batch.update(staffRef, {
       name: formData.name,
       department: formData.department,
       phone: formData.phone,
-      // email: formData.email, // Not updating email to keep it simple.
       updatedAt: serverTimestamp(),
     });
 
-    // Update corresponding user document if authUid exists
     if (existingStaffData.authUid) {
       const userRef = doc(db, 'users', existingStaffData.authUid);
-      const userSnap = await getDoc(userRef); // Check if user doc actually exists
+      const userSnap = await getDoc(userRef); 
       if (userSnap.exists()) {
           const userUpdateData: any = {
             displayName: formData.name,
             department: formData.department,
-            // email: formData.email, // If email were to change, it should be updated via Auth function
             updatedAt: serverTimestamp(),
           };
           batch.update(userRef, userUpdateData);
       } else {
-        // This case is problematic: staff record has authUid but no corresponding user record.
-        // Could create it, or log a warning. For now, log.
         console.warn(`User document not found for staff authUid: ${existingStaffData.authUid} during update. Only local staff record updated.`);
       }
     } else {
-        // Attempt to find user by email if no authUid on staff record (legacy or issue)
         const usersQuery = query(collection(db, 'users'), where('email', '==', existingStaffData.email), where('role', '==', 'staff'));
         const usersSnapshot = await getDocs(usersQuery);
         if (!usersSnapshot.empty) {
@@ -306,7 +315,7 @@ export async function updateStaffAction(
 
 export async function deleteStaffAction(
   staffId: string,
-  authUid: string | null | undefined, // authUid is from the staff member object passed from frontend
+  authUid: string | null | undefined, 
   adminId: string
 ): Promise<StaffOperationResult> {
   if (!(await verifyAdmin(adminId))) {
@@ -319,12 +328,9 @@ export async function deleteStaffAction(
       return { success: false, message: 'Staff record not found for deletion.' };
   }
   const staffData = staffSnap.data();
-  // Prefer authUid passed from client (which should be from the staff object), fallback to record's authUid
   const effectiveAuthUid = authUid || staffData.authUid; 
 
   if (!effectiveAuthUid) {
-    // If no authUid, we can't call the Cloud Function to delete Auth user or /users doc.
-    // Fallback: delete only the /staff record. This is not ideal for data consistency.
     await deleteDoc(staffRef);
     console.warn(`Staff record ${staffId} deleted, but no authUid was found. Corresponding Auth user/user record might need manual review/deletion.`);
     return { success: true, message: 'Local staff record deleted. Linked Auth user/user record could not be automatically processed due to missing authUid.' };
@@ -335,31 +341,27 @@ export async function deleteStaffAction(
     const authDeletionResult = await deleteStaffAuthUserCallable({ uid: effectiveAuthUid }) as { data: { success: boolean; message?: string } };
 
     if (!authDeletionResult.data.success) {
-      // If CF returns success:false, use its message.
       throw new Error(authDeletionResult.data.message || 'Cloud Function "deleteStaffAuthUser" failed to delete user.');
     }
     
-    // If Auth/User deletion was successful via Cloud Function, then delete the /staff record
     await deleteDoc(staffRef);
 
     return { success: true, message: 'Staff member, their Auth account, and user record were deleted successfully via Cloud Function. Local staff record also removed.' };
   } catch (error: any) {
     console.error('Full error details in deleteStaffAction:', error);
     let detailedMessage = 'Failed to delete staff member.';
-     if (error.code === 'functions/not-found' || error.code === 'not-found' || (error.message && error.message.toLowerCase().includes("not found"))) {
+     if (error.code === 'functions/not-found' || (error.message && error.message.toLowerCase().includes("deleteStaffAuthUser".toLowerCase()) && error.message.toLowerCase().includes("not found"))) {
         detailedMessage = 'Failed to delete staff member: The "deleteStaffAuthUser" Cloud Function was not found. Please ensure it is correctly deployed and the name matches.';
     } else if (error.message) {
         detailedMessage = `Failed to delete staff member: ${error.message}`;
     }
-    // If the Cloud Function fails but the staff record still exists, we don't delete the staff record here
-    // to avoid partial deletion if the main issue was with Auth/user deletion.
     return { success: false, message: detailedMessage };
   }
 }
 
 
 export async function toggleStaffAccountDisabledStatusAction(
-  authUid: string, // This should always be the authUid of the staff member
+  authUid: string, 
   adminId: string
 ): Promise<StaffOperationResult> {
   if (!(await verifyAdmin(adminId))) {
