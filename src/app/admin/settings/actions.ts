@@ -1,7 +1,7 @@
 
 "use server";
 
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export interface AgencySettingsData {
@@ -11,6 +11,7 @@ export interface AgencySettingsData {
   theme?: 'light' | 'dark' | 'custom';
   timezone?: string | null;
   defaultCurrency?: string | null;
+  updatedAt?: string | null; // Added to reflect the actual data structure
   // Add other settings fields as needed
 }
 
@@ -29,12 +30,49 @@ async function verifyAdmin(adminUserId: string): Promise<boolean> {
   return adminDoc.exists() && adminDoc.data()?.role === 'admin';
 }
 
+// Helper to convert Firestore Timestamp to ISO string
+const convertDbTimestampToISOForSettings = (dbTimestamp: any): string | null => {
+  if (!dbTimestamp) return null;
+  if (dbTimestamp instanceof Timestamp) { return dbTimestamp.toDate().toISOString(); }
+  if (dbTimestamp instanceof Date) { return dbTimestamp.toISOString(); }
+  if (typeof dbTimestamp === 'object' && dbTimestamp !== null && 
+      typeof dbTimestamp.seconds === 'number' && typeof dbTimestamp.nanoseconds === 'number') {
+    try { return new Timestamp(dbTimestamp.seconds, dbTimestamp.nanoseconds).toDate().toISOString(); }
+    catch (e) { console.warn("Error converting object with sec/ns to Timestamp for settings:", e, dbTimestamp); return null; }
+  }
+  if (typeof dbTimestamp === 'object' && dbTimestamp !== null && typeof dbTimestamp.toDate === 'function') {
+    try {
+      const dateObj = dbTimestamp.toDate();
+      if (dateObj instanceof Date && !isNaN(dateObj.getTime())) { return dateObj.toISOString(); }
+      console.warn("toDate() did not return valid Date for settings:", dbTimestamp);
+      return new Date().toISOString(); // Fallback for uncommitted server timestamps or similar
+    } catch (e) { console.warn("Failed to convert object with toDate method for settings:", e, dbTimestamp); return null; }
+  }
+  if (typeof dbTimestamp === 'string') {
+    const d = new Date(dbTimestamp);
+    if (!isNaN(d.getTime())) { return d.toISOString(); } // Already an ISO string or valid date string
+    console.warn("Invalid date string for settings:", dbTimestamp); return null;
+  }
+  console.warn("Unparseable timestamp format for settings:", dbTimestamp); return null;
+};
+
+
 export async function getAgencySettingsAction(): Promise<AgencySettingsData | null> {
   try {
     const settingsDocRef = doc(db, SETTINGS_DOC_PATH);
     const docSnap = await getDoc(settingsDocRef);
     if (docSnap.exists()) {
-      return docSnap.data() as AgencySettingsData;
+      const data = docSnap.data();
+      // Ensure all fields are present or null, and timestamps are converted
+      return {
+        agencyName: data.agencyName || null,
+        agencyLogoUrl: data.agencyLogoUrl || null,
+        agencyBannerUrl: data.agencyBannerUrl || null,
+        theme: data.theme || 'light',
+        timezone: data.timezone || null,
+        defaultCurrency: data.defaultCurrency || null,
+        updatedAt: convertDbTimestampToISOForSettings(data.updatedAt), // Serialize timestamp
+      } as AgencySettingsData;
     }
     return null; // No settings configured yet
   } catch (error) {
@@ -57,9 +95,9 @@ export async function updateAgencySettingsAction(
 
   try {
     const settingsDocRef = doc(db, SETTINGS_DOC_PATH);
-    const dataToUpdate = {
+    const dataToUpdate: any = { // Use 'any' temporarily for flexibility before stricter typing
       ...settingsUpdate,
-      updatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(), // Firestore will convert this to a Timestamp
     };
 
     // Remove undefined fields to avoid overwriting with undefined if only partial update
@@ -72,11 +110,10 @@ export async function updateAgencySettingsAction(
     
     await setDoc(settingsDocRef, dataToUpdate, { merge: true });
     
-    // Fetch the updated document to return the full data
-    const updatedDocSnap = await getDoc(settingsDocRef);
-    const updatedData = updatedDocSnap.exists() ? updatedDocSnap.data() as AgencySettingsData : null;
+    // Fetch the updated document to return the full data, now with converted timestamp
+    const updatedSettings = await getAgencySettingsAction();
 
-    return { success: true, message: 'Agency settings updated successfully.', data: updatedData || undefined };
+    return { success: true, message: 'Agency settings updated successfully.', data: updatedSettings || undefined };
   } catch (error: any) {
     console.error('Error updating agency settings:', error);
     return { success: false, message: error.message || 'Failed to update agency settings.' };
