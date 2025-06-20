@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ArrowLeft, Edit, Briefcase, Settings2, Tags, Share2 } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
-import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
+import { useForm, Controller, type SubmitHandler, type Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { formatISO, parseISO } from 'date-fns';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Added missing import
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -43,6 +43,122 @@ const aiGenerateSchema = z.object({
   keyClauses: z.string().optional(), 
 });
 type AiGenerateFormValues = z.infer<typeof aiGenerateSchema>;
+
+interface ContractMetadataSidebarProps {
+  form: ReturnType<typeof useForm<CreateContractFormValues & { tagsInput?: string, contractNumber?: string }>>;
+  isSubmitting: boolean;
+  isTemplate: boolean;
+  clients: Client[];
+  isLoadingClients: boolean;
+  contractTemplates: Contract[];
+  isLoadingTemplates: boolean;
+  setSelectedTemplateId: (id: string | null) => void;
+}
+
+const ContractMetadataSidebar: FC<ContractMetadataSidebarProps> = ({
+  form,
+  isSubmitting,
+  isTemplate,
+  clients,
+  isLoadingClients,
+  contractTemplates,
+  isLoadingTemplates,
+  setSelectedTemplateId,
+}) => {
+  return (
+    <aside className="w-80 border-l border-border bg-background p-6 space-y-6 overflow-y-auto flex-shrink-0 transition-all duration-300">
+      <h3 className="text-lg font-semibold text-primary">Contract Settings</h3>
+      <Separator />
+      
+      <FormField control={form.control} name="isTemplate" render={({ field }) => (
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+            <div className="space-y-0.5"><FormLabel>Save as Template?</FormLabel><FormDescription className="text-xs">This contract will be reusable.</FormDescription></div>
+            <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} /></FormControl>
+          </FormItem>
+      )} />
+
+      {isTemplate && (
+        <FormField control={form.control} name="templateName" render={({ field }) => (
+            <FormItem><FormLabel>Template Name *</FormLabel><FormControl><Input placeholder="e.g., Standard Service Agreement" {...field} value={field.value ?? ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>
+        )} />
+      )}
+      
+      {!isTemplate && (
+        <div className="space-y-4">
+            <FormField control={form.control} name="clientId" render={({ field }) => (
+                <FormItem>
+                <FormLabel className="flex items-center text-sm"><Building className="mr-1.5 h-4 w-4 text-muted-foreground" />Client</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isLoadingClients || isSubmitting || isTemplate}>
+                    <FormControl><SelectTrigger><SelectValue placeholder={isLoadingClients ? "Loading..." : (isTemplate ? "N/A for templates" : "Select client")} /></SelectTrigger></FormControl>
+                    <SelectContent>{clients.map((client) => (<SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>))}</SelectContent>
+                </Select>
+                <FormMessage />
+                </FormItem>
+            )} />
+            <FormItem>
+                <FormLabel className="text-sm">Or Use Template Content</FormLabel>
+                <Select onValueChange={(value) => setSelectedTemplateId(value)} disabled={isLoadingTemplates || isSubmitting || isTemplate || contractTemplates.length === 0}>
+                    <SelectTrigger><SelectValue placeholder={isLoadingTemplates ? "Loading..." : (contractTemplates.length === 0 ? "No templates" : "Load from template")} /></SelectTrigger>
+                    <SelectContent>
+                        {contractTemplates.map((template) => (
+                            <SelectItem key={template.id} value={template.id!}> 
+                                {template.templateName || template.title}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <FormDescription className="text-xs">Populate fields with template content.</FormDescription>
+            </FormItem>
+        </div>
+      )}
+
+      <FormField control={form.control} name="effectiveDate" render={({ field }) => (
+          <FormItem className="flex flex-col"><FormLabel className="text-sm">Effective Date *</FormLabel><DatePicker date={field.value} setDate={field.onChange} disabled={isSubmitting} /><FormMessage /></FormItem>
+      )} />
+      <FormField control={form.control} name="expirationDate" render={({ field }) => (
+          <FormItem className="flex flex-col"><FormLabel className="text-sm">Expiration Date</FormLabel><DatePicker date={field.value} setDate={(date) => field.onChange(date || null)} placeholder="No expiration" disabled={isSubmitting} /><FormMessage /></FormItem>
+      )} />
+      
+      {!isTemplate && (
+        <FormField control={form.control} name="status" render={({ field }) => (
+            <FormItem className="space-y-2">
+              <FormLabel className="text-sm">Contract Status *</FormLabel>
+              <FormControl>
+                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-col space-y-1" disabled={isSubmitting || isTemplate}>
+                  {(['draft', 'pending_signature', 'active', 'expired', 'terminated'] as const).map((statusValue) => (
+                    <FormItem key={statusValue} className="flex items-center space-x-2">
+                      <RadioGroupItem value={statusValue} id={`status-${statusValue}`} />
+                      <Label htmlFor={`status-${statusValue}`} className="capitalize text-xs">{statusValue.replace('_', ' ')}</Label>
+                    </FormItem>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+        )} />
+      )}
+      {isTemplate && (
+         <div className="flex items-center space-x-2 p-2 bg-blue-50 border border-blue-200 rounded-md text-xs">
+            <Info className="h-4 w-4 text-blue-600" />
+            <p className="text-blue-700">This is a 'Template'. Status managed via 'Is Template' checkbox.</p>
+        </div>
+      )}
+       <FormField
+        control={form.control}
+        name="tagsInput"
+        render={({ field }) => (
+            <FormItem>
+            <FormLabel className="text-sm flex items-center"><Tags className="mr-1.5 h-4 w-4 text-muted-foreground" />Tags</FormLabel>
+            <FormControl><Input placeholder="e.g. NDA, Software, Q1-2024" {...field} value={field.value ?? ''} disabled={isSubmitting} /></FormControl>
+            <FormDescription className="text-xs">Comma-separated tags. Full tag support coming soon.</FormDescription>
+            <FormMessage />
+            </FormItem>
+        )}
+        />
+        <Button variant="outline" size="sm" className="w-full" disabled><Share2 className="mr-2 h-4 w-4" />Collaborate (Coming Soon)</Button>
+    </aside>
+  );
+};
 
 
 const EditContractNotionStylePage: FC = () => {
@@ -389,97 +505,16 @@ const EditContractNotionStylePage: FC = () => {
 
               
               {showMetadataSidebar && (
-                <aside className="w-80 border-l border-border bg-background p-6 space-y-6 overflow-y-auto flex-shrink-0 transition-all duration-300">
-                  <h3 className="text-lg font-semibold text-primary">Contract Settings</h3>
-                  <Separator />
-                  
-                  <FormField control={form.control} name="isTemplate" render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                        <div className="space-y-0.5"><FormLabel>Save as Template?</FormLabel><FormDescription className="text-xs">This contract will be reusable.</FormDescription></div>
-                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} /></FormControl>
-                      </FormItem>
-                  )} />
-
-                  {isTemplate && (
-                    <FormField control={form.control} name="templateName" render={({ field }) => (
-                        <FormItem><FormLabel>Template Name *</FormLabel><FormControl><Input placeholder="e.g., Standard Service Agreement" {...field} value={field.value ?? ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                  )}
-                  
-                  {!isTemplate && (
-                    <div className="space-y-4">
-                        <FormField control={form.control} name="clientId" render={({ field }) => (
-                            <FormItem>
-                            <FormLabel className="flex items-center text-sm"><Building className="mr-1.5 h-4 w-4 text-muted-foreground" />Client</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isLoadingClients || isSubmitting || isTemplate}>
-                                <FormControl><SelectTrigger><SelectValue placeholder={isLoadingClients ? "Loading..." : (isTemplate ? "N/A for templates" : "Select client")} /></SelectTrigger></FormControl>
-                                <SelectContent>{clients.map((client) => (<SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>))}</SelectContent>
-                            </Select>
-                            <FormMessage />
-                            </FormItem>
-                        )} />
-                        <FormItem>
-                            <FormLabel className="text-sm">Or Use Template Content</FormLabel>
-                            <Select onValueChange={(value) => setSelectedTemplateId(value)} disabled={isLoadingTemplates || isSubmitting || isTemplate || contractTemplates.length === 0}>
-                                <SelectTrigger><SelectValue placeholder={isLoadingTemplates ? "Loading..." : (contractTemplates.length === 0 ? "No templates" : "Load from template")} /></SelectTrigger>
-                                <SelectContent>
-                                    {contractTemplates.map((template) => (
-                                        <SelectItem key={template.id} value={template.id!}> 
-                                            {template.templateName || template.title}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormDescription className="text-xs">Populate fields with template content.</FormDescription>
-                        </FormItem>
-                    </div>
-                  )}
-
-                  <FormField control={form.control} name="effectiveDate" render={({ field }) => (
-                      <FormItem className="flex flex-col"><FormLabel className="text-sm">Effective Date *</FormLabel><DatePicker date={field.value} setDate={field.onChange} disabled={isSubmitting} /><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="expirationDate" render={({ field }) => (
-                      <FormItem className="flex flex-col"><FormLabel className="text-sm">Expiration Date</FormLabel><DatePicker date={field.value} setDate={(date) => field.onChange(date || null)} placeholder="No expiration" disabled={isSubmitting} /><FormMessage /></FormItem>
-                  )} />
-                  
-                  {!isTemplate && (
-                    <FormField control={form.control} name="status" render={({ field }) => (
-                        <FormItem className="space-y-2">
-                          <FormLabel className="text-sm">Contract Status *</FormLabel>
-                          <FormControl>
-                            <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-col space-y-1" disabled={isSubmitting || isTemplate}>
-                              {(['draft', 'pending_signature', 'active', 'expired', 'terminated'] as const).map((statusValue) => (
-                                <FormItem key={statusValue} className="flex items-center space-x-2">
-                                  <RadioGroupItem value={statusValue} id={`status-${statusValue}`} />
-                                  <Label htmlFor={`status-${statusValue}`} className="capitalize text-xs">{statusValue.replace('_', ' ')}</Label>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                    )} />
-                  )}
-                  {isTemplate && (
-                     <div className="flex items-center space-x-2 p-2 bg-blue-50 border border-blue-200 rounded-md text-xs">
-                        <Info className="h-4 w-4 text-blue-600" />
-                        <p className="text-blue-700">This is a 'Template'. Status managed via 'Is Template' checkbox.</p>
-                    </div>
-                  )}
-                   <FormField
-                    control={form.control}
-                    name="tagsInput"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel className="text-sm flex items-center"><Tags className="mr-1.5 h-4 w-4 text-muted-foreground" />Tags</FormLabel>
-                        <FormControl><Input placeholder="e.g. NDA, Software, Q1-2024" {...field} value={field.value ?? ''} disabled={isSubmitting} /></FormControl>
-                        <FormDescription className="text-xs">Comma-separated tags. Full tag support coming soon.</FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                    <Button variant="outline" size="sm" className="w-full" disabled><Share2 className="mr-2 h-4 w-4" />Collaborate (Coming Soon)</Button>
-                </aside>
+                 <ContractMetadataSidebar
+                  form={form}
+                  isSubmitting={isSubmitting}
+                  isTemplate={isTemplate}
+                  clients={clients}
+                  isLoadingClients={isLoadingClients}
+                  contractTemplates={contractTemplates}
+                  isLoadingTemplates={isLoadingTemplates}
+                  setSelectedTemplateId={setSelectedTemplateId}
+                />
               )}
             </div>
           </form>
