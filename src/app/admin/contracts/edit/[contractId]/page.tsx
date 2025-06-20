@@ -6,12 +6,6 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { ArrowLeft, Edit, Briefcase, Settings2, Tags, Share2 } from 'lucide-react';
-import { LottieLoader } from '@/components/ui/lottie-loader';
-import { useForm, Controller, type SubmitHandler, type Control } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { formatISO, parseISO } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,15 +18,22 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
+import { LottieLoader } from '@/components/ui/lottie-loader';
 import { Separator } from '@/components/ui/separator';
-import { FilePlus2, Building, Info, Sparkles, Bot, Wand2, Save } from 'lucide-react';
+import { ArrowLeft, Save, FilePlus2, Building, Info, Sparkles, Bot, Wand2, Settings2, Tags, Share2, Briefcase } from 'lucide-react';
+import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { formatISO, parseISO } from 'date-fns';
+import { z } from 'zod';
 
 import { getContractAction, updateContractAction, getAllContractTemplatesAction, type ContractOperationResult } from '../../actions';
-import { CreateContractFormSchema, type CreateContractFormValues, type Contract, type ContractStatus } from '../../schema';
+import { CreateContractFormSchema, type CreateContractFormValues, type Contract, type ContractStatus, defaultEditorContent } from '../../schema';
 import { getAllClientsAction, type Client } from '../../../clients/actions';
 import { generateContractContent, type GenerateContractContentInput } from '@/ai/flows/generate-contract-content-flow';
-import { improveContractContent, type ImproveContractContentInput } from '@/ai/flows/improve-contract-content-flow';
-import { z } from 'zod';
+// AI Improve flow is temporarily disabled
+// import { improveContractContent, type ImproveContractContentInput } from '@/ai/flows/improve-contract-content-flow';
+
+import { Editor } from "novel";
 
 
 const aiGenerateSchema = z.object({
@@ -45,7 +46,8 @@ const aiGenerateSchema = z.object({
 type AiGenerateFormValues = z.infer<typeof aiGenerateSchema>;
 
 interface ContractMetadataSidebarProps {
-  form: ReturnType<typeof useForm<CreateContractFormValues & { tagsInput?: string, contractNumber?: string }>>;
+  formControl: ReturnType<typeof useForm<CreateContractFormValues & { tagsInput?: string, contractNumber?: string }>>['control'];
+  formWatch: ReturnType<typeof useForm<CreateContractFormValues & { tagsInput?: string, contractNumber?: string }>>['watch'];
   isSubmitting: boolean;
   isTemplate: boolean;
   clients: Client[];
@@ -56,7 +58,8 @@ interface ContractMetadataSidebarProps {
 }
 
 const ContractMetadataSidebar: FC<ContractMetadataSidebarProps> = ({
-  form,
+  formControl,
+  formWatch,
   isSubmitting,
   isTemplate,
   clients,
@@ -70,7 +73,7 @@ const ContractMetadataSidebar: FC<ContractMetadataSidebarProps> = ({
       <h3 className="text-lg font-semibold text-primary">Contract Settings</h3>
       <Separator />
       
-      <FormField control={form.control} name="isTemplate" render={({ field }) => (
+      <FormField control={formControl} name="isTemplate" render={({ field }) => (
           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
             <div className="space-y-0.5"><FormLabel>Save as Template?</FormLabel><FormDescription className="text-xs">This contract will be reusable.</FormDescription></div>
             <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} /></FormControl>
@@ -78,14 +81,14 @@ const ContractMetadataSidebar: FC<ContractMetadataSidebarProps> = ({
       )} />
 
       {isTemplate && (
-        <FormField control={form.control} name="templateName" render={({ field }) => (
+        <FormField control={formControl} name="templateName" render={({ field }) => (
             <FormItem><FormLabel>Template Name *</FormLabel><FormControl><Input placeholder="e.g., Standard Service Agreement" {...field} value={field.value ?? ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>
         )} />
       )}
       
       {!isTemplate && (
         <div className="space-y-4">
-            <FormField control={form.control} name="clientId" render={({ field }) => (
+            <FormField control={formControl} name="clientId" render={({ field }) => (
                 <FormItem>
                 <FormLabel className="flex items-center text-sm"><Building className="mr-1.5 h-4 w-4 text-muted-foreground" />Client</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isLoadingClients || isSubmitting || isTemplate}>
@@ -96,31 +99,32 @@ const ContractMetadataSidebar: FC<ContractMetadataSidebarProps> = ({
                 </FormItem>
             )} />
             <FormItem>
-                <FormLabel className="text-sm">Or Use Template Content</FormLabel>
+                <Label className="text-sm">Or Use Template Content</Label>
                 <Select onValueChange={(value) => setSelectedTemplateId(value)} disabled={isLoadingTemplates || isSubmitting || isTemplate || contractTemplates.length === 0}>
                     <SelectTrigger><SelectValue placeholder={isLoadingTemplates ? "Loading..." : (contractTemplates.length === 0 ? "No templates" : "Load from template")} /></SelectTrigger>
                     <SelectContent>
                         {contractTemplates.map((template) => (
+                             template.id !== formWatch('id') && // Prevent loading itself if it's a template being edited
                             <SelectItem key={template.id} value={template.id!}> 
                                 {template.templateName || template.title}
                             </SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
-                <FormDescription className="text-xs">Populate fields with template content.</FormDescription>
+                <FormDescription className="text-xs">Populate editor with template content.</FormDescription>
             </FormItem>
         </div>
       )}
 
-      <FormField control={form.control} name="effectiveDate" render={({ field }) => (
+      <FormField control={formControl} name="effectiveDate" render={({ field }) => (
           <FormItem className="flex flex-col"><FormLabel className="text-sm">Effective Date *</FormLabel><DatePicker date={field.value} setDate={field.onChange} disabled={isSubmitting} /><FormMessage /></FormItem>
       )} />
-      <FormField control={form.control} name="expirationDate" render={({ field }) => (
+      <FormField control={formControl} name="expirationDate" render={({ field }) => (
           <FormItem className="flex flex-col"><FormLabel className="text-sm">Expiration Date</FormLabel><DatePicker date={field.value} setDate={(date) => field.onChange(date || null)} placeholder="No expiration" disabled={isSubmitting} /><FormMessage /></FormItem>
       )} />
       
       {!isTemplate && (
-        <FormField control={form.control} name="status" render={({ field }) => (
+        <FormField control={formControl} name="status" render={({ field }) => (
             <FormItem className="space-y-2">
               <FormLabel className="text-sm">Contract Status *</FormLabel>
               <FormControl>
@@ -144,13 +148,13 @@ const ContractMetadataSidebar: FC<ContractMetadataSidebarProps> = ({
         </div>
       )}
        <FormField
-        control={form.control}
+        control={formControl}
         name="tagsInput"
         render={({ field }) => (
             <FormItem>
             <FormLabel className="text-sm flex items-center"><Tags className="mr-1.5 h-4 w-4 text-muted-foreground" />Tags</FormLabel>
             <FormControl><Input placeholder="e.g. NDA, Software, Q1-2024" {...field} value={field.value ?? ''} disabled={isSubmitting} /></FormControl>
-            <FormDescription className="text-xs">Comma-separated tags. Full tag support coming soon.</FormDescription>
+            <FormDescription className="text-xs">Comma-separated tags. (Backend not implemented)</FormDescription>
             <FormMessage />
             </FormItem>
         )}
@@ -177,24 +181,20 @@ const EditContractNotionStylePage: FC = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
   const [isGeneratingAiContent, setIsGeneratingAiContent] = useState(false);
-  const [isImprovingAiContent, setIsImprovingAiContent] = useState(false);
+  // const [isImprovingAiContent, setIsImprovingAiContent] = useState(false); // AI Improve temporarily disabled
   const [aiDialogGenerateOpen, setAiDialogGenerateOpen] = useState(false);
   const [showMetadataSidebar, setShowMetadataSidebar] = useState(false);
 
 
-  const form = useForm<CreateContractFormValues & { tagsInput?: string, contractNumber?: string }>({ 
-    resolver: zodResolver(CreateContractFormSchema.extend({ tagsInput: z.string().optional(), contractNumber: z.string().optional() })),
+  const form = useForm<CreateContractFormValues & { tagsInput?: string, contractNumber?: string, id?: string }>({ 
+    resolver: zodResolver(CreateContractFormSchema.extend({ tagsInput: z.string().optional(), contractNumber: z.string().optional(), id: z.string().optional() })),
     defaultValues: {
+      id: contractId,
       title: 'Untitled Contract',
       clientId: '',
-      executiveSummary: '',
+      contentJson: defaultEditorContent,
       effectiveDate: new Date(),
       expirationDate: null,
-      serviceDescription: '',
-      termsAndConditions: '',
-      paymentTerms: '',
-      additionalClauses: '',
-      signatorySectionText: '',
       status: 'draft',
       isTemplate: false,
       templateName: '',
@@ -239,21 +239,17 @@ const EditContractNotionStylePage: FC = () => {
         const fetchedContract = await getContractAction(contractId);
         if (fetchedContract) {
             form.reset({
+                id: fetchedContract.id,
                 title: fetchedContract.title,
                 clientId: fetchedContract.clientId || '',
-                executiveSummary: fetchedContract.executiveSummary || '',
+                contentJson: fetchedContract.contentJson || defaultEditorContent,
                 effectiveDate: fetchedContract.effectiveDate ? parseISO(fetchedContract.effectiveDate) : new Date(),
                 expirationDate: fetchedContract.expirationDate ? parseISO(fetchedContract.expirationDate) : null,
-                serviceDescription: fetchedContract.serviceDescription,
-                termsAndConditions: fetchedContract.termsAndConditions,
-                paymentTerms: fetchedContract.paymentTerms || '',
-                additionalClauses: fetchedContract.additionalClauses || '',
-                signatorySectionText: fetchedContract.signatorySectionText || '',
-                status: fetchedContract.isTemplate ? 'draft' : fetchedContract.status as Exclude<ContractStatus, 'template'>, 
+                status: fetchedContract.isTemplate ? 'template' as ContractStatus : fetchedContract.status as Exclude<ContractStatus, 'template'>, 
                 isTemplate: fetchedContract.isTemplate,
                 templateName: fetchedContract.templateName || '',
                 contractNumber: fetchedContract.contractNumber, 
-                tagsInput: '', 
+                tagsInput: '', // Tags not stored yet
             });
         } else {
             toast({ title: "Error", description: "Contract not found.", variant: "destructive" });
@@ -286,12 +282,17 @@ const EditContractNotionStylePage: FC = () => {
         const template = contractTemplates.find(t => t.id === selectedTemplateId);
         if (template) {
             form.setValue('title', template.title, { shouldDirty: true });
-            form.setValue('executiveSummary', template.executiveSummary || '', { shouldDirty: true });
-            form.setValue('serviceDescription', template.serviceDescription, { shouldDirty: true });
-            form.setValue('termsAndConditions', template.termsAndConditions, { shouldDirty: true });
-            form.setValue('paymentTerms', template.paymentTerms || '', { shouldDirty: true });
-            form.setValue('additionalClauses', template.additionalClauses || '', { shouldDirty: true });
-            form.setValue('signatorySectionText', template.signatorySectionText || '', { shouldDirty: true });
+             if (template.contentJson) {
+              form.setValue('contentJson', template.contentJson, { shouldDirty: true });
+            } else {
+               form.setValue('contentJson', {
+                type: "doc",
+                content: [
+                  { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: template.title }] },
+                  ...(defaultEditorContent.content || [])
+                ]
+               }, { shouldDirty: true });
+            }
             toast({ title: "Template Applied", description: `Content from "${template.templateName || template.title}" loaded into editor.`});
         }
         setSelectedTemplateId(null); 
@@ -308,13 +309,14 @@ const EditContractNotionStylePage: FC = () => {
     }
     
     const dataForServerAction = {
-        ...data,
+        title: data.title,
+        clientId: data.isTemplate ? null : data.clientId,
+        contentJson: data.contentJson,
         effectiveDate: formatISO(data.effectiveDate), 
         expirationDate: data.expirationDate ? formatISO(data.expirationDate) : null,
+        status: data.isTemplate ? 'template' as ContractStatus : data.status,
+        isTemplate: data.isTemplate,
         templateName: data.isTemplate ? data.templateName : null,
-        executiveSummary: data.executiveSummary || null,
-        additionalClauses: data.additionalClauses || null,
-        signatorySectionText: data.signatorySectionText || null,
     };
     const result: ContractOperationResult = await updateContractAction(contractId, dataForServerAction, adminFirebaseUser.uid);
     if (result.success && result.contractId) {
@@ -342,14 +344,26 @@ const EditContractNotionStylePage: FC = () => {
         keyClauses: aiData.keyClauses?.split(',').map(k => k.trim()).filter(k => k) || [],
       };
       const output = await generateContractContent(input);
+      
+      let combinedMarkdown = `# ${output.suggestedTitle}\n\n`;
+      if (output.executiveSummaryMarkdown) {
+        combinedMarkdown += `## Executive Summary\n${output.executiveSummaryMarkdown}\n\n`;
+      }
+      combinedMarkdown += `## Scope of Services / Description\n${output.serviceDescriptionMarkdown}\n\n`;
+      combinedMarkdown += `## Payment Terms\n${output.paymentTermsMarkdown}\n\n`;
+      combinedMarkdown += `## Terms and Conditions\n${output.termsAndConditionsMarkdown}\n\n`;
+      if (output.additionalClausesMarkdown) {
+        combinedMarkdown += `## Additional Clauses\n${output.additionalClausesMarkdown}\n\n`;
+      }
+      if (output.signatoryBlockMarkdown) {
+        combinedMarkdown += `## Signatory Section\n${output.signatoryBlockMarkdown}\n\n`;
+      }
+
       form.setValue('title', output.suggestedTitle, { shouldDirty: true });
-      if (output.executiveSummaryMarkdown) form.setValue('executiveSummary', output.executiveSummaryMarkdown, { shouldDirty: true });
-      form.setValue('serviceDescription', output.serviceDescriptionMarkdown, { shouldDirty: true });
-      form.setValue('termsAndConditions', output.termsAndConditionsMarkdown, { shouldDirty: true });
-      form.setValue('paymentTerms', output.paymentTermsMarkdown, { shouldDirty: true });
-      if (output.additionalClausesMarkdown) form.setValue('additionalClauses', output.additionalClausesMarkdown, { shouldDirty: true });
-      if (output.signatoryBlockMarkdown) form.setValue('signatorySectionText', output.signatoryBlockMarkdown, { shouldDirty: true });
-      toast({ title: 'AI Content Generated', description: 'Contract fields populated with draft content.' });
+      form.setValue('contentJson', { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: combinedMarkdown }]}] } , { shouldDirty: true });
+
+
+      toast({ title: 'AI Content Drafted', description: 'Contract content populated. Review and refine.' });
       setAiDialogGenerateOpen(false); 
       aiGenerateForm.reset();
     } catch (error: any) {
@@ -358,64 +372,7 @@ const EditContractNotionStylePage: FC = () => {
     }
     setIsGeneratingAiContent(false);
   };
-
-  const handleImproveWithAi = async () => {
-    setIsImprovingAiContent(true);
-    const currentData = form.getValues();
-    if (!currentData.termsAndConditions?.trim() && !currentData.serviceDescription?.trim() && !currentData.executiveSummary?.trim()) {
-      toast({ title: 'Missing Content', description: 'Key content sections are needed to improve with AI.', variant: 'destructive' });
-      setIsImprovingAiContent(false);
-      return;
-    }
-    try {
-      const input: ImproveContractContentInput = {
-        currentTitle: currentData.title || "Untitled Contract",
-        currentExecutiveSummary: currentData.executiveSummary || undefined,
-        currentServiceDescription: currentData.serviceDescription || "Not specified",
-        currentTermsAndConditions: currentData.termsAndConditions || "Not specified",
-        currentPaymentTerms: currentData.paymentTerms || "Not specified",
-        currentAdditionalClauses: currentData.additionalClauses || undefined,
-        currentSignatoryBlock: currentData.signatorySectionText || undefined,
-      };
-      const output = await improveContractContent(input);
-      form.setValue('title', output.improvedTitle, { shouldDirty: true });
-      if(output.improvedExecutiveSummaryMarkdown) form.setValue('executiveSummary', output.improvedExecutiveSummaryMarkdown, { shouldDirty: true });
-      form.setValue('serviceDescription', output.improvedServiceDescriptionMarkdown, { shouldDirty: true });
-      form.setValue('termsAndConditions', output.improvedTermsAndConditionsMarkdown, { shouldDirty: true });
-      form.setValue('paymentTerms', output.improvedPaymentTermsMarkdown, { shouldDirty: true });
-      if(output.improvedAdditionalClausesMarkdown) form.setValue('additionalClauses', output.improvedAdditionalClausesMarkdown, { shouldDirty: true });
-      if(output.improvedSignatoryBlockMarkdown) form.setValue('signatorySectionText', output.improvedSignatoryBlockMarkdown, { shouldDirty: true });
-      toast({ title: 'AI Content Improved', description: 'Contract content has been refined.' });
-    } catch (error: any) {
-      console.error("AI Contract Improvement Error:", error);
-      toast({ title: 'AI Improvement Failed', description: error.message || 'Could not improve contract content.', variant: 'destructive' });
-    }
-    setIsImprovingAiContent(false);
-  };
   
-  const renderSectionTextarea = (name: keyof CreateContractFormValues, label: string, placeholder: string, rows: number = 5, minHeight: string = 'min-h-[120px]') => (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem className="mb-6">
-          <FormLabel className="text-sm font-medium text-muted-foreground block mb-1">{label}</FormLabel>
-          <FormControl>
-            <Textarea
-              placeholder={placeholder}
-              {...field}
-              value={field.value || ''}
-              rows={rows}
-              disabled={isSubmitting}
-              className={`w-full p-3 border border-border rounded-md focus:ring-primary focus:border-primary text-base leading-relaxed bg-background ${minHeight} notion-style-textarea`}
-            />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-
   if (isLoadingPage) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
@@ -466,11 +423,12 @@ const EditContractNotionStylePage: FC = () => {
                   </Tooltip>
                    <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button type="button" variant="ghost" size="sm" onClick={handleImproveWithAi} disabled={isImprovingAiContent || isSubmitting}>
+                       {/* AI Improve temporarily disabled */}
+                      <Button type="button" variant="ghost" size="sm" disabled>
                         <Wand2 className="mr-1.5 h-4 w-4" /> AI Improve
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>Improve existing content with AI</p></TooltipContent>
+                    <TooltipContent><p>AI Improve (Temporarily Disabled)</p></TooltipContent>
                   </Tooltip>
                    <Tooltip>
                     <TooltipTrigger asChild>
@@ -480,7 +438,7 @@ const EditContractNotionStylePage: FC = () => {
                     </TooltipTrigger>
                     <TooltipContent><p>Contract Settings & Metadata</p></TooltipContent>
                   </Tooltip>
-                  <Button type="submit" disabled={isSubmitting || isGeneratingAiContent || isImprovingAiContent || !adminFirebaseUser} size="sm">
+                  <Button type="submit" disabled={isSubmitting || isGeneratingAiContent || !adminFirebaseUser} size="sm">
                     {isSubmitting ? <LottieLoader className="mr-2" size={16} /> : <Save className="mr-1.5 h-4 w-4" />}
                     {isSubmitting ? 'Saving Changes...' : 'Save Changes'}
                   </Button>
@@ -491,14 +449,30 @@ const EditContractNotionStylePage: FC = () => {
             
             <div className="flex-grow flex">
               <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto">
-                <div className="max-w-3xl mx-auto bg-card shadow-xl rounded-lg">
-                  <div className="p-8 md:p-12 space-y-8">
-                    {renderSectionTextarea("executiveSummary", "Executive Summary", "Provide a brief overview of the contract...", 5, "min-h-[150px]")}
-                    {renderSectionTextarea("serviceDescription", "Scope of Services / Description *", "Detailed description of services to be provided...", 10, "min-h-[250px]")}
-                    {renderSectionTextarea("termsAndConditions", "Main Terms & Conditions *", "Enter the full terms and conditions of the contract here...", 20, "min-h-[400px]")}
-                    {renderSectionTextarea("paymentTerms", "Payment Terms", "e.g., Net 30 days, 50% upfront, specific milestones...", 8, "min-h-[200px]")}
-                    {renderSectionTextarea("additionalClauses", "Additional Clauses", "Any other specific clauses for this contract...", 8, "min-h-[200px]")}
-                    {renderSectionTextarea("signatorySectionText", "Signatory Section Text", "Draft the signatory block, e.g., names, titles, date lines...", 6, "min-h-[150px]")}
+                <div className="max-w-4xl mx-auto bg-card shadow-xl rounded-lg">
+                  <div className="p-2 md:p-4 min-h-[70vh]">
+                     <Controller
+                        control={form.control}
+                        name="contentJson"
+                        render={({ field }) => (
+                          <Editor
+                            editorProps={{
+                              attributes: {
+                                class: `prose prose-lg dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full min-h-[500px]`,
+                              },
+                            }}
+                            onUpdate={(editor) => {
+                              field.onChange(editor?.getJSON());
+                            }}
+                            defaultValue={field.value || defaultEditorContent}
+                            disableLocalStorage
+                            className="relative rounded-md border-input bg-transparent shadow-none w-full"
+                          />
+                        )}
+                      />
+                      {form.formState.errors.contentJson && (
+                        <p className="text-sm text-destructive mt-2 p-4">{form.formState.errors.contentJson.message?.toString()}</p>
+                      )}
                   </div>
                 </div>
               </main>
@@ -506,7 +480,8 @@ const EditContractNotionStylePage: FC = () => {
               
               {showMetadataSidebar && (
                  <ContractMetadataSidebar
-                  form={form}
+                  formControl={form.control}
+                  formWatch={form.watch}
                   isSubmitting={isSubmitting}
                   isTemplate={isTemplate}
                   clients={clients}
@@ -525,7 +500,7 @@ const EditContractNotionStylePage: FC = () => {
             <DialogContent className="sm:max-w-lg">
             <DialogHeader>
                 <DialogTitle>Generate Contract with AI</DialogTitle>
-                <DialogDescription>Provide key details. This will overwrite existing content in respective fields.</DialogDescription>
+                <DialogDescription>Provide key details. This will overwrite existing content in the editor.</DialogDescription>
             </DialogHeader>
             <form onSubmit={aiGenerateForm.handleSubmit(handleGenerateWithAi)} className="space-y-4 py-4">
                 <FormField control={aiGenerateForm.control} name="contractType" render={({ field }) => (
@@ -554,12 +529,12 @@ const EditContractNotionStylePage: FC = () => {
             </DialogContent>
         </Dialog>
          <style jsx global>{`
-          .notion-style-textarea {
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-            line-height: 1.6;
+          .novel-flex { 
+            overflow-y: auto; 
           }
-           .notion-style-textarea:focus {
-             box-shadow: none !important;
+           .ProseMirror {
+             min-height: 500px;
+             padding: 1rem;
           }
         `}</style>
       </div>
@@ -568,4 +543,3 @@ const EditContractNotionStylePage: FC = () => {
 };
 
 export default EditContractNotionStylePage;
-    

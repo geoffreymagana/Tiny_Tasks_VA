@@ -10,14 +10,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { useAdminAuth } from '@/hooks/use-admin-auth';
+// import { useAdminAuth } from '@/hooks/use-admin-auth'; // Not strictly needed for view-only if public or role-based access is handled differently
 import { getContractAction } from '../../actions';
 import type { Contract, ContractStatus } from '../../schema';
 import { LottieLoader } from '@/components/ui/lottie-loader';
-import { ArrowLeft, FileText as FileTextIcon, Printer, Edit, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText as FileTextIcon, Printer, Edit } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
+import { generateHTML } from '@tiptap/html';
+import { defaultEditorContent } from '../../schema'; // Import default content for safety
+import StarterKit from '@tiptap/starter-kit'; // Common Tiptap extensions
+import Highlight from '@tiptap/extension-highlight'
+import Underline from '@tiptap/extension-underline'
+import Placeholder from '@tiptap/extension-placeholder'
+import LinkExtension from '@tiptap/extension-link'
+import TaskList from '@tiptap/extension-task-list'
+import TaskItem from '@tiptap/extension-task-item'
 
 const statusColors: Record<ContractStatus, string> = {
   draft: 'bg-gray-400 text-gray-800 border-gray-500',
@@ -28,6 +36,25 @@ const statusColors: Record<ContractStatus, string> = {
   template: 'bg-purple-500 text-white border-purple-600',
 };
 
+// Define Tiptap extensions that match what Novel editor might use or what you expect in content
+const tiptapExtensions = [
+  StarterKit.configure({
+    heading: { levels: [1, 2, 3] },
+    bulletList: { keepMarks: true, keepAttributes: true },
+    orderedList: { keepMarks: true, keepAttributes: true },
+    // Disable features not typically in contracts if not needed
+    // blockquote: false,
+    // codeBlock: false, 
+  }),
+  Highlight,
+  Underline,
+  LinkExtension.configure({ openOnClick: false, autolink: true, }), // autolink false if you don't want auto-linking
+  TaskList,
+  TaskItem.configure({ nested: true }),
+  Placeholder.configure({ placeholder: "Contract content will appear here..." }),
+];
+
+
 const ViewContractPage: FC = () => {
   const params = useParams();
   const router = useRouter();
@@ -36,6 +63,7 @@ const ViewContractPage: FC = () => {
   
   const [contract, setContract] = useState<Contract | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [renderedHtml, setRenderedHtml] = useState<string>('');
 
   const fetchContract = useCallback(async () => {
     if (!contractId) return;
@@ -44,6 +72,22 @@ const ViewContractPage: FC = () => {
       const fetchedContract = await getContractAction(contractId);
       if (fetchedContract) {
         setContract(fetchedContract);
+        if (fetchedContract.contentJson) {
+          try {
+            // Ensure contentJson is an object, Tiptap's generateHTML expects specific structure
+            const contentToRender = typeof fetchedContract.contentJson === 'object' && fetchedContract.contentJson !== null
+              ? fetchedContract.contentJson
+              : defaultEditorContent; // Fallback to default if malformed
+            
+            const html = generateHTML(contentToRender as any, tiptapExtensions);
+            setRenderedHtml(html);
+          } catch(e) {
+             console.error("Error generating HTML from contract JSON:", e);
+             setRenderedHtml("<p>Error rendering contract content.</p>");
+          }
+        } else {
+          setRenderedHtml("<p>No content available for this contract.</p>");
+        }
       } else {
         toast({ title: "Error", description: "Contract not found.", variant: "destructive" });
         router.push('/admin/contracts');
@@ -139,62 +183,16 @@ const ViewContractPage: FC = () => {
               </div>
             )}
           </div>
-
-          {contract.executiveSummary && (
-            <>
-              <Separator />
-              <div>
-                <h3 className="text-lg font-semibold text-primary mb-2">Executive Summary</h3>
-                <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md">
-                  <ReactMarkdown>{contract.executiveSummary}</ReactMarkdown>
-                </div>
-              </div>
-            </>
-          )}
-
+          
           <Separator />
 
-          <div>
-            <h3 className="text-lg font-semibold text-primary mb-2">Scope of Services / Description</h3>
-            <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md">
-              <ReactMarkdown>{contract.serviceDescription}</ReactMarkdown>
-            </div>
+          <div className="prose prose-lg dark:prose-invert max-w-none bg-background p-4 rounded-md border">
+            {isLoading ? (
+                <p>Loading content...</p>
+            ) : (
+                <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+            )}
           </div>
-          
-          {contract.paymentTerms && (
-            <div>
-                <h3 className="text-lg font-semibold text-primary mb-2">Payment Terms</h3>
-                <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md">
-                <ReactMarkdown>{contract.paymentTerms}</ReactMarkdown>
-                </div>
-            </div>
-          )}
-
-          <div>
-            <h3 className="text-lg font-semibold text-primary mb-2">Terms & Conditions</h3>
-            <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md border">
-              <ReactMarkdown>{contract.termsAndConditions}</ReactMarkdown>
-            </div>
-          </div>
-
-          {contract.additionalClauses && (
-            <div>
-                <h3 className="text-lg font-semibold text-primary mb-2">Additional Clauses</h3>
-                <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md border">
-                <ReactMarkdown>{contract.additionalClauses}</ReactMarkdown>
-                </div>
-            </div>
-          )}
-
-          {contract.signatorySectionText && (
-            <div>
-                <h3 className="text-lg font-semibold text-primary mb-2">Signatory Section</h3>
-                <div className="prose prose-sm dark:prose-invert max-w-none bg-secondary/20 p-4 rounded-md border">
-                <ReactMarkdown>{contract.signatorySectionText}</ReactMarkdown>
-                </div>
-            </div>
-          )}
-
         </CardContent>
         
         <CardFooter className="p-6 border-t bg-muted/30 print:border-t print:bg-transparent print:hidden">
@@ -228,10 +226,33 @@ const ViewContractPage: FC = () => {
           .print\\:border-none { border: none !important; }
           .print\\:border-t { border-top-width: 1px !important; }
           .prose { font-size: 10pt !important; } 
+          .prose h1 { font-size: 16pt !important; }
+          .prose h2 { font-size: 14pt !important; }
           .prose h3 { font-size: 12pt !important; }
           .prose table { width: 100%; border-collapse: collapse; }
           .prose th, .prose td { border: 1px solid #ccc; padding: 0.5em; }
         }
+        /* Basic Tiptap/Novel styling for viewing */
+        .ProseMirror h1, .prose h1 { font-size: 2em; margin-top: 0.67em; margin-bottom: 0.67em; font-weight: bold; }
+        .ProseMirror h2, .prose h2 { font-size: 1.5em; margin-top: 0.83em; margin-bottom: 0.83em; font-weight: bold; }
+        .ProseMirror h3, .prose h3 { font-size: 1.17em; margin-top: 1em; margin-bottom: 1em; font-weight: bold; }
+        .ProseMirror p, .prose p { margin-top: 1em; margin-bottom: 1em; }
+        .ProseMirror ul, .prose ul { margin-top: 1em; margin-bottom: 1em; padding-left: 40px; list-style-type: disc; }
+        .ProseMirror ol, .prose ol { margin-top: 1em; margin-bottom: 1em; padding-left: 40px; list-style-type: decimal; }
+        .ProseMirror blockquote, .prose blockquote { margin-top: 1em; margin-bottom: 1em; margin-left: 40px; margin-right: 40px; border-left: 4px solid hsl(var(--border)); padding-left: 1em; font-style: italic; }
+        .ProseMirror a, .prose a { color: hsl(var(--accent)); text-decoration: underline; }
+        .ProseMirror pre, .prose pre { background-color: hsl(var(--muted) / 0.5); padding: 1em; border-radius: 0.25em; overflow-x: auto; }
+        .ProseMirror code, .prose code { font-family: monospace; background-color: hsl(var(--muted) / 0.3); padding: 0.2em 0.4em; border-radius: 0.25em; }
+        .ProseMirror pre code, .prose pre code { background-color: transparent; padding: 0; }
+        .ProseMirror hr, .prose hr { border-top: 1px solid hsl(var(--border)); margin-top: 2em; margin-bottom: 2em; }
+        .ProseMirror table { width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; }
+        .ProseMirror th, .ProseMirror td { border: 1px solid hsl(var(--border)); padding: 0.5em; }
+        .ProseMirror th { background-color: hsl(var(--muted) / 0.5); font-weight: bold; }
+        .ProseMirror img { max-width: 100%; height: auto; border-radius: 0.25em; }
+        .ProseMirror .task-list { list-style: none; padding: 0; }
+        .ProseMirror .task-list-item { display: flex; align-items: center; }
+        .ProseMirror .task-list-item > label { margin-right: 0.5em; }
+        .ProseMirror .task-list-item > div { flex-grow: 1; }
       `}</style>
     </div>
   );

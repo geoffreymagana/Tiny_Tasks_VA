@@ -16,7 +16,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ContractSchema, type Contract, type CreateContractFormValues, generateContractNumberSync, type ContractStatus } from './schema';
+import { ContractSchema, type Contract, type CreateContractFormValues, generateContractNumberSync, type ContractStatus } from './schema'; // Updated schema import
 import { formatISO } from 'date-fns';
 
 export interface ContractOperationResult {
@@ -41,7 +41,7 @@ const convertDbTimestamp = (timestamp: any): string | null => {
   }
   if (typeof timestamp === 'string') return timestamp;
   if (timestamp && typeof timestamp.toDate === 'function') {
-      return new Date().toISOString();
+      return new Date().toISOString(); // Fallback for uncommitted server timestamps or similar
   }
   return null;
 };
@@ -88,20 +88,16 @@ export async function addContractAction(
       contractNumber,
       clientId: finalClientId,
       clientName: clientName,
-      executiveSummary: formData.executiveSummary || null,
+      contentJson: formData.contentJson, // Save the new contentJson field
       effectiveDate: formData.effectiveDate,
       expirationDate: formData.expirationDate || null,
-      serviceDescription: formData.serviceDescription,
-      termsAndConditions: formData.termsAndConditions,
-      paymentTerms: formData.paymentTerms || null,
-      additionalClauses: formData.additionalClauses || null,
-      signatorySectionText: formData.signatorySectionText || null,
       status: finalStatus,
       isTemplate: formData.isTemplate,
       templateName: finalTemplateName,
       adminId,
     };
     
+    // Validate using the base ContractSchema which now includes contentJson
     const validatedData = ContractSchema.omit({id: true, createdAt: true, updatedAt: true}).safeParse(dataToSave);
     if (!validatedData.success) {
         console.error("Server-side validation errors (addContractAction):", validatedData.error.flatten().fieldErrors);
@@ -130,12 +126,20 @@ export async function getAllContractsAction(): Promise<Contract[]> {
       const data = doc.data();
       return {
         id: doc.id,
-        ...data,
+        title: data.title,
+        contractNumber: data.contractNumber,
+        clientId: data.clientId,
+        clientName: data.clientName,
+        contentJson: data.contentJson, // Retrieve contentJson
         effectiveDate: convertDbTimestamp(data.effectiveDate) || new Date().toISOString(),
         expirationDate: convertDbTimestamp(data.expirationDate),
+        status: data.status,
+        isTemplate: data.isTemplate,
+        templateName: data.templateName,
+        adminId: data.adminId,
         createdAt: convertDbTimestamp(data.createdAt),
         updatedAt: convertDbTimestamp(data.updatedAt),
-      } as Contract;
+      } as Contract; // Ensure type assertion matches updated Contract type
     });
   } catch (error) {
     console.error("Error fetching all contracts:", error);
@@ -154,12 +158,20 @@ export async function getContractAction(contractId: string): Promise<Contract | 
     const data = contractDocSnap.data();
     return {
       id: contractDocSnap.id,
-      ...data,
+      title: data.title,
+      contractNumber: data.contractNumber,
+      clientId: data.clientId,
+      clientName: data.clientName,
+      contentJson: data.contentJson, // Retrieve contentJson
       effectiveDate: convertDbTimestamp(data.effectiveDate) || new Date().toISOString(),
       expirationDate: convertDbTimestamp(data.expirationDate),
+      status: data.status,
+      isTemplate: data.isTemplate,
+      templateName: data.templateName,
+      adminId: data.adminId,
       createdAt: convertDbTimestamp(data.createdAt),
       updatedAt: convertDbTimestamp(data.updatedAt),
-    } as Contract;
+    } as Contract; // Ensure type assertion matches updated Contract type
   } catch (error) {
     console.error(`Error fetching contract ${contractId}:`, error);
     return null;
@@ -206,19 +218,13 @@ export async function updateContractAction(
         }
     }
 
-
-    const dataToUpdate: Partial<Contract> = {
+    const dataToUpdate: Partial<Omit<Contract, 'id' | 'createdAt' | 'updatedAt' | 'contractNumber' | 'adminId'>> & { updatedAt: any } = {
       title: formData.title,
       clientId: finalClientId,
       clientName: clientName,
-      executiveSummary: formData.executiveSummary || null,
+      contentJson: formData.contentJson, // Update contentJson
       effectiveDate: formData.effectiveDate,
       expirationDate: formData.expirationDate || null,
-      serviceDescription: formData.serviceDescription,
-      termsAndConditions: formData.termsAndConditions,
-      paymentTerms: formData.paymentTerms || null,
-      additionalClauses: formData.additionalClauses || null,
-      signatorySectionText: formData.signatorySectionText || null,
       status: finalStatus,
       isTemplate: formData.isTemplate,
       templateName: finalTemplateName,
@@ -270,17 +276,14 @@ export async function sendContractAction(
   
   let updateMessage = '';
   if (contract.status === 'draft') {
+    // Prepare the payload for updateContractAction based on CreateContractFormValues
+    // Note: contentJson must be passed.
     const updatePayload: Omit<CreateContractFormValues, 'effectiveDate' | 'expirationDate'> & { effectiveDate: string; expirationDate?: string | null; } = {
       title: contract.title,
       clientId: contract.clientId,
-      executiveSummary: contract.executiveSummary,
+      contentJson: contract.contentJson, // Pass existing content
       effectiveDate: contract.effectiveDate, 
       expirationDate: contract.expirationDate, 
-      serviceDescription: contract.serviceDescription,
-      termsAndConditions: contract.termsAndConditions,
-      paymentTerms: contract.paymentTerms,
-      additionalClauses: contract.additionalClauses,
-      signatorySectionText: contract.signatorySectionText,
       status: 'pending_signature', 
       isTemplate: contract.isTemplate, 
       templateName: contract.templateName, 
@@ -305,12 +308,20 @@ export async function getAllContractTemplatesAction(): Promise<Contract[]> {
       const data = doc.data();
       return {
         id: doc.id,
-        ...data,
+        title: data.title,
+        contractNumber: data.contractNumber,
+        clientId: data.clientId,
+        clientName: data.clientName,
+        contentJson: data.contentJson, // Retrieve contentJson
         effectiveDate: convertDbTimestamp(data.effectiveDate) || new Date().toISOString(),
         expirationDate: convertDbTimestamp(data.expirationDate),
+        status: data.status,
+        isTemplate: data.isTemplate,
+        templateName: data.templateName,
+        adminId: data.adminId,
         createdAt: convertDbTimestamp(data.createdAt),
         updatedAt: convertDbTimestamp(data.updatedAt),
-      } as Contract;
+      } as Contract; // Ensure type assertion matches updated Contract type
     });
   } catch (error) {
     console.error("Error fetching contract templates:", error);

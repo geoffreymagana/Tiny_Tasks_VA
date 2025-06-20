@@ -12,6 +12,22 @@ export const ContractStatusSchema = z.enum([
 ]);
 export type ContractStatus = z.infer<typeof ContractStatusSchema>;
 
+// Define a basic structure for Tiptap/Novel JSON content
+// This can be refined further if more specific validation is needed.
+const TiptapNodeSchema = z.object({
+  type: z.string(),
+  attrs: z.record(z.any()).optional(),
+  content: z.array(z.lazy(() => TiptapNodeSchema)).optional(),
+  text: z.string().optional(),
+  marks: z.array(z.any()).optional(),
+});
+
+const TiptapDocumentSchema = z.object({
+  type: z.literal('doc'),
+  content: z.array(TiptapNodeSchema).optional(),
+});
+
+
 export const ContractSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(3, "Title must be at least 3 characters").max(150, "Title too long."),
@@ -20,17 +36,12 @@ export const ContractSchema = z.object({
   clientId: z.string().optional().nullable(), 
   clientName: z.string().optional().nullable(), 
   
-  executiveSummary: z.string().max(10000, "Executive summary too long.").optional().nullable(),
+  // Replaced individual content fields with a single contentJson field
+  contentJson: TiptapDocumentSchema.optional().nullable().describe("The main contract content in Tiptap/Novel JSON format."),
   
   effectiveDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), "Invalid effective date"),
   expirationDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), "Invalid expiration date").optional().nullable(),
-  
-  serviceDescription: z.string().min(10, "Service description is required.").max(50000, "Service description too long."),
-  termsAndConditions: z.string().min(50, "Terms and conditions are required.").max(100000, "Terms and conditions too long."),
-  paymentTerms: z.string().max(50000, "Payment terms too long.").optional().nullable(),
-  additionalClauses: z.string().max(20000, "Additional clauses text too long.").optional().nullable(),
-  signatorySectionText: z.string().max(5000, "Signatory section text too long.").optional().nullable(),
-  
+    
   status: ContractStatusSchema,
   isTemplate: z.boolean().default(false),
   templateName: z.string().max(100, "Template name too long.").optional().nullable(),
@@ -52,12 +63,10 @@ export const CreateContractFormSchema = ContractSchema.omit({
 }).extend({
   effectiveDate: z.date({ required_error: "Effective date is required."}),
   expirationDate: z.date().optional().nullable(),
-  status: z.enum(['draft', 'pending_signature', 'active', 'expired', 'terminated'], {
+  status: z.enum(['draft', 'pending_signature', 'active', 'expired', 'terminated'], { // Status for non-templates
     required_error: "Status is required.",
   }),
-  executiveSummary: z.string().max(10000, "Executive summary is too long.").optional(),
-  additionalClauses: z.string().max(20000, "Additional clauses text too long.").optional(),
-  signatorySectionText: z.string().max(5000, "Signatory section text too long.").optional(),
+  contentJson: TiptapDocumentSchema.optional().nullable().default(null), // Default to null for new contracts
 });
 
 export type CreateContractFormValues = z.infer<typeof CreateContractFormSchema>;
@@ -69,3 +78,44 @@ export function generateContractNumberSync(): string {
   return `${prefix}-${datePart}-${randomSuffix}`;
 }
 
+export const defaultEditorContent = {
+  type: "doc",
+  content: [
+    {
+      type: "heading",
+      attrs: { level: 2 },
+      content: [{ type: "text", text: "Executive Summary" }],
+    },
+    { type: "paragraph", content: [{ type: "text", text: "Provide a brief overview of the contract..." }] },
+    {
+      type: "heading",
+      attrs: { level: 2 },
+      content: [{ type: "text", text: "Scope of Services / Description" }],
+    },
+    { type: "paragraph", content: [{ type: "text", text: "Detailed description of services to be provided..." }] },
+     {
+      type: "heading",
+      attrs: { level: 2 },
+      content: [{ type: "text", text: "Payment Terms" }],
+    },
+    { type: "paragraph", content: [{ type: "text", text: "e.g., Net 30 days, 50% upfront, specific milestones..." }] },
+    {
+      type: "heading",
+      attrs: { level: 2 },
+      content: [{ type: "text", text: "Terms and Conditions" }],
+    },
+    { type: "paragraph", content: [{ type: "text", text: "Enter the full terms and conditions of the contract here..." }] },
+    {
+      type: "heading",
+      attrs: { level: 2 },
+      content: [{ type: "text", text: "Additional Clauses" }],
+    },
+    { type: "paragraph", content: [{ type: "text", text: "Any other specific clauses for this contract..." }] },
+    {
+      type: "heading",
+      attrs: { level: 2 },
+      content: [{ type: "text", text: "Signatory Section" }],
+    },
+    { type: "paragraph", content: [{ type: "text", text: "Draft the signatory block, e.g., names, titles, date lines..." }] },
+  ],
+};
