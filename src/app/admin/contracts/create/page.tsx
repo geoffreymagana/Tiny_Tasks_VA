@@ -12,6 +12,7 @@ import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label'; // Added missing import
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -59,7 +60,7 @@ const CreateContractNotionStylePage: FC = () => {
   const [showMetadataSidebar, setShowMetadataSidebar] = useState(false);
 
 
-  const form = useForm<CreateContractFormValues & { tagsInput?: string }>({ // Added tagsInput for UI
+  const form = useForm<CreateContractFormValues & { tagsInput?: string }>({ 
     resolver: zodResolver(CreateContractFormSchema.extend({ tagsInput: z.string().optional()})),
     defaultValues: {
       title: 'Untitled Contract',
@@ -75,7 +76,7 @@ const CreateContractNotionStylePage: FC = () => {
       status: 'draft',
       isTemplate: false,
       templateName: '',
-      tagsInput: '', // Initial value for tags input
+      tagsInput: '', 
     },
   });
 
@@ -127,10 +128,10 @@ const CreateContractNotionStylePage: FC = () => {
             form.setValue('paymentTerms', template.paymentTerms || '', { shouldDirty: true });
             form.setValue('additionalClauses', template.additionalClauses || '', { shouldDirty: true });
             form.setValue('signatorySectionText', template.signatorySectionText || '', { shouldDirty: true });
-            // Do not set isTemplate or templateName from a loaded template automatically
+            
             toast({ title: "Template Applied", description: `Content from "${template.templateName || template.title}" loaded into editor.`});
         }
-        setSelectedTemplateId(null); // Reset after applying
+        setSelectedTemplateId(null); 
     }
   }, [selectedTemplateId, contractTemplates, form, toast]);
 
@@ -142,8 +143,7 @@ const CreateContractNotionStylePage: FC = () => {
       setIsSubmitting(false);
       return;
     }
-    // Note: data.tagsInput is present from the form but not part of CreateContractFormValues yet
-    // For full tag functionality, schema and actions would need update.
+    
     const dataForServerAction: Omit<CreateContractFormValues, 'effectiveDate' | 'expirationDate'> & { effectiveDate: string; expirationDate?: string | null; } = {
         ...data,
         effectiveDate: formatISO(data.effectiveDate), 
@@ -260,7 +260,7 @@ const CreateContractNotionStylePage: FC = () => {
       <div className="min-h-screen bg-secondary/30 flex flex-col">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSaveContract)} className="flex-grow flex flex-col">
-            {/* Top Action Bar */}
+            
             <header className="sticky top-0 z-40 bg-background border-b border-border px-4 py-2 shadow-sm">
               <div className="flex items-center justify-between h-14">
                 <div className="flex items-center gap-2">
@@ -313,11 +313,11 @@ const CreateContractNotionStylePage: FC = () => {
               </div>
             </header>
 
-            {/* Main Content Area (Editor + Optional Sidebar) */}
+            
             <div className="flex-grow flex">
               <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto">
                 <div className="max-w-3xl mx-auto bg-card shadow-xl rounded-lg">
-                  {/* Contract Title is in header, this is for page structure */}
+                  
                   <div className="p-8 md:p-12 space-y-8">
                     {renderSectionTextarea("executiveSummary", "Executive Summary", "Provide a brief overview of the contract...", 5, "min-h-[150px]")}
                     {renderSectionTextarea("serviceDescription", "Scope of Services / Description *", "Detailed description of services to be provided...", 10, "min-h-[250px]")}
@@ -329,7 +329,7 @@ const CreateContractNotionStylePage: FC = () => {
                 </div>
               </main>
 
-              {/* Metadata Sidebar */}
+              
               {showMetadataSidebar && (
                 <aside className="w-80 border-l border-border bg-background p-6 space-y-6 overflow-y-auto flex-shrink-0 transition-all duration-300">
                   <h3 className="text-lg font-semibold text-primary">Contract Settings</h3>
@@ -349,16 +349,32 @@ const CreateContractNotionStylePage: FC = () => {
                   )}
                   
                   {!isTemplate && (
-                    <FormField control={form.control} name="clientId" render={({ field }) => (
+                     <div className="space-y-4">
+                        <FormField control={form.control} name="clientId" render={({ field }) => (
+                            <FormItem>
+                            <FormLabel className="flex items-center text-sm"><Building className="mr-1.5 h-4 w-4 text-muted-foreground" />Client</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isLoadingClients || isSubmitting || isTemplate}>
+                                <FormControl><SelectTrigger><SelectValue placeholder={isLoadingClients ? "Loading..." : (isTemplate ? "N/A for templates" : "Select client")} /></SelectTrigger></FormControl>
+                                <SelectContent>{clients.map((client) => (<SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>))}</SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )} />
                         <FormItem>
-                          <FormLabel className="flex items-center text-sm"><Building className="mr-1.5 h-4 w-4 text-muted-foreground" />Client</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isLoadingClients || isSubmitting || isTemplate}>
-                            <FormControl><SelectTrigger><SelectValue placeholder={isLoadingClients ? "Loading..." : (isTemplate ? "N/A for templates" : "Select client")} /></SelectTrigger></FormControl>
-                            <SelectContent>{clients.map((client) => (<SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>))}</SelectContent>
-                          </Select>
-                          <FormMessage />
+                            <FormLabel className="text-sm">Or Use Template Content</FormLabel>
+                            <Select onValueChange={(value) => setSelectedTemplateId(value)} disabled={isLoadingTemplates || isSubmitting || isTemplate || contractTemplates.length === 0}>
+                                <SelectTrigger><SelectValue placeholder={isLoadingTemplates ? "Loading..." : (contractTemplates.length === 0 ? "No templates" : "Load from template")} /></SelectTrigger>
+                                <SelectContent>
+                                    {contractTemplates.map((template) => (
+                                        <SelectItem key={template.id} value={template.id!}> 
+                                            {template.templateName || template.title}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormDescription className="text-xs">Populate fields with template content.</FormDescription>
                         </FormItem>
-                    )} />
+                    </div>
                   )}
 
                   <FormField control={form.control} name="effectiveDate" render={({ field }) => (
@@ -374,7 +390,7 @@ const CreateContractNotionStylePage: FC = () => {
                           <FormLabel className="text-sm">Contract Status *</FormLabel>
                           <FormControl>
                             <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-col space-y-1" disabled={isSubmitting || isTemplate}>
-                              {(['draft', 'pending_signature', 'active'] as const).map((statusValue) => ( // Limited statuses for creation
+                              {(['draft', 'pending_signature', 'active'] as const).map((statusValue) => ( 
                                 <FormItem key={statusValue} className="flex items-center space-x-2">
                                   <RadioGroupItem value={statusValue} id={`status-${statusValue}`} />
                                   <Label htmlFor={`status-${statusValue}`} className="capitalize text-xs">{statusValue.replace('_', ' ')}</Label>
@@ -398,7 +414,7 @@ const CreateContractNotionStylePage: FC = () => {
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel className="text-sm flex items-center"><Tags className="mr-1.5 h-4 w-4 text-muted-foreground" />Tags</FormLabel>
-                        <FormControl><Input placeholder="e.g. NDA, Software, Q1-2024" {...field} disabled={isSubmitting} /></FormControl>
+                        <FormControl><Input placeholder="e.g. NDA, Software, Q1-2024" {...field} value={field.value ?? ''} disabled={isSubmitting} /></FormControl>
                         <FormDescription className="text-xs">Comma-separated tags. Full tag support coming soon.</FormDescription>
                         <FormMessage />
                         </FormItem>
@@ -411,7 +427,7 @@ const CreateContractNotionStylePage: FC = () => {
           </form>
         </Form>
 
-        {/* AI Generation Dialog (same as before) */}
+        
         <Dialog open={aiDialogGenerateOpen} onOpenChange={setAiDialogGenerateOpen}>
             <DialogContent className="sm:max-w-lg">
             <DialogHeader>

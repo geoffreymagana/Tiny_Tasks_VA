@@ -13,6 +13,7 @@ import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { formatISO, parseISO } from 'date-fns';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label'; // Added missing import
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -65,7 +66,7 @@ const EditContractNotionStylePage: FC = () => {
   const [showMetadataSidebar, setShowMetadataSidebar] = useState(false);
 
 
-  const form = useForm<CreateContractFormValues & { tagsInput?: string, contractNumber?: string }>({ // Added tagsInput and contractNumber for UI
+  const form = useForm<CreateContractFormValues & { tagsInput?: string, contractNumber?: string }>({ 
     resolver: zodResolver(CreateContractFormSchema.extend({ tagsInput: z.string().optional(), contractNumber: z.string().optional() })),
     defaultValues: {
       title: 'Untitled Contract',
@@ -132,11 +133,11 @@ const EditContractNotionStylePage: FC = () => {
                 paymentTerms: fetchedContract.paymentTerms || '',
                 additionalClauses: fetchedContract.additionalClauses || '',
                 signatorySectionText: fetchedContract.signatorySectionText || '',
-                status: fetchedContract.isTemplate ? 'draft' : fetchedContract.status as Exclude<ContractStatus, 'template'>, // templates default to draft for editing
+                status: fetchedContract.isTemplate ? 'draft' : fetchedContract.status as Exclude<ContractStatus, 'template'>, 
                 isTemplate: fetchedContract.isTemplate,
                 templateName: fetchedContract.templateName || '',
-                contractNumber: fetchedContract.contractNumber, // For display
-                tagsInput: '', // Tags not yet saved/loaded from backend
+                contractNumber: fetchedContract.contractNumber, 
+                tagsInput: '', 
             });
         } else {
             toast({ title: "Error", description: "Contract not found.", variant: "destructive" });
@@ -177,7 +178,7 @@ const EditContractNotionStylePage: FC = () => {
             form.setValue('signatorySectionText', template.signatorySectionText || '', { shouldDirty: true });
             toast({ title: "Template Applied", description: `Content from "${template.templateName || template.title}" loaded into editor.`});
         }
-        setSelectedTemplateId(null); // Reset after applying
+        setSelectedTemplateId(null); 
     }
   }, [selectedTemplateId, contractTemplates, form, toast]);
 
@@ -189,7 +190,7 @@ const EditContractNotionStylePage: FC = () => {
       setIsSubmitting(false);
       return;
     }
-    // Note: data.tagsInput is present from the form but not part of CreateContractFormValues yet
+    
     const dataForServerAction = {
         ...data,
         effectiveDate: formatISO(data.effectiveDate), 
@@ -315,7 +316,7 @@ const EditContractNotionStylePage: FC = () => {
       <div className="min-h-screen bg-secondary/30 flex flex-col">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleUpdateContract)} className="flex-grow flex flex-col">
-            {/* Top Action Bar */}
+            
             <header className="sticky top-0 z-40 bg-background border-b border-border px-4 py-2 shadow-sm">
               <div className="flex items-center justify-between h-14">
                 <div className="flex items-center gap-2">
@@ -371,7 +372,7 @@ const EditContractNotionStylePage: FC = () => {
               </div>
             </header>
 
-            {/* Main Content Area (Editor + Optional Sidebar) */}
+            
             <div className="flex-grow flex">
               <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto">
                 <div className="max-w-3xl mx-auto bg-card shadow-xl rounded-lg">
@@ -386,7 +387,7 @@ const EditContractNotionStylePage: FC = () => {
                 </div>
               </main>
 
-              {/* Metadata Sidebar */}
+              
               {showMetadataSidebar && (
                 <aside className="w-80 border-l border-border bg-background p-6 space-y-6 overflow-y-auto flex-shrink-0 transition-all duration-300">
                   <h3 className="text-lg font-semibold text-primary">Contract Settings</h3>
@@ -484,7 +485,7 @@ const EditContractNotionStylePage: FC = () => {
           </form>
         </Form>
 
-        {/* AI Generation Dialog */}
+        
         <Dialog open={aiDialogGenerateOpen} onOpenChange={setAiDialogGenerateOpen}>
             <DialogContent className="sm:max-w-lg">
             <DialogHeader>
