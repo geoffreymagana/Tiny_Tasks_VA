@@ -193,7 +193,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
           {getRolePill()}
         </div>
 
-        <main className="flex-1 overflow-hidden container mx-auto px-2 sm:px-4">
+        <main className="flex-1 overflow-y-auto container mx-auto px-2 sm:px-4">
           {children}
         </main>
         <Footer className="py-3" />
@@ -203,5 +203,3 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
 };
 
 export default AdminLayout;
-
-    

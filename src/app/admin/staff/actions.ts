@@ -5,7 +5,7 @@ import { admin, adminAuth, adminDb } from '@/lib/firebase-admin-init';
 import { Timestamp, FieldValue, CollectionReference, Query, DocumentReference } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import nodemailer from 'nodemailer';
-import { render } from 'react-email'; // Corrected: Import from the main react-email package
+import { render } from '@react-email/components'; // Corrected: Import from the main react-email package
 import { StaffInviteEmail } from '@/emails/staff-invite-email';
 import { getAgencySettingsAction } from '@/app/admin/settings/actions';
 import React from 'react';
