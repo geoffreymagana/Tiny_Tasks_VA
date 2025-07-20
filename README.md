@@ -1,6 +1,2 @@
-# Firebase Studio
-
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
-# Tiny-Tasks-VA
+# Tiny_Tasks_VA
+Website and user/admin portals for Tiny Tasks VA — a virtual assistant business. Initial build – June 2025.
