@@ -33,7 +33,7 @@ import { generateContractContent, type GenerateContractContentInput } from '@/ai
 // AI Improve flow is temporarily disabled
 // import { improveContractContent, type ImproveContractContentInput } from '@/ai/flows/improve-contract-content-flow';
 
-import { Editor } from "novel";
+import { TiptapEditor } from "@/components/ui/tiptap-editor";
 
 
 const aiGenerateSchema = z.object({
@@ -345,23 +345,29 @@ const EditContractNotionStylePage: FC = () => {
       };
       const output = await generateContractContent(input);
       
-      let combinedMarkdown = `# ${output.suggestedTitle}\n\n`;
-      if (output.executiveSummaryMarkdown) {
-        combinedMarkdown += `## Executive Summary\n${output.executiveSummaryMarkdown}\n\n`;
-      }
-      combinedMarkdown += `## Scope of Services / Description\n${output.serviceDescriptionMarkdown}\n\n`;
-      combinedMarkdown += `## Payment Terms\n${output.paymentTermsMarkdown}\n\n`;
-      combinedMarkdown += `## Terms and Conditions\n${output.termsAndConditionsMarkdown}\n\n`;
+      form.setValue('title', output.suggestedTitle, { shouldDirty: true });
+      
+      const content = [
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Executive Summary' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: output.executiveSummaryMarkdown || '' }] },
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Scope of Services / Description' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: output.serviceDescriptionMarkdown || '' }] },
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Payment Terms' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: output.paymentTermsMarkdown || '' }] },
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Terms and Conditions' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: output.termsAndConditionsMarkdown || '' }] },
+      ];
+
       if (output.additionalClausesMarkdown) {
-        combinedMarkdown += `## Additional Clauses\n${output.additionalClausesMarkdown}\n\n`;
+        content.push({ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Additional Clauses' }] });
+        content.push({ type: 'paragraph', content: [{ type: 'text', text: output.additionalClausesMarkdown }] });
       }
       if (output.signatoryBlockMarkdown) {
-        combinedMarkdown += `## Signatory Section\n${output.signatoryBlockMarkdown}\n\n`;
+        content.push({ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Signatory Section' }] });
+        content.push({ type: 'paragraph', content: [{ type: 'text', text: output.signatoryBlockMarkdown }] });
       }
-
-      form.setValue('title', output.suggestedTitle, { shouldDirty: true });
-      form.setValue('contentJson', { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: combinedMarkdown }]}] } , { shouldDirty: true });
-
+      
+      form.setValue('contentJson', { type: "doc", content } , { shouldDirty: true });
 
       toast({ title: 'AI Content Drafted', description: 'Contract content populated. Review and refine.' });
       setAiDialogGenerateOpen(false); 
@@ -455,18 +461,9 @@ const EditContractNotionStylePage: FC = () => {
                         control={form.control}
                         name="contentJson"
                         render={({ field }) => (
-                          <Editor
-                            editorProps={{
-                              attributes: {
-                                class: `prose prose-lg dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full min-h-[500px]`,
-                              },
-                            }}
-                            onUpdate={(editor) => {
-                              field.onChange(editor?.getJSON());
-                            }}
-                            defaultValue={field.value || defaultEditorContent}
-                            disableLocalStorage
-                            className="relative rounded-md border-input bg-transparent shadow-none w-full"
+                          <TiptapEditor
+                            content={field.value as object}
+                            onChange={field.onChange}
                           />
                         )}
                       />
@@ -528,15 +525,6 @@ const EditContractNotionStylePage: FC = () => {
             </form>
             </DialogContent>
         </Dialog>
-         <style jsx global>{`
-          .novel-flex { 
-            overflow-y: auto; 
-          }
-           .ProseMirror {
-             min-height: 500px;
-             padding: 1rem;
-          }
-        `}</style>
       </div>
     </TooltipProvider>
   );

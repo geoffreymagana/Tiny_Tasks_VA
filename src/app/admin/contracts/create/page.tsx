@@ -12,7 +12,7 @@ import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Keep Label for direct use
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -34,7 +34,7 @@ import { generateContractContent, type GenerateContractContentInput } from '@/ai
 // AI Improve flow is temporarily disabled due to complexity with rich text editor
 // import { improveContractContent, type ImproveContractContentInput } from '@/ai/flows/improve-contract-content-flow';
 
-import { Editor } from "novel";
+import { TiptapEditor } from "@/components/ui/tiptap-editor";
 
 
 const aiGenerateSchema = z.object({
@@ -186,7 +186,7 @@ const CreateContractNotionStylePage: FC = () => {
     defaultValues: {
       title: 'Untitled Contract',
       clientId: '',
-      contentJson: defaultEditorContent, // Initialize Novel editor with default structure
+      contentJson: defaultEditorContent,
       effectiveDate: new Date(),
       expirationDate: null,
       status: 'draft',
@@ -241,7 +241,6 @@ const CreateContractNotionStylePage: FC = () => {
             if (template.contentJson) {
               form.setValue('contentJson', template.contentJson, { shouldDirty: true });
             } else {
-              // If template has no contentJson, initialize with default structure + title
                form.setValue('contentJson', {
                 type: "doc",
                 content: [
@@ -271,7 +270,7 @@ const CreateContractNotionStylePage: FC = () => {
         contentJson: data.contentJson,
         effectiveDate: formatISO(data.effectiveDate), 
         expirationDate: data.expirationDate ? formatISO(data.expirationDate) : null,
-        status: data.isTemplate ? 'template' as ContractStatus : data.status, // Set status to 'template' if it is a template
+        status: data.isTemplate ? 'template' as ContractStatus : data.status,
         isTemplate: data.isTemplate,
         templateName: data.isTemplate ? data.templateName : null,
     };
@@ -302,34 +301,30 @@ const CreateContractNotionStylePage: FC = () => {
       };
       const output = await generateContractContent(input);
       
-      // Combine AI output into a single Markdown string
-      let combinedMarkdown = `# ${output.suggestedTitle}\n\n`;
-      if (output.executiveSummaryMarkdown) {
-        combinedMarkdown += `## Executive Summary\n${output.executiveSummaryMarkdown}\n\n`;
-      }
-      combinedMarkdown += `## Scope of Services / Description\n${output.serviceDescriptionMarkdown}\n\n`;
-      combinedMarkdown += `## Payment Terms\n${output.paymentTermsMarkdown}\n\n`;
-      combinedMarkdown += `## Terms and Conditions\n${output.termsAndConditionsMarkdown}\n\n`;
+      form.setValue('title', output.suggestedTitle, { shouldDirty: true });
+
+      // Convert Markdown to Tiptap JSON structure
+      const content = [
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Executive Summary' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: output.executiveSummaryMarkdown || '' }] },
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Scope of Services / Description' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: output.serviceDescriptionMarkdown || '' }] },
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Payment Terms' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: output.paymentTermsMarkdown || '' }] },
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Terms and Conditions' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: output.termsAndConditionsMarkdown || '' }] },
+      ];
+
       if (output.additionalClausesMarkdown) {
-        combinedMarkdown += `## Additional Clauses\n${output.additionalClausesMarkdown}\n\n`;
+        content.push({ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Additional Clauses' }] });
+        content.push({ type: 'paragraph', content: [{ type: 'text', text: output.additionalClausesMarkdown }] });
       }
       if (output.signatoryBlockMarkdown) {
-        combinedMarkdown += `## Signatory Section\n${output.signatoryBlockMarkdown}\n\n`;
+        content.push({ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Signatory Section' }] });
+        content.push({ type: 'paragraph', content: [{ type: 'text', text: output.signatoryBlockMarkdown }] });
       }
 
-      form.setValue('title', output.suggestedTitle, { shouldDirty: true });
-      // The Novel editor's `defaultValue` or `onUpdate` can take Markdown.
-      // We set contentJson with a special structure that Novel might interpret as Markdown,
-      // or we rely on Novel's default Markdown parsing when `Editor` `defaultValue` is set to this.
-      // For simplicity, we'll update `contentJson` expecting Novel to handle the MD.
-      // A more robust solution would be to convert MD to Novel's JSON structure.
-      form.setValue('contentJson', { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: combinedMarkdown }]}] } , { shouldDirty: true }); // This is a simplified way; Novel might need proper conversion.
-      // A better way for novel to ingest markdown might be:
-      // editor.commands.setContent(combinedMarkdown, true); // if editor instance is available
-      // Or by setting the `defaultValue` prop with markdown directly.
-      // For controlled component with react-hook-form, updating form.setValue('contentJson', novel.markdownToProsemirrorJSON(combinedMarkdown)) would be ideal.
-      // For now, this might result in a single block of text.
-
+      form.setValue('contentJson', { type: "doc", content } , { shouldDirty: true });
 
       toast({ title: 'AI Content Drafted', description: 'Contract content populated. Review and refine.' });
       setAiDialogGenerateOpen(false); 
@@ -379,7 +374,6 @@ const CreateContractNotionStylePage: FC = () => {
                   </Tooltip>
                    <Tooltip>
                     <TooltipTrigger asChild>
-                       {/* AI Improve temporarily disabled */}
                       <Button type="button" variant="ghost" size="sm" disabled> 
                         <Wand2 className="mr-1.5 h-4 w-4" /> AI Improve
                       </Button>
@@ -411,21 +405,9 @@ const CreateContractNotionStylePage: FC = () => {
                         control={form.control}
                         name="contentJson"
                         render={({ field }) => (
-                          <Editor
-                            editorProps={{
-                              attributes: {
-                                class: `prose prose-lg dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full min-h-[500px]`,
-                              },
-                            }}
-                            onUpdate={(editor) => {
-                              field.onChange(editor?.getJSON());
-                            }}
-                            onDebouncedUpdate={(editor) => {
-                               // Can use this for less frequent updates if needed
-                            }}
-                            defaultValue={field.value || defaultEditorContent}
-                            disableLocalStorage
-                            className="relative rounded-md border-input bg-transparent shadow-none w-full"
+                          <TiptapEditor
+                            content={field.value as object}
+                            onChange={field.onChange}
                           />
                         )}
                       />
@@ -486,15 +468,6 @@ const CreateContractNotionStylePage: FC = () => {
             </form>
             </DialogContent>
         </Dialog>
-         <style jsx global>{`
-          .novel-flex { /* Novel editor might use this class internally, adjust if needed */
-            overflow-y: auto; /* Ensure editor content itself can scroll if very long */
-          }
-          .ProseMirror { /* Target Tiptap/ProseMirror's editable area */
-            min-height: 500px; /* Or whatever min-height you desire for the editor */
-            padding: 1rem;
-          }
-        `}</style>
       </div>
     </TooltipProvider>
   );
