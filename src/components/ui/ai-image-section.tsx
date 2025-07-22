@@ -57,7 +57,7 @@ export function AiImageSection({
   const imageOrder = imagePlacement === 'left' ? 'md:order-first' : '';
 
   return (
-    <section className={cn('py-12 md:py-20 min-h-screen flex items-center', className)} id={id}>
+    <section className={cn('py-12 md:py-20 flex items-center', !isImageVisible ? 'min-h-0' : 'min-h-screen', className)} id={id}>
       <div className="container mx-auto">
         <div
           className={cn(
@@ -72,7 +72,7 @@ export function AiImageSection({
             textAlign === 'center' && 'text-center'
             )}>
             {title && (
-              <h2 className={cn('font-headline text-4xl md:text-5xl font-bold text-primary', titleClassName)}>
+              <h2 className={cn('font-headline text-4xl md:text-5xl font-bold text-primary mb-6', titleClassName)}>
                 {title}
               </h2>
             )}

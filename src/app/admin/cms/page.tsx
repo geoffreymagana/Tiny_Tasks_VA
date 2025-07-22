@@ -1120,7 +1120,7 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
             >
                 <UploadCloud className="mr-2 h-4 w-4"/> Upload Image
             </CldUploadButton>
-            <Input id="imageUrl" {...form.register('imageUrl')} disabled={isSubmitting} className="sr-only" />
+            {/* The hidden input is no longer necessary as RHF handles state */}
         </div>
         <div><Label htmlFor="imageHint">Image AI Hint (1-2 keywords)</Label><Input id="imageHint" {...form.register('imageHint')} disabled={isSubmitting} placeholder="e.g. modern design"/></div>
         <div><Label htmlFor="order">Display Order</Label><Input id="order" type="number" {...form.register('order', { valueAsNumber: true })} disabled={isSubmitting} /></div>
@@ -1224,7 +1224,7 @@ const BrandLogoForm: FC<BrandLogoFormProps> = ({ logoItem, adminUserId, onSave, 
             >
                 <UploadCloud className="mr-2 h-4 w-4"/> Upload Logo
             </CldUploadButton>
-            <Input id="logoUrl" {...form.register('logoUrl')} disabled={isSubmitting} className="sr-only"/>
+            {/* The hidden input is no longer necessary as RHF handles state */}
         </div>
         <div><Label htmlFor="websiteUrl">Website URL (Optional)</Label><Input id="websiteUrl" {...form.register('websiteUrl')} disabled={isSubmitting} placeholder="https://acme.com"/></div>
         <div><Label htmlFor="brandOrder">Display Order</Label><Input id="brandOrder" type="number" {...form.register('order', { valueAsNumber: true })} disabled={isSubmitting} /></div>
