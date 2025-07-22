@@ -22,6 +22,7 @@ import {
 import Link from 'next/link';
 import { getSectionDataAction, type SectionData, getPortfolioItemsAction, type PortfolioItem, getBrandLogosAction, type BrandLogoItem } from '@/app/admin/cms/actions';
 import { BrandMarquee } from '@/components/ui/brand-marquee';
+import { ToolsShowcase } from '@/components/ui/tools-showcase';
 
 interface StaticSectionContent {
   id: string;
@@ -150,16 +151,6 @@ const improvedCopyData = {
   improvedText: "Tiny Tasks empowers your business by connecting you with skilled virtual assistants. We streamline your operations, manage critical tasks, and provide dedicated support, freeing you to concentrate on high-impact activities and achieve your strategic objectives.",
 };
 
-const toolsDataStatic = {
-  categories: [
-    { name: "Communication", icon: <MessageCircleIcon size={24} className="text-accent" />, tools: [ { name: "Skype", icon: <Phone size={18} /> }, { name: "Zoom", icon: <Video size={18} /> }, { name: "Microsoft Teams", icon: <Users size={18} /> }, { name: "Slack", icon: <Slack size={18} /> }, ], },
-    { name: "Calendar Management", icon: <CalendarDays size={24} className="text-accent" />, tools: [ { name: "Calendly", icon: <CalendarDays size={18} /> }, { name: "Google Calendar", icon: <CalendarDays size={18} /> }, ], },
-    { name: "Email Management", icon: <Mail size={24} className="text-accent" />, tools: [{ name: "Zoho Mail", icon: <Mail size={18} /> }], },
-    { name: "Social Media", icon: <Share2 size={24} className="text-accent" />, tools: [ { name: "Canva", icon: <PaletteIconLucide size={18} /> }, { name: "Meta Business Suite", icon: <MonitorSmartphone size={18} /> }, ], },
-    { name: "Project Management", icon: <ListChecks size={24} className="text-accent" />, tools: [ { name: "Notion", icon: <FileTextIcon size={18} /> }, { name: "Trello", icon: <Trello size={18} /> }, { name: "Todoist", icon: <CheckSquare size={18} /> }, ], },
-  ],
-};
-
 const pricingDataStatic = {
   tiers: [
     { tier: "Essential VA Support", price: "KES 15,000/month", description: "Perfect for individuals or small businesses needing core administrative help.", features: ["10 hours of VA support", "Basic Admin Tasks", "Email Management (limited)", "Scheduling Assistance"], isPopular: false, ctaLink: "/auth" },
@@ -251,7 +242,6 @@ export default async function HomePage() {
     } else if (sectionId === 'blog-intro' && staticConfig.imagePlacement === 'left') {
         sectionSpecificImageContainerClass = 'max-w-md';
     }
-
 
     return (
       <AiImageSection
@@ -347,29 +337,17 @@ export default async function HomePage() {
             </div>
         </section>
 
-        {renderAiImageSection('tools')}
         {getSectionContent('tools', 'isVisible') && (
-            <section id="tools-static" className="py-16 md:py-24 bg-background">
-            <div className="container mx-auto">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-                {toolsDataStatic.categories.map((category) => (
-                    <div key={category.name} className="p-6 bg-card rounded-xl shadow-lg hover:shadow-xl transition-shadow">
-                    <div className="flex items-center mb-4">
-                        {category.icon}
-                        <h3 className="font-headline text-xl text-primary ml-3">{category.name}</h3>
-                    </div>
-                    <ul className="space-y-2">
-                        {category.tools.map(tool => (
-                        <li key={tool.name} className="flex items-center text-foreground/80">
-                            <span className="mr-2 text-primary/70">{tool.icon}</span>
-                            {tool.name}
-                        </li>
-                        ))}
-                    </ul>
-                    </div>
-                ))}
+            <section className="py-12 md:py-20" id="tools">
+                <div className="container mx-auto text-center">
+                    <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary mb-4">
+                        {getSectionContent('tools', 'title') as string}
+                    </h2>
+                    <p className="text-lg text-foreground/80 mb-12 max-w-3xl mx-auto">
+                        {getSectionContent('tools', 'text') as string}
+                    </p>
+                    <ToolsShowcase />
                 </div>
-            </div>
             </section>
         )}
 
