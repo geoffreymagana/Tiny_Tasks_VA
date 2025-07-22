@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { FC } from 'react';
@@ -14,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building, ShieldAlert, AlignLeft, AlignRight, ImageOff, UploadCloud } from 'lucide-react';
+import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building, ShieldAlert, AlignLeft, AlignRight, ImageOff, UploadCloud, AlignCenter, TextCursorInput } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -83,25 +84,28 @@ interface ManagedSection {
   newImagePlacement: 'left' | 'right';
   currentIsImageVisible: boolean;
   newIsImageVisible: boolean;
+  currentTextAlign: 'left' | 'center';
+  newTextAlign: 'left' | 'center';
   isLoading: boolean;
   placeholderHint?: string;
   defaultIsVisible: boolean;
   defaultImagePlacement: 'left' | 'right';
   defaultIsImageVisible: boolean;
+  defaultTextAlign: 'left' | 'center';
 }
 
-const initialStaticSectionsData: Omit<ManagedSection, 'currentImageUrl' | 'newImageUrl' | 'currentTitle' | 'newTitle' | 'currentText' | 'newText' | 'currentIsVisible' | 'newIsVisible' | 'currentImagePlacement' | 'newImagePlacement' | 'currentIsImageVisible' | 'newIsImageVisible' | 'isLoading'>[] = [
-  { id: 'hero', name: 'Hero Section (Homepage)', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
-  { id: 'onboarding-overview', name: 'Onboarding Overview (Homepage)', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
-  { id: 'services-intro', name: 'Services Introduction (Homepage)', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
-  { id: 'tools', name: 'Tools We Master Section (Homepage)', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
-  { id: 'portfolio-intro', name: 'Portfolio Introduction (Homepage)', description: 'Introductory content for the portfolio section.', defaultTitle: 'Our Recent Work & Case Studies', defaultText: "Explore a selection of projects where Tiny Tasks has made a significant impact, delivering quality and driving growth for our clients.", placeholderHint: 'portfolio showcase design', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
-  { id: 'brand-marquee-intro', name: 'Brand Marquee Intro (Homepage)', description: "Title/text above the client logo scroll.", defaultTitle: 'Trusted By Leading Businesses', defaultText: "We're proud to have partnered with a diverse range of companies.", placeholderHint: 'brand logos collage', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
-  { id: 'pricing', name: 'Pricing Section Intro (Homepage)', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
-  { id: 'testimonials', name: 'Testimonials Intro (Homepage)', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
-  { id: 'blog-intro', name: 'Blog Introduction (Homepage)', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
-  { id: 'cta', name: 'Call to Action (Homepage)', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
-  { id: 'about-us-content', name: 'About Us Page Content', description: 'Main content for the About Us page, including banner.', defaultTitle: 'About Tiny Tasks', defaultText: "Founded with a passion for productivity and a commitment to excellence, Tiny Tasks is dedicated to providing top-tier virtual assistant services. Learn more about our mission, values, and the team that makes it all happen.", placeholderHint: 'team collaboration office', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
+const initialStaticSectionsData: Omit<ManagedSection, 'currentImageUrl' | 'newImageUrl' | 'currentTitle' | 'newTitle' | 'currentText' | 'newText' | 'currentIsVisible' | 'newIsVisible' | 'currentImagePlacement' | 'newImagePlacement' | 'currentIsImageVisible' | 'newIsImageVisible' | 'currentTextAlign' | 'newTextAlign' | 'isLoading'>[] = [
+  { id: 'hero', name: 'Hero Section (Homepage)', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true, defaultTextAlign: 'left' },
+  { id: 'onboarding-overview', name: 'Onboarding Overview (Homepage)', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true, defaultTextAlign: 'left' },
+  { id: 'services-intro', name: 'Services Introduction (Homepage)', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true, defaultTextAlign: 'center' },
+  { id: 'tools', name: 'Tools We Master Section (Homepage)', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true, defaultTextAlign: 'center' },
+  { id: 'portfolio-intro', name: 'Portfolio Introduction (Homepage)', description: 'Introductory content for the portfolio section.', defaultTitle: 'Our Recent Work & Case Studies', defaultText: "Explore a selection of projects where Tiny Tasks has made a significant impact, delivering quality and driving growth for our clients.", placeholderHint: 'portfolio showcase design', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true, defaultTextAlign: 'center' },
+  { id: 'brand-marquee-intro', name: 'Brand Marquee Intro (Homepage)', description: "Title/text above the client logo scroll.", defaultTitle: 'Trusted By Leading Businesses', defaultText: "We're proud to have partnered with a diverse range of companies.", placeholderHint: 'brand logos collage', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true, defaultTextAlign: 'center' },
+  { id: 'pricing', name: 'Pricing Section Intro (Homepage)', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true, defaultTextAlign: 'center' },
+  { id: 'testimonials', name: 'Testimonials Intro (Homepage)', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true, defaultTextAlign: 'center' },
+  { id: 'blog-intro', name: 'Blog Introduction (Homepage)', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true, defaultTextAlign: 'left' },
+  { id: 'cta', name: 'Call to Action (Homepage)', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true, defaultTextAlign: 'left' },
+  { id: 'about-us-content', name: 'About Us Page Content', description: 'Main content for the About Us page, including banner.', defaultTitle: 'About Tiny Tasks', defaultText: "Founded with a passion for productivity and a commitment to excellence, Tiny Tasks is dedicated to providing top-tier virtual assistant services. Learn more about our mission, values, and the team that makes it all happen.", placeholderHint: 'team collaboration office', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true, defaultTextAlign: 'left' },
 ];
 
 
@@ -154,6 +158,7 @@ const CmsPage: FC = () => {
       currentIsVisible: s.defaultIsVisible, newIsVisible: s.defaultIsVisible,
       currentImagePlacement: s.defaultImagePlacement, newImagePlacement: s.defaultImagePlacement,
       currentIsImageVisible: s.defaultIsImageVisible, newIsImageVisible: s.defaultIsImageVisible,
+      currentTextAlign: s.defaultTextAlign, newTextAlign: s.defaultTextAlign,
       isLoading: true 
     }))
   );
@@ -204,6 +209,7 @@ const CmsPage: FC = () => {
         currentIsVisible: s.defaultIsVisible, newIsVisible: s.defaultIsVisible,
         currentImagePlacement: s.defaultImagePlacement, newImagePlacement: s.defaultImagePlacement,
         currentIsImageVisible: s.defaultIsImageVisible, newIsImageVisible: s.defaultIsImageVisible,
+        currentTextAlign: s.defaultTextAlign, newTextAlign: s.defaultTextAlign,
         isLoading: true,
     }));
     setManagedSections(initialData); 
@@ -214,6 +220,7 @@ const CmsPage: FC = () => {
         const imagePlacement = fetchedData?.imagePlacement ?? staticSection.defaultImagePlacement;
         const isImageVisible = fetchedData?.isImageVisible === undefined ? staticSection.defaultIsImageVisible : fetchedData.isImageVisible;
         const isVisible = fetchedData?.isVisible === undefined ? staticSection.defaultIsVisible : fetchedData.isVisible;
+        const textAlign = fetchedData?.textAlign ?? staticSection.defaultTextAlign;
         return {
           ...staticSection,
           currentImageUrl: fetchedData?.imageUrl ?? null,
@@ -228,6 +235,8 @@ const CmsPage: FC = () => {
           newImagePlacement: imagePlacement,
           currentIsImageVisible: isImageVisible,
           newIsImageVisible: isImageVisible,
+          currentTextAlign: textAlign,
+          newTextAlign: textAlign,
           isLoading: false,
         };
       })
@@ -371,6 +380,9 @@ const CmsPage: FC = () => {
   const handleIsImageVisibleChange = (sectionId: string, checked: boolean) => {
     setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newIsImageVisible: checked } : s));
   };
+   const handleTextAlignChange = (sectionId: string, align: 'left' | 'center') => {
+    setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newTextAlign: align } : s));
+  };
 
 
   const handleSaveSectionData = async (sectionId: string) => {
@@ -410,6 +422,10 @@ const CmsPage: FC = () => {
       dataToUpdate.isImageVisible = section.newIsImageVisible;
       changed = true;
     }
+    if (section.newTextAlign !== section.currentTextAlign) {
+      dataToUpdate.textAlign = section.newTextAlign;
+      changed = true;
+    }
     
     if (!changed) {
         toast({ title: "No Changes", description: "No changes detected to save for this section." });
@@ -447,6 +463,10 @@ const CmsPage: FC = () => {
              if (result.sectionData!.hasOwnProperty('isImageVisible')) {
                 updatedSection.currentIsImageVisible = result.sectionData!.isImageVisible ?? s.defaultIsImageVisible;
                 updatedSection.newIsImageVisible = result.sectionData!.isImageVisible ?? s.defaultIsImageVisible;
+            }
+            if (result.sectionData!.hasOwnProperty('textAlign')) {
+                updatedSection.currentTextAlign = result.sectionData!.textAlign ?? s.defaultTextAlign;
+                updatedSection.newTextAlign = result.sectionData!.textAlign ?? s.defaultTextAlign;
             }
           return updatedSection;
         }
@@ -595,39 +615,23 @@ const CmsPage: FC = () => {
                         </CardHeader>
                         <CardContent className="p-0 grid md:grid-cols-2 gap-6">
                           <div className="space-y-3">
-                             <div className="flex items-center space-x-2">
-                                <Label className="text-sm font-medium">Layout:</Label>
-                                <Button
-                                  variant={section.newImagePlacement === 'left' ? 'secondary' : 'outline'}
-                                  size="sm"
-                                  onClick={() => handleImagePlacementChange(section.id, 'left')}
-                                  disabled={section.isLoading}
-                                >
-                                  <AlignLeft className="mr-1 h-4 w-4" /> Image Left
-                                </Button>
-                                <Button
-                                  variant={section.newImagePlacement === 'right' ? 'secondary' : 'outline'}
-                                  size="sm"
-                                  onClick={() => handleImagePlacementChange(section.id, 'right')}
-                                  disabled={section.isLoading}
-                                >
-                                  Image Right <AlignRight className="ml-1 h-4 w-4" />
-                                </Button>
-                              </div>
+                             <div className="space-y-2">
+                                <Label className="text-sm font-medium">Layout & Visibility</Label>
+                                <div className="flex items-center space-x-2">
+                                  <Button variant={section.newImagePlacement === 'left' ? 'secondary' : 'outline'} size="sm" onClick={() => handleImagePlacementChange(section.id, 'left')} disabled={section.isLoading}> <AlignLeft className="mr-1 h-4 w-4" /> Img Left </Button>
+                                  <Button variant={section.newImagePlacement === 'right' ? 'secondary' : 'outline'} size="sm" onClick={() => handleImagePlacementChange(section.id, 'right')} disabled={section.isLoading}> Img Right <AlignRight className="ml-1 h-4 w-4" /> </Button>
+                                  <Switch id={`isImageVisible-${section.id}`} checked={section.newIsImageVisible} onCheckedChange={(checked) => handleIsImageVisibleChange(section.id, checked)} disabled={section.isLoading || !firebaseUser} />
+                                  <Label htmlFor={`isImageVisible-${section.id}`}>{section.newIsImageVisible ? <ImagePlus className="h-4 w-4"/> : <ImageOff className="h-4 w-4"/>}</Label>
+                                </div>
+                             </div>
+                             <div className="space-y-2">
+                                <Label className="text-sm font-medium">Text Alignment</Label>
+                                <div className="flex items-center space-x-2">
+                                  <Button variant={section.newTextAlign === 'left' ? 'secondary' : 'outline'} size="sm" onClick={() => handleTextAlignChange(section.id, 'left')} disabled={section.isLoading}> <TextCursorInput className="mr-1 h-4 w-4" /> Align Left </Button>
+                                  <Button variant={section.newTextAlign === 'center' ? 'secondary' : 'outline'} size="sm" onClick={() => handleTextAlignChange(section.id, 'center')} disabled={section.isLoading}> <AlignCenter className="mr-1 h-4 w-4" /> Align Center </Button>
+                                </div>
+                             </div>
 
-                              <div className="flex items-center space-x-2">
-                                <Label className="text-sm font-medium">Image:</Label>
-                                 <Switch
-                                    id={`isImageVisible-${section.id}`}
-                                    checked={section.newIsImageVisible}
-                                    onCheckedChange={(checked) => handleIsImageVisibleChange(section.id, checked)}
-                                    disabled={section.isLoading || !firebaseUser}
-                                />
-                                <Label htmlFor={`isImageVisible-${section.id}`} className="text-sm">
-                                    {section.newIsImageVisible ? <ImagePlus className="h-4 w-4 inline mr-1 text-green-600"/> : <ImageOff className="h-4 w-4 inline mr-1"/>}
-                                    {section.newIsImageVisible ? "Visible" : "Hidden"}
-                                </Label>
-                              </div>
                             <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
                               <Image 
                                 src={section.newImageUrl || `https://placehold.co/300x200.png?text=${encodeURIComponent(section.placeholderHint || 'Placeholder')}`} 
@@ -706,7 +710,8 @@ const CmsPage: FC = () => {
                                  section.newText === section.currentText &&
                                  section.newIsVisible === section.currentIsVisible &&
                                  section.newImagePlacement === section.currentImagePlacement &&
-                                 section.newIsImageVisible === section.currentIsImageVisible
+                                 section.newIsImageVisible === section.currentIsImageVisible &&
+                                 section.newTextAlign === section.currentTextAlign
                                  )
                             }
                           >

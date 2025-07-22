@@ -35,6 +35,7 @@ interface StaticSectionContent {
   defaultIsVisible: boolean;
   defaultImagePlacement: 'left' | 'right';
   defaultIsImageVisible: boolean;
+  defaultTextAlign: 'left' | 'center';
 }
 
 const cmsSectionsConfig: StaticSectionContent[] = [
@@ -47,6 +48,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'right',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'left',
   },
   {
     id: 'onboarding-overview',
@@ -57,6 +59,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'left',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'left',
   },
    {
     id: 'services-intro',
@@ -66,6 +69,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'right',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'left',
   },
   {
     id: 'tools', 
@@ -75,6 +79,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'left',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'center',
   },
   {
     id: 'portfolio-intro',
@@ -84,6 +89,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'right',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'left',
   },
   {
     id: 'brand-marquee-intro',
@@ -93,6 +99,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'left',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'center',
   },
   {
     id: 'pricing', 
@@ -102,6 +109,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'right',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'left',
   },
   {
     id: 'testimonials', 
@@ -111,6 +119,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'left',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'left',
   },
   {
     id: 'blog-intro',
@@ -120,6 +129,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'right',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'left',
   },
   {
     id: 'cta', 
@@ -129,6 +139,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultIsVisible: true,
     defaultImagePlacement: 'left',
     defaultIsImageVisible: true,
+    defaultTextAlign: 'left',
   },
 ];
 
@@ -182,11 +193,11 @@ export default async function HomePage() {
   const visibleBrandLogos = brandLogos.filter(logo => logo.isVisible !== false);
 
 
-  const getSectionContent = (sectionId: string, field: 'title' | 'text' | 'imageUrl' | 'isVisible' | 'imagePlacement' | 'isImageVisible') => {
+  const getSectionContent = (sectionId: string, field: 'title' | 'text' | 'imageUrl' | 'isVisible' | 'imagePlacement' | 'isImageVisible' | 'textAlign') => {
     const cmsData = fetchedSectionData[sectionId];
     const staticConfig = cmsSectionsConfig.find(s => s.id === sectionId);
 
-    if (!staticConfig) return field === 'isVisible' || field === 'isImageVisible' ? true : (field === 'imageUrl' ? null : (field === 'imagePlacement' ? 'right' : '')); 
+    if (!staticConfig) return field === 'isVisible' || field === 'isImageVisible' ? true : (field === 'imageUrl' ? null : (field === 'imagePlacement' ? 'right' : (field === 'textAlign' ? 'left' : ''))); 
 
     switch (field) {
       case 'title':
@@ -201,6 +212,8 @@ export default async function HomePage() {
         return cmsData?.imagePlacement ?? staticConfig.defaultImagePlacement;
       case 'isImageVisible':
         return cmsData?.isImageVisible === undefined ? staticConfig.defaultIsImageVisible : cmsData.isImageVisible;
+      case 'textAlign':
+        return cmsData?.textAlign ?? staticConfig.defaultTextAlign;
       default:
         return '';
     }
@@ -218,6 +231,7 @@ export default async function HomePage() {
     const imageUrl = getSectionContent(sectionId, 'imageUrl') as string | null;
     const imagePlacement = getSectionContent(sectionId, 'imagePlacement') as 'left' | 'right';
     const isImageVisible = getSectionContent(sectionId, 'isImageVisible') as boolean;
+    const textAlign = getSectionContent(sectionId, 'textAlign') as 'left' | 'center';
     
     const imageInfo: AiImageInfo = {
       imageDataURI: imageUrl,
@@ -227,9 +241,11 @@ export default async function HomePage() {
 
     let titleClass = '';
     if (sectionId === 'hero') titleClass = 'text-5xl md:text-6xl lg:text-7xl';
-    else if (['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId)) titleClass = 'text-3xl text-center md:text-left';
+    else if (['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId)) {
+        titleClass = `text-3xl ${textAlign === 'center' ? 'md:text-center' : 'md:text-left'}`;
+    }
 
-    let textClass = ['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId) ? 'text-center md:text-left' : '';
+    let textClass = ['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId) ? `${textAlign === 'center' ? 'md:text-center' : 'md:text-left'}` : '';
     
     if (sectionId === 'cta') {
         titleClass = 'text-4xl md:text-5xl';
@@ -252,6 +268,7 @@ export default async function HomePage() {
         imageInfo={imageInfo}
         imagePlacement={imagePlacement}
         isImageVisible={isImageVisible}
+        textAlign={textAlign}
         className={sectionId === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
         titleClassName={titleClass}
         textClassName={textClass}
@@ -302,7 +319,7 @@ export default async function HomePage() {
         {getSectionContent('services-intro', 'isVisible') && (
             <section id="services-cards" className="py-16 md:py-24">
             <div className="container mx-auto">
-                <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
                 {services.map((service) => (
                     <ServiceCard
                     key={service.title}

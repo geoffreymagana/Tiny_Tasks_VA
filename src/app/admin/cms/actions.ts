@@ -20,6 +20,7 @@ export interface SectionData {
   updatedAt?: string | null;
   imagePlacement?: 'left' | 'right';
   isImageVisible?: boolean;
+  textAlign?: 'left' | 'center';
 }
 
 export interface PortfolioItem {
@@ -106,6 +107,7 @@ export async function getSectionDataAction(sectionId: string): Promise<SectionDa
         isVisible: data.isVisible === undefined ? true : data.isVisible,
         imagePlacement: data.imagePlacement || 'right',
         isImageVisible: data.isImageVisible === undefined ? true : data.isImageVisible,
+        textAlign: data.textAlign || 'left',
         updatedAt: convertDbTimestampToISOForCmsActions(data.updatedAt),
       };
     }
@@ -125,6 +127,7 @@ export async function updateSectionDataAction(
     isVisible?: boolean;
     imagePlacement?: 'left' | 'right';
     isImageVisible?: boolean;
+    textAlign?: 'left' | 'center';
   },
   adminUserId: string
 ): Promise<SectionOperationResult> {
@@ -166,6 +169,9 @@ export async function updateSectionDataAction(
   if (data.hasOwnProperty('isImageVisible')) {
     dataToUpdate.isImageVisible = data.isImageVisible;
   }
+  if (data.hasOwnProperty('textAlign')) {
+    dataToUpdate.textAlign = data.textAlign;
+  }
   
   try {
     await setDoc(sectionDocRef, dataToUpdate, { merge: true });
@@ -176,6 +182,7 @@ export async function updateSectionDataAction(
     if (data.hasOwnProperty('isVisible')) returnData.isVisible = dataToUpdate.isVisible;
     if (data.hasOwnProperty('imagePlacement')) returnData.imagePlacement = dataToUpdate.imagePlacement;
     if (data.hasOwnProperty('isImageVisible')) returnData.isImageVisible = dataToUpdate.isImageVisible;
+    if (data.hasOwnProperty('textAlign')) returnData.textAlign = dataToUpdate.textAlign;
 
     return { success: true, message: `Content for section '${sectionId}' updated successfully.`, sectionData: returnData };
   } catch (error: any) {

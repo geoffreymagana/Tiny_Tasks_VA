@@ -17,6 +17,7 @@ interface AiImageSectionProps {
   imageInfo: AiImageInfo | null;
   imagePlacement?: 'left' | 'right';
   isImageVisible?: boolean;
+  textAlign?: 'left' | 'center';
   children?: React.ReactNode;
   className?: string;
   titleClassName?: string;
@@ -32,6 +33,7 @@ export function AiImageSection({
   imageInfo,
   imagePlacement = 'right',
   isImageVisible = true,
+  textAlign = 'left',
   children,
   className,
   titleClassName,
@@ -63,7 +65,12 @@ export function AiImageSection({
             isImageVisible ? 'md:grid-cols-2 gap-8 md:gap-12' : 'grid-cols-1'
           )}
         >
-          <div className={cn('space-y-6', isImageVisible ? contentOrder : '', contentContainerClassName)}>
+          <div className={cn(
+            'space-y-6', 
+            isImageVisible ? contentOrder : '', 
+            contentContainerClassName,
+            textAlign === 'center' && 'text-center'
+            )}>
             {title && (
               <h2 className={cn('font-headline text-4xl md:text-5xl font-bold text-primary', titleClassName)}>
                 {title}
