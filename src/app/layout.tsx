@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   icons: {
     icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
   },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({

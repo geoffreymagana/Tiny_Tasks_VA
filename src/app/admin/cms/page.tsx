@@ -4,7 +4,7 @@
 import type { FC } from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form'; // Keep this for PortfolioItemForm and BrandLogoForm
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
@@ -646,16 +646,16 @@ const CmsPage: FC = () => {
                             </div>
                             <div className="flex space-x-2">
                                 <CldUploadButton
+                                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}
                                     options={{
                                         folder: 'tiny-tasks-cms',
                                         tags: [section.id, 'cms-section'],
                                     }}
                                     onSuccess={(result) => handleImageUploadSuccess(section.id, result)}
                                     uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                                    disabled={section.isLoading || !firebaseUser}
                                 >
-                                    <Button type="button" variant="outline" size="sm" className="w-full" disabled={section.isLoading || !firebaseUser}>
-                                        <UploadCloud className="mr-1 h-4 w-4"/> Upload Image
-                                    </Button>
+                                    <UploadCloud className="mr-1 h-4 w-4"/> Upload Image
                                 </CldUploadButton>
                                 <Button 
                                 variant="outline" 
@@ -1107,11 +1107,13 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
             <Label htmlFor="imageUrl">Image</Label>
             {form.watch('imageUrl') && <Image src={form.watch('imageUrl')} alt="Portfolio preview" width={120} height={90} className="rounded-md object-cover bg-muted"/>}
             <CldUploadButton
+                className={cn(buttonVariants({ variant: "outline" }), "w-full")}
                 options={{ folder: 'tiny-tasks-portfolio', tags: ['portfolio'] }}
                 onSuccess={handleUploadSuccess}
                 uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                disabled={isSubmitting}
             >
-                <Button type="button" variant="outline" className="w-full" disabled={isSubmitting}><UploadCloud className="mr-2 h-4 w-4"/> Upload Image</Button>
+                <UploadCloud className="mr-2 h-4 w-4"/> Upload Image
             </CldUploadButton>
             <Input id="imageUrl" {...form.register('imageUrl')} disabled={isSubmitting} className="sr-only" />
         </div>
@@ -1209,11 +1211,13 @@ const BrandLogoForm: FC<BrandLogoFormProps> = ({ logoItem, adminUserId, onSave, 
             <Label htmlFor="logoUrl">Logo Image</Label>
             {form.watch('logoUrl') && <Image src={form.watch('logoUrl')} alt="Logo preview" width={100} height={50} className="rounded-md object-contain bg-muted/30 p-1"/>}
             <CldUploadButton
+                className={cn(buttonVariants({ variant: "outline" }), "w-full")}
                 options={{ folder: 'tiny-tasks-brand-logos', tags: ['brand-logo'] }}
                 onSuccess={handleUploadSuccess}
                 uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                 disabled={isSubmitting}
             >
-                <Button type="button" variant="outline" className="w-full" disabled={isSubmitting}><UploadCloud className="mr-2 h-4 w-4"/> Upload Logo</Button>
+                <UploadCloud className="mr-2 h-4 w-4"/> Upload Logo
             </CldUploadButton>
             <Input id="logoUrl" {...form.register('logoUrl')} disabled={isSubmitting} className="sr-only"/>
         </div>

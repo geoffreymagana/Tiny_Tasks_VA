@@ -9,7 +9,7 @@ import { z } from 'zod';
 import Image from 'next/image';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -19,6 +19,7 @@ import { updateUserProfileServerAction, type UserProfileUpdateResult } from './a
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CldUploadButton } from 'next-cloudinary';
 import type { CldUploadWidgetResults } from 'next-cloudinary';
+import { cn } from '@/lib/utils';
 
 
 const profileFormSchema = z.object({
@@ -186,15 +187,15 @@ const AdminProfilePage: FC = () => {
                     />
                     <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
                         <CldUploadButton
+                            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "bg-background/70 hover:bg-background")}
                             options={{ folder: `profile_banners/${firebaseUser?.uid}` }}
                             onSuccess={(result) => handleImageUploadSuccess('banner', result)}
                             onUploadBegin={() => setIsUploading('banner')}
                             uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                            disabled={isUploading === 'banner'}
                         >
-                            <Button variant="outline" size="sm" className="bg-background/70 hover:bg-background" disabled={isUploading === 'banner'}>
-                                {isUploading === 'banner' ? <LottieLoader size={16} className="mr-1" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                                {isUploading === 'banner' ? 'Uploading...' : 'Change Banner'}
-                            </Button>
+                            {isUploading === 'banner' ? <LottieLoader size={16} className="mr-1" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                            {isUploading === 'banner' ? 'Uploading...' : 'Change Banner'}
                         </CldUploadButton>
                     </div>
                   </div>
@@ -213,15 +214,16 @@ const AdminProfilePage: FC = () => {
                       />
                       <div className="absolute bottom-1 right-1 h-8 w-8 sm:h-9 sm:w-9 opacity-0 group-hover:opacity-100 transition-opacity">
                         <CldUploadButton
+                            className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-full w-full rounded-full bg-background/70 hover:bg-background")}
                             options={{ folder: `avatars/${firebaseUser?.uid}` }}
                             onSuccess={(result) => handleImageUploadSuccess('avatar', result)}
                             onUploadBegin={() => setIsUploading('avatar')}
                             uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                            disabled={isUploading === 'avatar'}
+                            title="Change avatar"
                         >
-                            <Button variant="outline" size="icon" className="h-full w-full rounded-full bg-background/70 hover:bg-background" disabled={isUploading === 'avatar'} title="Change avatar">
-                                {isUploading === 'avatar' ? <LottieLoader size={16} /> : <Camera className="h-4 w-4 sm:h-5 sm:w-5" />}
-                                <span className="sr-only">Upload Avatar</span>
-                            </Button>
+                            {isUploading === 'avatar' ? <LottieLoader size={16} /> : <Camera className="h-4 w-4 sm:h-5 sm:w-5" />}
+                            <span className="sr-only">Upload Avatar</span>
                         </CldUploadButton>
                       </div>
                     </div>
