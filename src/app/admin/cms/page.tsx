@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building, ShieldAlert, AlignLeft, AlignRight, ImageOff } from 'lucide-react';
+import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building, ShieldAlert, AlignLeft, AlignRight, ImageOff, UploadCloud } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -61,6 +61,8 @@ import {
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CldUploadButton } from 'next-cloudinary';
+import type { CldUploadWidgetResults } from 'next-cloudinary';
 
 
 interface ManagedSection {
@@ -346,9 +348,14 @@ const CmsPage: FC = () => {
     setPostToDelete(null); 
   };
 
-  const handleImageUrlChange = (sectionId: string, value: string) => {
-    setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newImageUrl: value } : s));
+  const handleImageUploadSuccess = (sectionId: string, result: CldUploadWidgetResults) => {
+    if (typeof result.info === 'object' && result.info !== null && 'secure_url' in result.info) {
+      const url = (result.info as { secure_url: string }).secure_url;
+      setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newImageUrl: url } : s));
+      toast({ title: "Image Uploaded", description: "Image ready. Click 'Save Section' to apply." });
+    }
   };
+
   const handleTitleChange = (sectionId: string, value: string) => {
     setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newTitle: value } : s));
   };
@@ -622,50 +629,44 @@ const CmsPage: FC = () => {
                                 </Label>
                               </div>
                             <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
-                              {section.currentImageUrl ? (
-                                <Image 
-                                  src={section.currentImageUrl} 
-                                  alt={`Current ${section.name} image`} 
-                                  fill
-                                  style={{ objectFit: 'contain' }}
-                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                  priority={section.id === 'hero'} 
-                                />
-                              ) : (
-                                <Image 
-                                  src={`https://placehold.co/300x200.png?text=${encodeURIComponent(section.placeholderHint || 'Placeholder')}`} 
-                                  alt="Placeholder" 
-                                  width={300} 
-                                  height={200} 
-                                  className="opacity-50" 
-                                  data-ai-hint={section.placeholderHint || "website section"}
-                                  style={{ objectFit: 'contain' }}
-                                  priority={section.id === 'hero'}
-                                />
-                              )}
+                              <Image 
+                                src={section.newImageUrl || `https://placehold.co/300x200.png?text=${encodeURIComponent(section.placeholderHint || 'Placeholder')}`} 
+                                alt={`Current ${section.name} image`} 
+                                fill
+                                style={{ objectFit: 'contain' }}
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                priority={section.id === 'hero'} 
+                                key={section.newImageUrl || section.id}
+                              />
                               {section.isLoading && (
                                   <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
                                       <LottieLoader size={32}/>
                                   </div>
                               )}
                             </div>
-                            <Label htmlFor={`imageUrl-${section.id}`}>Image URL (direct link: .jpg, .png)</Label>
-                            <Input
-                              id={`imageUrl-${section.id}`}
-                              placeholder="Paste direct image URL..."
-                              value={section.newImageUrl}
-                              onChange={(e) => handleImageUrlChange(section.id, e.target.value)}
-                              disabled={section.isLoading || !firebaseUser}
-                            />
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleClearSectionImage(section.id)}
-                              disabled={section.isLoading || !firebaseUser || !section.currentImageUrl}
-                              className="w-full"
-                            >
-                              <XCircle className="mr-1 h-4 w-4"/> Clear Image
-                            </Button>
+                            <div className="flex space-x-2">
+                                <CldUploadButton
+                                    options={{
+                                        folder: 'tiny-tasks-cms',
+                                        tags: [section.id, 'cms-section'],
+                                    }}
+                                    onSuccess={(result) => handleImageUploadSuccess(section.id, result)}
+                                    uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                                >
+                                    <Button type="button" variant="outline" size="sm" className="w-full" disabled={section.isLoading || !firebaseUser}>
+                                        <UploadCloud className="mr-1 h-4 w-4"/> Upload Image
+                                    </Button>
+                                </CldUploadButton>
+                                <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleClearSectionImage(section.id)}
+                                disabled={section.isLoading || !firebaseUser || !section.currentImageUrl}
+                                className="w-full"
+                                >
+                                <XCircle className="mr-1 h-4 w-4"/> Clear Image
+                                </Button>
+                            </div>
                           </div>
 
                           <div className="space-y-4">
@@ -1062,6 +1063,13 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
     });
   }, [item, form]);
 
+  const handleUploadSuccess = (result: CldUploadWidgetResults) => {
+    if (typeof result.info === 'object' && result.info !== null && 'secure_url' in result.info) {
+        form.setValue('imageUrl', (result.info as { secure_url: string }).secure_url, { shouldDirty: true });
+        toast({ title: "Image Uploaded", description: "Image URL populated. Click 'Save' to confirm." });
+    }
+  };
+
 
   const handleSubmit = async (data: typeof defaultValues) => {
     if (!adminUserId) {
@@ -1095,7 +1103,18 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
         <div><Label htmlFor="title">Title</Label><Input id="title" {...form.register('title')} disabled={isSubmitting} /></div>
         <div><Label htmlFor="description">Description</Label><Textarea id="description" {...form.register('description')} disabled={isSubmitting} /></div>
-        <div><Label htmlFor="imageUrl">Image URL (direct link)</Label><Input id="imageUrl" {...form.register('imageUrl')} disabled={isSubmitting} placeholder="https://images.unsplash.com/...jpg"/></div>
+        <div className="space-y-2">
+            <Label htmlFor="imageUrl">Image</Label>
+            {form.watch('imageUrl') && <Image src={form.watch('imageUrl')} alt="Portfolio preview" width={120} height={90} className="rounded-md object-cover bg-muted"/>}
+            <CldUploadButton
+                options={{ folder: 'tiny-tasks-portfolio', tags: ['portfolio'] }}
+                onSuccess={handleUploadSuccess}
+                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+            >
+                <Button type="button" variant="outline" className="w-full" disabled={isSubmitting}><UploadCloud className="mr-2 h-4 w-4"/> Upload Image</Button>
+            </CldUploadButton>
+            <Input id="imageUrl" {...form.register('imageUrl')} disabled={isSubmitting} className="sr-only" />
+        </div>
         <div><Label htmlFor="imageHint">Image AI Hint (1-2 keywords)</Label><Input id="imageHint" {...form.register('imageHint')} disabled={isSubmitting} placeholder="e.g. modern design"/></div>
         <div><Label htmlFor="order">Display Order</Label><Input id="order" type="number" {...form.register('order', { valueAsNumber: true })} disabled={isSubmitting} /></div>
         <div className="flex items-center space-x-2">
@@ -1145,6 +1164,13 @@ const BrandLogoForm: FC<BrandLogoFormProps> = ({ logoItem, adminUserId, onSave, 
     });
   }, [logoItem, form]);
 
+  const handleUploadSuccess = (result: CldUploadWidgetResults) => {
+    if (typeof result.info === 'object' && result.info !== null && 'secure_url' in result.info) {
+        form.setValue('logoUrl', (result.info as { secure_url: string }).secure_url, { shouldDirty: true });
+        toast({ title: "Image Uploaded", description: "Logo URL populated. Click 'Save' to confirm." });
+    }
+  };
+
   const handleSubmit = async (data: typeof defaultValues) => {
     if (!adminUserId) {
       toast({ title: 'Authentication Error', variant: 'destructive' });
@@ -1179,7 +1205,18 @@ const BrandLogoForm: FC<BrandLogoFormProps> = ({ logoItem, adminUserId, onSave, 
       </DialogHeader>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
         <div><Label htmlFor="brandName">Brand Name</Label><Input id="brandName" {...form.register('name')} disabled={isSubmitting} placeholder="e.g. Acme Corp"/></div>
-        <div><Label htmlFor="logoUrl">Logo Image URL (direct link)</Label><Input id="logoUrl" {...form.register('logoUrl')} disabled={isSubmitting} placeholder="https://example.com/logo.png"/></div>
+        <div className="space-y-2">
+            <Label htmlFor="logoUrl">Logo Image</Label>
+            {form.watch('logoUrl') && <Image src={form.watch('logoUrl')} alt="Logo preview" width={100} height={50} className="rounded-md object-contain bg-muted/30 p-1"/>}
+            <CldUploadButton
+                options={{ folder: 'tiny-tasks-brand-logos', tags: ['brand-logo'] }}
+                onSuccess={handleUploadSuccess}
+                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+            >
+                <Button type="button" variant="outline" className="w-full" disabled={isSubmitting}><UploadCloud className="mr-2 h-4 w-4"/> Upload Logo</Button>
+            </CldUploadButton>
+            <Input id="logoUrl" {...form.register('logoUrl')} disabled={isSubmitting} className="sr-only"/>
+        </div>
         <div><Label htmlFor="websiteUrl">Website URL (Optional)</Label><Input id="websiteUrl" {...form.register('websiteUrl')} disabled={isSubmitting} placeholder="https://acme.com"/></div>
         <div><Label htmlFor="brandOrder">Display Order</Label><Input id="brandOrder" type="number" {...form.register('order', { valueAsNumber: true })} disabled={isSubmitting} /></div>
         <div className="flex items-center space-x-2">

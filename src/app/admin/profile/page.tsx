@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,6 +17,9 @@ import { LottieLoader } from '@/components/ui/lottie-loader';
 import { User, Shield, Users2, Bell, Trash2, Save, Camera, UploadCloud, Pencil, BadgeCheck } from 'lucide-react';
 import { updateUserProfileServerAction, type UserProfileUpdateResult } from './actions';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { CldUploadButton } from 'next-cloudinary';
+import type { CldUploadWidgetResults } from 'next-cloudinary';
+
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, "Name must be at least 2 characters").max(50, "Name is too long"),
@@ -36,14 +39,8 @@ const AdminProfilePage: FC = () => {
   const [isSubmittingName, setIsSubmittingName] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [activeSection, setActiveSection] = useState('profile');
-
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
-
-  const avatarFileRef = useRef<HTMLInputElement>(null);
-  const bannerFileRef = useRef<HTMLInputElement>(null);
+  
+  const [isUploading, setIsUploading] = useState<'avatar' | 'banner' | null>(null);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const securityRef = useRef<HTMLDivElement>(null);
@@ -63,8 +60,6 @@ const AdminProfilePage: FC = () => {
       if (!isEditingName) {
         form.reset({ displayName: userData.displayName || '' });
       }
-      setAvatarPreview(userData.photoURL || null);
-      setBannerPreview(userData.bannerURL || null);
     }
   }, [userData, form, isEditingName]);
 
@@ -91,7 +86,7 @@ const AdminProfilePage: FC = () => {
     if (result.success) {
       toast({ title: 'Success', description: 'Profile name updated successfully.' });
       setIsEditingName(false);
-      refetchUserData?.();
+      await refetchUserData?.();
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
@@ -108,69 +103,36 @@ const AdminProfilePage: FC = () => {
     form.reset({ displayName: userData?.displayName || '' });
   };
 
-  const handleImageUpload = async (imageType: 'avatar' | 'banner', file: File) => {
-    if (!firebaseUser?.uid || !process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || !process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET) {
-      toast({ title: 'Configuration Error', description: 'Cloudinary settings are missing.', variant: 'destructive' });
-      return;
+  const handleImageUploadSuccess = async (imageType: 'avatar' | 'banner', result: CldUploadWidgetResults) => {
+    setIsUploading(imageType);
+    if (typeof result.info !== 'object' || result.info === null || !('secure_url' in result.info)) {
+        toast({ title: "Upload Failed", description: "Invalid response from Cloudinary.", variant: "destructive" });
+        setIsUploading(null);
+        return;
     }
-    if (!file) return;
-
-    const setLoading = imageType === 'avatar' ? setIsUploadingAvatar : setIsUploadingBanner;
-    const setPreview = imageType === 'avatar' ? setAvatarPreview : setBannerPreview;
-    const currentUrl = imageType === 'avatar' ? userData?.photoURL : userData?.bannerURL;
-
-    setLoading(true);
-    setPreview(URL.createObjectURL(file)); // Show local preview immediately
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
     
-    // Organize uploads within the main asset folder defined in the Cloudinary preset
-    const folderPath = imageType === 'avatar' 
-      ? `avatars/${firebaseUser.uid}` 
-      : `profile_banners/${firebaseUser.uid}`;
-    formData.append('folder', folderPath);
+    const publicUrl = (result.info as { secure_url: string }).secure_url;
+    const updates: { photoURL?: string | null; bannerURL?: string | null } = {};
+    if (imageType === 'avatar') updates.photoURL = publicUrl;
+    if (imageType === 'banner') updates.bannerURL = publicUrl;
 
-
-    try {
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (data.error || !data.secure_url) {
-        throw new Error(data.error?.message || 'Cloudinary upload failed.');
-      }
-      
-      const publicUrl = data.secure_url;
-
-      const updates: { photoURL?: string | null; bannerURL?: string | null } = {};
-      if (imageType === 'avatar') updates.photoURL = publicUrl;
-      if (imageType === 'banner') updates.bannerURL = publicUrl;
-      
-      const result = await updateUserProfileServerAction(firebaseUser.uid, updates);
-
-      if (result.success) {
-        toast({ title: `${imageType === 'avatar' ? 'Avatar' : 'Banner'} Updated`, description: `Your ${imageType} has been successfully updated.` });
-        refetchUserData?.(); 
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error: any) {
-      toast({ title: `Upload Failed`, description: error.message || `Could not upload ${imageType}.`, variant: 'destructive' });
-      setPreview(currentUrl || null); 
-    } finally {
-      setLoading(false);
-      if (imageType === 'avatar' && avatarFileRef.current) avatarFileRef.current.value = "";
-      if (imageType === 'banner' && bannerFileRef.current) bannerFileRef.current.value = "";
+    if (!firebaseUser?.uid) {
+        toast({ title: 'Error', description: 'User not authenticated.', variant: 'destructive' });
+        setIsUploading(null);
+        return;
     }
+
+    const dbResult = await updateUserProfileServerAction(firebaseUser.uid, updates);
+
+    if (dbResult.success) {
+        toast({ title: `${imageType === 'avatar' ? 'Avatar' : 'Banner'} Updated`, description: `Your ${imageType} has been successfully updated.` });
+        await refetchUserData?.(); 
+    } else {
+        toast({ title: `Update Failed`, description: dbResult.message, variant: 'destructive' });
+    }
+    setIsUploading(null);
   };
+
   
   if (authLoading) {
     return (
@@ -214,63 +176,54 @@ const AdminProfilePage: FC = () => {
                 <CardHeader className="p-0">
                   <div className="relative h-48 md:h-64 bg-muted group">
                     <Image
-                      src={bannerPreview || "https://placehold.co/1200x400.png"}
+                      src={userData?.bannerURL || "https://placehold.co/1200x400.png"}
                       alt="Profile Banner"
                       fill
                       style={{objectFit:"cover"}}
                       className="rounded-t-lg"
                       data-ai-hint="abstract gradient modern"
-                      key={bannerPreview || 'default-banner'} // Force re-render on URL change
+                      key={userData?.bannerURL || 'default-banner'}
                     />
-                     <input 
-                      type="file" 
-                      ref={bannerFileRef} 
-                      hidden 
-                      accept="image/png, image/jpeg, image/webp"
-                      onChange={(e) => e.target.files?.[0] && handleImageUpload('banner', e.target.files[0])}
-                    />
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-background/70 hover:bg-background"
-                      onClick={() => bannerFileRef.current?.click()}
-                      disabled={isUploadingBanner}
-                    >
-                      {isUploadingBanner ? <LottieLoader size={16} className="mr-1" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                      {isUploadingBanner ? 'Uploading...' : 'Change Banner'}
-                    </Button>
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <CldUploadButton
+                            options={{ folder: `profile_banners/${firebaseUser?.uid}` }}
+                            onSuccess={(result) => handleImageUploadSuccess('banner', result)}
+                            onUploadBegin={() => setIsUploading('banner')}
+                            uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                        >
+                            <Button variant="outline" size="sm" className="bg-background/70 hover:bg-background" disabled={isUploading === 'banner'}>
+                                {isUploading === 'banner' ? <LottieLoader size={16} className="mr-1" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                                {isUploading === 'banner' ? 'Uploading...' : 'Change Banner'}
+                            </Button>
+                        </CldUploadButton>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0 px-6 pb-6">
                   <div className="flex flex-col sm:flex-row items-start sm:space-x-6">
                     <div className="relative -mt-12 sm:-mt-16 h-24 w-24 sm:h-32 sm:w-32 md:h-36 md:w-36 shrink-0 group">
                       <Image
-                        src={avatarPreview || "https://placehold.co/160x160.png"}
+                        src={userData?.photoURL || "https://placehold.co/160x160.png"}
                         alt={userData?.displayName || "User Avatar"}
                         fill
                         style={{objectFit:"cover"}}
                         className="rounded-full border-4 border-card bg-card"
                         data-ai-hint="professional avatar"
-                        key={avatarPreview || 'default-avatar'} // Force re-render on URL change
+                        key={userData?.photoURL || 'default-avatar'}
                       />
-                       <input 
-                        type="file" 
-                        ref={avatarFileRef} 
-                        hidden 
-                        accept="image/png, image/jpeg, image/webp"
-                        onChange={(e) => e.target.files?.[0] && handleImageUpload('avatar', e.target.files[0])}
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        className="absolute bottom-1 right-1 h-8 w-8 sm:h-9 sm:w-9 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-background/70 hover:bg-background"
-                        onClick={() => avatarFileRef.current?.click()}
-                        disabled={isUploadingAvatar}
-                        title="Change avatar"
-                      >
-                         {isUploadingAvatar ? <LottieLoader size={16} /> : <Camera className="h-4 w-4 sm:h-5 sm:w-5" />}
-                        <span className="sr-only">Upload Avatar</span>
-                      </Button>
+                      <div className="absolute bottom-1 right-1 h-8 w-8 sm:h-9 sm:w-9 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <CldUploadButton
+                            options={{ folder: `avatars/${firebaseUser?.uid}` }}
+                            onSuccess={(result) => handleImageUploadSuccess('avatar', result)}
+                            onUploadBegin={() => setIsUploading('avatar')}
+                            uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                        >
+                            <Button variant="outline" size="icon" className="h-full w-full rounded-full bg-background/70 hover:bg-background" disabled={isUploading === 'avatar'} title="Change avatar">
+                                {isUploading === 'avatar' ? <LottieLoader size={16} /> : <Camera className="h-4 w-4 sm:h-5 sm:w-5" />}
+                                <span className="sr-only">Upload Avatar</span>
+                            </Button>
+                        </CldUploadButton>
+                      </div>
                     </div>
                     
                     <div className="flex-grow pt-4 sm:pt-6 min-w-0">
@@ -401,5 +354,3 @@ const AdminProfilePage: FC = () => {
 };
 
 export default AdminProfilePage;
-
-    

@@ -37,9 +37,9 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'res.cloudinary.com', // Added Cloudinary hostname
+        hostname: 'res.cloudinary.com',
         port: '',
-        pathname: `/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/**`, // Scoped to your cloud
+        pathname: `/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/**`,
       }
     ],
   },

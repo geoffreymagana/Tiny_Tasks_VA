@@ -61,6 +61,7 @@
     "lottie-react": "^2.4.0",
     "lucide-react": "^0.475.0",
     "next": "15.3.3",
+    "next-cloudinary": "^6.6.2",
     "nodemailer": "^6.10.1",
     "patch-package": "^8.0.0",
     "react": "18.3.1",
