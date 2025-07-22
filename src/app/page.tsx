@@ -241,7 +241,7 @@ export default async function HomePage() {
 
     let titleClass = '';
     if (sectionId === 'hero') {
-      titleClass = 'text-5xl md:text-6xl'; 
+      titleClass = isImageVisible ? 'text-5xl md:text-6xl' : 'text-5xl md:text-7xl lg:text-8xl';
     } else if (['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId)) {
         titleClass = `text-3xl ${textAlign === 'center' ? 'md:text-center' : 'md:text-left'}`;
     }
@@ -270,7 +270,7 @@ export default async function HomePage() {
         imagePlacement={imagePlacement}
         isImageVisible={isImageVisible}
         textAlign={textAlign}
-        className={sectionId === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30 !mt-[-4rem]' : ''}
+        className={sectionId === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30 mt-[-4rem] pt-16 md:pt-20' : ''}
         titleClassName={titleClass}
         textClassName={textClass}
         imageContainerClassName={sectionSpecificImageContainerClass}

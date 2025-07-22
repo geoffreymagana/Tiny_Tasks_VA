@@ -734,7 +734,7 @@ const CmsPage: FC = () => {
                       <CardTitle className="flex items-center"><Briefcase className="mr-2 h-6 w-6 text-accent" /> Manage Portfolio Items</CardTitle>
                       <CardDescription>Add, edit, or remove items from your website's portfolio.</CardDescription>
                     </div>
-                    <Button onClick={() => handleOpenPortfolioDialog()} disabled={!firebaseUser}>
+                    <Button onClick={() => handleOpenPortfolioDialog()}>
                       <PlusCircle className="mr-2 h-4 w-4" /> Add Portfolio Item
                     </Button>
                   </CardHeader>
@@ -801,7 +801,7 @@ const CmsPage: FC = () => {
                       <CardTitle className="flex items-center"><Building className="mr-2 h-6 w-6 text-accent" /> Manage Brand Logos</CardTitle>
                       <CardDescription>Add, edit, or remove brand logos for the homepage marquee.</CardDescription>
                     </div>
-                    <Button onClick={() => handleOpenBrandLogoDialog()} disabled={!firebaseUser}>
+                    <Button onClick={() => handleOpenBrandLogoDialog()}>
                       <PlusCircle className="mr-2 h-4 w-4" /> Add Brand Logo
                     </Button>
                   </CardHeader>
