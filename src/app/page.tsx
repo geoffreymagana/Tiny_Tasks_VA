@@ -240,8 +240,9 @@ export default async function HomePage() {
     };
 
     let titleClass = '';
-    if (sectionId === 'hero') titleClass = 'text-5xl md:text-6xl lg:text-7xl';
-    else if (['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId)) {
+    if (sectionId === 'hero') {
+      titleClass = isImageVisible ? 'text-5xl md:text-6xl lg:text-7xl' : 'text-5xl md:text-7xl lg:text-8xl';
+    } else if (['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId)) {
         titleClass = `text-3xl ${textAlign === 'center' ? 'md:text-center' : 'md:text-left'}`;
     }
 

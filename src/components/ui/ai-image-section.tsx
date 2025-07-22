@@ -67,7 +67,7 @@ export function AiImageSection({
         >
           <div className={cn(
             'space-y-6', 
-            isImageVisible ? contentOrder : '', 
+            isImageVisible ? contentOrder : 'max-w-3xl mx-auto py-8 md:py-12', 
             contentContainerClassName,
             textAlign === 'center' && 'text-center'
             )}>
