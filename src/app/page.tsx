@@ -20,7 +20,7 @@ import {
   CalendarDays, Users, Phone, Video, MessageSquare as MessageCircleIcon, FileTextIcon, ListChecks, CheckSquare, MonitorSmartphone, Slack, Trello, ThumbsUp, TrendingUp, Brush, LayoutGrid, Crop, ShoppingCart, Aperture
 } from 'lucide-react';
 import Link from 'next/link';
-import { getSectionDataAction, type SectionData, getPortfolioItemsAction, type PortfolioItem, getBrandLogosAction, type BrandLogoItem } from '@/app/admin/cms/actions';
+import { getSectionDataAction, type SectionData, getPortfolioItemsAction, type PortfolioItem, getBrandLogosAction, type BrandLogoItem, getTestimonialsAction, type TestimonialItem } from '@/app/admin/cms/actions';
 import { BrandMarquee } from '@/components/ui/brand-marquee';
 import { ToolsShowcase } from '@/components/ui/tools-showcase';
 
@@ -126,6 +126,7 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     defaultTitle: "Insights & Productivity Tips",
     defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday. Discover trends, tools, and strategies to optimize your operations.",
     imageDescriptionForHint: "blog ideas desk",
+    cta: { text: 'Explore Our Blog', href: '/blog' },
     defaultIsVisible: true,
     defaultImagePlacement: 'right',
     defaultIsImageVisible: true,
@@ -170,14 +171,6 @@ const pricingDataStatic = {
   ],
 };
 
-const testimonialsDataStatic = {
-  reviews: [
-    { name: "Aisha K.", role: "Founder, Bloom Creatives", testimonial: "Tiny Tasks revolutionized how I manage my workload. My VA is proactive, efficient, and a true asset to my business!", avatarFallback: "AK", rating: 5 },
-    { name: "David M.", role: "Consultant, Peak Solutions", testimonial: "The onboarding was seamless, and my assistant got up to speed incredibly fast. I can finally focus on strategy instead of being bogged down in admin.", avatarFallback: "DM", rating: 5 },
-    { name: "Sarah L.", role: "E-commerce Store Owner", testimonial: "From social media to customer support, my VA handles it all. Sales are up, and my stress levels are way down. Highly recommend!", avatarFallback: "SL", rating: 4 },
-  ],
-};
-
 
 export default async function HomePage() {
   
@@ -191,6 +184,9 @@ export default async function HomePage() {
 
   const brandLogos: BrandLogoItem[] = await getBrandLogosAction();
   const visibleBrandLogos = brandLogos.filter(logo => logo.isVisible !== false);
+
+  const testimonials: TestimonialItem[] = await getTestimonialsAction();
+  const visibleTestimonials = testimonials.filter(item => item.isVisible !== false);
 
 
   const getSectionContent = (sectionId: string, field: 'title' | 'text' | 'imageUrl' | 'isVisible' | 'imagePlacement' | 'isImageVisible' | 'textAlign') => {
@@ -243,10 +239,10 @@ export default async function HomePage() {
     if (sectionId === 'hero') {
       titleClass = isImageVisible ? 'text-5xl md:text-6xl' : 'text-5xl md:text-7xl lg:text-8xl';
     } else if (['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId)) {
-        titleClass = `text-3xl ${textAlign === 'center' ? 'md:text-center' : 'md:text-left'}`;
+        titleClass = `text-4xl md:text-5xl`;
     }
 
-    let textClass = ['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId) ? `${textAlign === 'center' ? 'md:text-center' : 'md:text-left'}` : '';
+    let textClass = ['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId) ? `text-lg max-w-3xl ${textAlign === 'center' ? 'mx-auto' : ''}` : '';
     
     if (sectionId === 'cta') {
         titleClass = 'text-4xl md:text-5xl';
@@ -270,7 +266,7 @@ export default async function HomePage() {
         imagePlacement={imagePlacement}
         isImageVisible={isImageVisible}
         textAlign={textAlign}
-        className={sectionId === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30 mt-[-4rem] pt-16 md:pt-20' : ''}
+        className={sectionId === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30 !mt-[-4rem] pt-16 md:pt-20' : ''}
         titleClassName={titleClass}
         textClassName={textClass}
         imageContainerClassName={sectionSpecificImageContainerClass}
@@ -438,18 +434,19 @@ export default async function HomePage() {
         )}
         
         {renderAiImageSection('testimonials')}
-        {getSectionContent('testimonials', 'isVisible') && (
+        {getSectionContent('testimonials', 'isVisible') && visibleTestimonials.length > 0 && (
             <section id="testimonials-static" className="py-16 md:py-24 bg-background"> {/* Alternating background */}
             <div className="container mx-auto">
                 <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8">
-                {testimonialsDataStatic.reviews.map((review) => (
+                {visibleTestimonials.map((review) => (
                     <TestimonialCard
-                    key={review.name}
-                    name={review.name}
-                    role={review.role}
-                    testimonial={review.testimonial}
-                    avatarFallback={review.avatarFallback}
-                    rating={review.rating}
+                      key={review.id}
+                      name={review.name}
+                      role={review.role}
+                      testimonial={review.testimonial}
+                      avatarSrc={review.avatarUrl || undefined}
+                      avatarFallback={review.name.split(' ').map(n => n[0]).join('')}
+                      rating={review.rating}
                     />
                 ))}
                 </div>
@@ -458,19 +455,7 @@ export default async function HomePage() {
         )}
 
         {renderAiImageSection('blog-intro')}
-         {(getSectionContent('blog-intro', 'isVisible') as boolean) && (
-            <section id="blog-cta" className="pb-16 md:pb-24 pt-8 bg-secondary/30"> {/* Alternating background */}
-                 <div className="container mx-auto text-center md:text-left"> {/* Ensured button is inside the main content flow of AiImageSection for blog-intro */}
-                    <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                        <Link href="/blog">
-                        Explore Our Blog <Rocket className="ml-2 h-5 w-5" />
-                        </Link>
-                    </Button>
-                </div>
-            </section>
-        )}
-
-
+        
         {(getSectionContent('cta', 'isVisible') as boolean) && (
           <section key="cta" id="cta" className="py-20 md:py-28 bg-gradient-to-r from-primary to-blue-800 text-primary-foreground">
             <div className="container mx-auto">

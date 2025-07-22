@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building, ShieldAlert, AlignLeft, AlignRight, ImageOff, UploadCloud, AlignCenter, TextCursorInput } from 'lucide-react';
+import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building, ShieldAlert, AlignLeft, AlignRight, ImageOff, UploadCloud, AlignCenter, TextCursorInput, Star, MessageSquare } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -57,7 +57,13 @@ import {
   updateBrandLogoAction,
   deleteBrandLogoAction,
   type BrandLogoItem,
-  type BrandLogoOperationResult
+  type BrandLogoOperationResult,
+  addTestimonialAction,
+  getTestimonialsAction,
+  updateTestimonialAction,
+  deleteTestimonialAction,
+  type TestimonialItem,
+  type TestimonialOperationResult,
 } from './actions';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -176,6 +182,13 @@ const CmsPage: FC = () => {
   const [editingBrandLogo, setEditingBrandLogo] = useState<BrandLogoItem | null>(null);
   const [brandLogoToDelete, setBrandLogoToDelete] = useState<BrandLogoItem | null>(null);
   const [isProcessingBrandLogo, setIsProcessingBrandLogo] = useState(false);
+  
+  const [testimonials, setTestimonials] = useState<TestimonialItem[]>([]);
+  const [isLoadingTestimonials, setIsLoadingTestimonials] = useState(true);
+  const [isTestimonialDialogOpen, setIsTestimonialDialogOpen] = useState(false);
+  const [editingTestimonial, setEditingTestimonial] = useState<TestimonialItem | null>(null);
+  const [testimonialToDelete, setTestimonialToDelete] = useState<TestimonialItem | null>(null);
+  const [isProcessingTestimonial, setIsProcessingTestimonial] = useState(false);
 
 
   const [activeSection, setActiveSection] = useState('websiteContent');
@@ -183,12 +196,14 @@ const CmsPage: FC = () => {
   const websiteContentRef = useRef<HTMLDivElement>(null);
   const portfolioRef = useRef<HTMLDivElement>(null);
   const brandLogosRef = useRef<HTMLDivElement>(null);
+  const testimonialsRef = useRef<HTMLDivElement>(null);
   const blogRef = useRef<HTMLDivElement>(null);
 
   const cmsNavItems: CmsNavItem[] = [
     { id: 'websiteContent', label: 'Section Content', icon: <Images className="mr-2 h-5 w-5" />, ref: websiteContentRef },
     { id: 'portfolio', label: 'Portfolio Items', icon: <Briefcase className="mr-2 h-5 w-5" />, ref: portfolioRef },
     { id: 'brandLogos', label: 'Brand Logos', icon: <Building className="mr-2 h-5 w-5" />, ref: brandLogosRef },
+    { id: 'testimonials', label: 'Testimonials', icon: <MessageSquare className="mr-2 h-5 w-5" />, ref: testimonialsRef },
     { id: 'blog', label: 'Blog Management', icon: <BookOpen className="mr-2 h-5 w-5" />, ref: blogRef },
   ];
 
@@ -324,19 +339,41 @@ const CmsPage: FC = () => {
        setIsLoadingBrandLogos(false);
     }
   }, [toast]);
+  
+  const fetchTestimonials = useCallback(async () => {
+    try {
+      const items = await getTestimonialsAction();
+      setTestimonials(items);
+    } catch (error) {
+      console.error("CMS Page: Error fetching testimonials:", error);
+      toast({ title: "Error", description: "Could not fetch testimonials.", variant: "destructive" });
+      setTestimonials([]);
+    } finally {
+       setIsLoadingTestimonials(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
     if (firebaseUser) {
       setIsLoadingBrandLogos(true);
       fetchBrandLogos();
+      setIsLoadingTestimonials(true);
+      fetchTestimonials();
     }
-  }, [firebaseUser, fetchBrandLogos]);
+  }, [firebaseUser, fetchBrandLogos, fetchTestimonials]);
 
   const handleBrandLogoSave = async () => {
     setIsBrandLogoDialogOpen(false);
     setEditingBrandLogo(null);
     setIsLoadingBrandLogos(true); 
     await fetchBrandLogos(); 
+  };
+  
+  const handleTestimonialSave = async () => {
+    setIsTestimonialDialogOpen(false);
+    setEditingTestimonial(null);
+    setIsLoadingTestimonials(true);
+    await fetchTestimonials();
   };
 
 
@@ -542,15 +579,40 @@ const CmsPage: FC = () => {
     setIsProcessingBrandLogo(false);
   };
 
+  const handleOpenTestimonialDialog = (item?: TestimonialItem) => {
+    setEditingTestimonial(item || null);
+    setIsTestimonialDialogOpen(true);
+  };
+
+  const handleDeleteTestimonial = async () => {
+    if (!testimonialToDelete || !firebaseUser?.uid) {
+      toast({ title: "Error", variant: "destructive" });
+      setTestimonialToDelete(null);
+      return;
+    }
+    setIsProcessingTestimonial(true);
+    const result = await deleteTestimonialAction(testimonialToDelete.id!, firebaseUser.uid);
+    if (result.success) {
+      toast({ title: "Success", description: result.message });
+      await handleTestimonialSave();
+    } else {
+      toast({ title: "Error", description: result.message, variant: "destructive" });
+    }
+    setTestimonialToDelete(null);
+    setIsProcessingTestimonial(false);
+  };
+
+
 
   return (
     <AlertDialog 
-      open={!!postToDelete || !!portfolioItemToDelete || !!brandLogoToDelete} 
+      open={!!postToDelete || !!portfolioItemToDelete || !!brandLogoToDelete || !!testimonialToDelete} 
       onOpenChange={(isOpen) => { 
         if (!isOpen) {
           setPostToDelete(null); 
           setPortfolioItemToDelete(null);
           setBrandLogoToDelete(null);
+          setTestimonialToDelete(null);
         }
       }}
     >
@@ -859,6 +921,78 @@ const CmsPage: FC = () => {
                 />
               </Dialog>
 
+              <Separator />
+
+              <section id="testimonials" ref={testimonialsRef} className="pt-4">
+                <Card>
+                  <CardHeader className="flex flex-row justify-between items-center">
+                    <div>
+                      <CardTitle className="flex items-center"><MessageSquare className="mr-2 h-6 w-6 text-accent" /> Manage Testimonials</CardTitle>
+                      <CardDescription>Add, edit, or remove client testimonials.</CardDescription>
+                    </div>
+                    <Button onClick={() => handleOpenTestimonialDialog()}>
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add Testimonial
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingTestimonials ? (
+                      <div className="flex justify-center items-center py-10"><LottieLoader size={48} /><p className="ml-2">Loading testimonials...</p></div>
+                    ) : testimonials.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-10">No testimonials yet. Click "Add Testimonial" to start.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-16">Avatar</TableHead>
+                            <TableHead>Name & Role</TableHead>
+                            <TableHead>Rating</TableHead>
+                            <TableHead>Visible</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {testimonials.map(item => (
+                            <TableRow key={item.id} className={cn(!item.isVisible && "opacity-50")}>
+                              <TableCell>
+                                <Image src={item.avatarUrl || "https://placehold.co/40x40.png"} alt={item.name} width={40} height={40} className="rounded-full object-cover bg-muted" data-ai-hint={item.avatarHint || "person headshot"}/>
+                              </TableCell>
+                              <TableCell>
+                                <p className="font-medium">{item.name}</p>
+                                <p className="text-xs text-muted-foreground">{item.role}</p>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center">
+                                  <Star className="h-4 w-4 text-yellow-400 mr-1"/> {item.rating}/5
+                                </div>
+                              </TableCell>
+                              <TableCell>{item.isVisible ? <Eye className="h-5 w-5 text-green-500"/> : <EyeOff className="h-5 w-5 text-muted-foreground"/>}</TableCell>
+                              <TableCell className="text-right space-x-1">
+                                <Button variant="outline" size="icon" onClick={() => handleOpenTestimonialDialog(item)}><Edit3 className="h-4 w-4"/></Button>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="icon" onClick={() => setTestimonialToDelete(item)}><Trash2 className="h-4 w-4"/></Button>
+                                </AlertDialogTrigger>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </section>
+
+              <Dialog open={isTestimonialDialogOpen} onOpenChange={(open) => {
+                  if (!open) setEditingTestimonial(null);
+                  setIsTestimonialDialogOpen(open);
+              }}>
+                <TestimonialForm
+                  item={editingTestimonial}
+                  adminUserId={firebaseUser?.uid || ''}
+                  onSave={handleTestimonialSave}
+                  onCancel={() => {setIsTestimonialDialogOpen(false); setEditingTestimonial(null);}}
+                />
+              </Dialog>
+
 
               <Separator />
 
@@ -1026,6 +1160,27 @@ const CmsPage: FC = () => {
                 >
                     {isProcessingBrandLogo ? <LottieLoader size={16} className="mr-2"/> : null}
                     {isProcessingBrandLogo ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        )}
+         {testimonialToDelete && ( 
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center"><ShieldAlert className="mr-2 h-5 w-5 text-destructive"/>Delete Testimonial?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Are you sure you want to delete the testimonial from &quot;{testimonialToDelete?.name}&quot;? This action cannot be undone.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setTestimonialToDelete(null)} disabled={isProcessingTestimonial}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDeleteTestimonial}
+                    disabled={isProcessingTestimonial}
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                >
+                    {isProcessingTestimonial ? <LottieLoader size={16} className="mr-2"/> : null}
+                    {isProcessingTestimonial ? "Deleting..." : "Delete"}
                 </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -1224,7 +1379,6 @@ const BrandLogoForm: FC<BrandLogoFormProps> = ({ logoItem, adminUserId, onSave, 
             >
                 <UploadCloud className="mr-2 h-4 w-4"/> Upload Logo
             </CldUploadButton>
-            {/* The hidden input is no longer necessary as RHF handles state */}
         </div>
         <div><Label htmlFor="websiteUrl">Website URL (Optional)</Label><Input id="websiteUrl" {...form.register('websiteUrl')} disabled={isSubmitting} placeholder="https://acme.com"/></div>
         <div><Label htmlFor="brandOrder">Display Order</Label><Input id="brandOrder" type="number" {...form.register('order', { valueAsNumber: true })} disabled={isSubmitting} /></div>
@@ -1244,5 +1398,125 @@ const BrandLogoForm: FC<BrandLogoFormProps> = ({ logoItem, adminUserId, onSave, 
   );
 };
 
+interface TestimonialFormProps {
+  item: TestimonialItem | null;
+  adminUserId: string;
+  onSave: () => Promise<void>; 
+  onCancel: () => void;
+}
+
+const TestimonialForm: FC<TestimonialFormProps> = ({ item, adminUserId, onSave, onCancel }) => {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const defaultValues = {
+    name: item?.name || '',
+    role: item?.role || '',
+    testimonial: item?.testimonial || '',
+    avatarUrl: item?.avatarUrl || '',
+    avatarHint: item?.avatarHint || 'person headshot',
+    rating: item?.rating || 5,
+    isVisible: item?.isVisible === undefined ? true : item.isVisible,
+  };
+
+  const form = useForm({ defaultValues });
+
+  useEffect(() => { 
+    form.reset({
+        name: item?.name || '',
+        role: item?.role || '',
+        testimonial: item?.testimonial || '',
+        avatarUrl: item?.avatarUrl || '',
+        avatarHint: item?.avatarHint || 'person headshot',
+        rating: item?.rating || 5,
+        isVisible: item?.isVisible === undefined ? true : item.isVisible,
+    });
+  }, [item, form]);
+
+  const handleUploadSuccess = (result: CldUploadWidgetResults) => {
+    if (typeof result.info === 'object' && result.info !== null && 'secure_url' in result.info) {
+        form.setValue('avatarUrl', (result.info as { secure_url: string }).secure_url, { shouldDirty: true });
+        toast({ title: "Avatar Uploaded", description: "Image URL populated. Click 'Save' to confirm." });
+    }
+  };
+
+  const handleSubmit = async (data: typeof defaultValues) => {
+    if (!adminUserId) {
+      toast({ title: 'Authentication Error', variant: 'destructive' });
+      return;
+    }
+    setIsSubmitting(true);
+    const payload: Omit<TestimonialItem, 'id' | 'createdAt' | 'updatedAt'> = {
+        ...data,
+        avatarUrl: data.avatarUrl || null,
+    };
+    let result: TestimonialOperationResult;
+
+    if (item?.id) {
+      result = await updateTestimonialAction(item.id, payload, adminUserId);
+    } else {
+      result = await addTestimonialAction(payload, adminUserId);
+    }
+
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
+      await onSave(); 
+    } else {
+      toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
+    setIsSubmitting(false);
+  };
+
+  return (
+    <DialogContent className="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>{item ? 'Edit' : 'Add New'} Testimonial</DialogTitle>
+      </DialogHeader>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
+        <div><Label htmlFor="name">Client Name</Label><Input id="name" {...form.register('name')} disabled={isSubmitting} /></div>
+        <div><Label htmlFor="role">Client Role/Company</Label><Input id="role" {...form.register('role')} disabled={isSubmitting} placeholder="e.g. CEO, Founder"/></div>
+        <div><Label htmlFor="testimonial">Testimonial Text</Label><Textarea id="testimonial" {...form.register('testimonial')} disabled={isSubmitting} /></div>
+        <div className="space-y-2">
+            <Label>Avatar Image</Label>
+            {form.watch('avatarUrl') && <Image src={form.watch('avatarUrl')} alt="Avatar preview" width={60} height={60} className="rounded-full object-cover bg-muted"/>}
+            <CldUploadButton
+                className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+                options={{ folder: 'tiny-tasks-testimonials', tags: ['testimonial-avatar'] }}
+                onSuccess={handleUploadSuccess}
+                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                disabled={isSubmitting}
+            >
+                <UploadCloud className="mr-2 h-4 w-4"/> Upload Avatar
+            </CldUploadButton>
+        </div>
+        <div><Label htmlFor="avatarHint">Avatar AI Hint</Label><Input id="avatarHint" {...form.register('avatarHint')} disabled={isSubmitting} placeholder="e.g. person headshot"/></div>
+        <div><Label>Rating (1-5)</Label>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map(star => (
+                <Star
+                  key={star}
+                  className={cn("h-6 w-6 cursor-pointer", form.watch('rating') >= star ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/50")}
+                  onClick={() => form.setValue('rating', star, { shouldDirty: true })}
+                />
+              ))}
+            </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch id="isVisible" checked={form.watch('isVisible')} onCheckedChange={(checked) => form.setValue('isVisible', checked)} disabled={isSubmitting} />
+          <Label htmlFor="isVisible">Visible on website</Label>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancel</Button></DialogClose>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <LottieLoader className="mr-2" size={16}/> : <Save className="mr-2 h-4 w-4"/>}
+            {isSubmitting ? 'Saving...' : 'Save Testimonial'}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  );
+};
+
+
 
 export default CmsPage;
+

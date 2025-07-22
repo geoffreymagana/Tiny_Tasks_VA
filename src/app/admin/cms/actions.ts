@@ -46,6 +46,20 @@ export interface BrandLogoItem {
   updatedAt?: string | null;
 }
 
+export interface TestimonialItem {
+    id?: string;
+    name: string;
+    role: string;
+    testimonial: string;
+    avatarUrl: string | null;
+    avatarHint: string;
+    rating: number; // e.g., 1-5
+    isVisible?: boolean;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+}
+
+
 export interface SectionOperationResult {
   success: boolean;
   message: string;
@@ -64,9 +78,17 @@ export interface BrandLogoOperationResult {
   brandLogoId?: string;
 }
 
+export interface TestimonialOperationResult {
+  success: boolean;
+  message: string;
+  testimonialId?: string;
+}
+
+
 const SECTIONS_COLLECTION = 'websiteSectionImages'; 
 const PORTFOLIO_COLLECTION = 'portfolioItems';
 const BRAND_LOGOS_COLLECTION = 'brandLogos';
+const TESTIMONIALS_COLLECTION = 'testimonials';
 
 
 const convertDbTimestampToISOForCmsActions = (dbTimestamp: any): string | null => {
@@ -368,5 +390,95 @@ export async function deleteBrandLogoAction(
   } catch (error: any) {
     console.error(`Error deleting brand logo ${logoId}:`, error);
     return { success: false, message: error.message || 'Failed to delete brand logo.' };
+  }
+}
+
+// Testimonial Actions
+export async function addTestimonialAction(
+  itemData: Omit<TestimonialItem, 'id' | 'createdAt' | 'updatedAt'>,
+  adminUserId: string
+): Promise<TestimonialOperationResult> {
+  if (!(await verifyAdmin(adminUserId))) {
+    return { success: false, message: 'User does not have admin privileges.' };
+  }
+  try {
+    const dataToSave = {
+      ...itemData,
+      avatarUrl: itemData.avatarUrl || null,
+      isVisible: itemData.isVisible === undefined ? true : itemData.isVisible,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const docRef = await addDoc(collection(db, TESTIMONIALS_COLLECTION), dataToSave);
+    return { success: true, message: 'Testimonial added successfully!', testimonialId: docRef.id };
+  } catch (error: any) {
+    console.error('Error adding testimonial:', error);
+    return { success: false, message: error.message || 'Failed to add testimonial.' };
+  }
+}
+
+export async function getTestimonialsAction(): Promise<TestimonialItem[]> {
+  try {
+    const q = query(collection(db, TESTIMONIALS_COLLECTION), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name || '',
+        role: data.role || '',
+        testimonial: data.testimonial || '',
+        avatarUrl: data.avatarUrl || null,
+        avatarHint: data.avatarHint || 'person headshot',
+        rating: data.rating === undefined ? 5 : data.rating,
+        isVisible: data.isVisible === undefined ? true : data.isVisible,
+        createdAt: convertDbTimestampToISOForCmsActions(data.createdAt),
+        updatedAt: convertDbTimestampToISOForCmsActions(data.updatedAt),
+      } as TestimonialItem;
+    });
+  } catch (error) {
+    console.error('Error fetching testimonials:', error);
+    return [];
+  }
+}
+
+export async function updateTestimonialAction(
+  itemId: string,
+  itemData: Omit<TestimonialItem, 'id' | 'createdAt' | 'updatedAt'>,
+  adminUserId: string
+): Promise<TestimonialOperationResult> {
+  if (!(await verifyAdmin(adminUserId))) {
+    return { success: false, message: 'User does not have admin privileges.' };
+  }
+  try {
+    const itemRef = doc(db, TESTIMONIALS_COLLECTION, itemId);
+    const dataToUpdate = {
+        ...itemData,
+        avatarUrl: itemData.avatarUrl || null,
+        isVisible: itemData.isVisible === undefined ? true : itemData.isVisible,
+        updatedAt: serverTimestamp()
+    };
+    await updateDoc(itemRef, dataToUpdate);
+    return { success: true, message: 'Testimonial updated successfully!', testimonialId: itemId };
+  } catch (error: any) {
+    console.error(`Error updating testimonial ${itemId}:`, error);
+    return { success: false, message: error.message || 'Failed to update testimonial.' };
+  }
+}
+
+export async function deleteTestimonialAction(
+  itemId: string,
+  adminUserId: string
+): Promise<TestimonialOperationResult> {
+  if (!(await verifyAdmin(adminUserId))) {
+    return { success: false, message: 'User does not have admin privileges.' };
+  }
+  try {
+    const itemRef = doc(db, TESTIMONIALS_COLLECTION, itemId);
+    await deleteDoc(itemRef);
+    return { success: true, message: 'Testimonial deleted successfully!' };
+  } catch (error: any) {
+    console.error(`Error deleting testimonial ${itemId}:`, error);
+    return { success: false, message: error.message || 'Failed to delete testimonial.' };
   }
 }
