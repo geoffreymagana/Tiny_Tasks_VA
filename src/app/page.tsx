@@ -1,4 +1,5 @@
 
+
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { AiImageSection, AiImageInfo } from '@/components/ui/ai-image-section';
@@ -31,6 +32,8 @@ interface StaticSectionContent {
   icon?: React.ReactNode;
   imageDescriptionForHint: string; 
   defaultIsVisible: boolean;
+  defaultImagePlacement: 'left' | 'right';
+  defaultIsImageVisible: boolean;
 }
 
 const cmsSectionsConfig: StaticSectionContent[] = [
@@ -38,83 +41,93 @@ const cmsSectionsConfig: StaticSectionContent[] = [
     id: 'hero',
     defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity',
     defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.",
-    imagePlacement: 'right',
     cta: { text: 'Get Started', href: '/auth' },
     imageDescriptionForHint: "professional virtual assistant",
     defaultIsVisible: true,
+    defaultImagePlacement: 'right',
+    defaultIsImageVisible: true,
   },
   {
     id: 'onboarding-overview',
     defaultTitle: 'Our Simple Onboarding Process',
     defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.",
-    imagePlacement: 'left',
     cta: { text: 'View Detailed Onboarding', href: '/onboarding-steps' },
     imageDescriptionForHint: "onboarding steps",
     defaultIsVisible: true,
+    defaultImagePlacement: 'left',
+    defaultIsImageVisible: true,
   },
    {
     id: 'services-intro',
     defaultTitle: 'Expert VA Support Tailored For You',
     defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.",
-    imagePlacement: 'right', 
     imageDescriptionForHint: "virtual assistance services",
     defaultIsVisible: true,
+    defaultImagePlacement: 'right',
+    defaultIsImageVisible: true,
   },
   {
     id: 'tools', 
     defaultTitle: 'Our Versatile Toolkit',
     defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.",
-    imagePlacement: 'left', 
     imageDescriptionForHint: "business tools collage",
     defaultIsVisible: true,
+    defaultImagePlacement: 'left',
+    defaultIsImageVisible: true,
   },
   {
     id: 'portfolio-intro',
     defaultTitle: 'Our Recent Work & Case Studies',
     defaultText: "Explore a selection of projects where Tiny Tasks has made a significant impact, delivering quality and driving growth for our clients.",
-    imagePlacement: 'right',
     imageDescriptionForHint: "portfolio showcase design",
     defaultIsVisible: true,
+    defaultImagePlacement: 'right',
+    defaultIsImageVisible: true,
   },
   {
     id: 'brand-marquee-intro',
     defaultTitle: 'Trusted By Leading Businesses',
     defaultText: "We're proud to have partnered with a diverse range of companies, helping them achieve their goals with our dedicated virtual assistant services.",
-    imagePlacement: 'left', // Or 'none' if no image is desired for this intro, or right to alternate
     imageDescriptionForHint: "brand logos collage",
     defaultIsVisible: true,
+    defaultImagePlacement: 'left',
+    defaultIsImageVisible: true,
   },
   {
     id: 'pricing', 
     defaultTitle: 'Transparent VA Pricing',
     defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.",
-    imagePlacement: 'right', // Changed to alternate
     imageDescriptionForHint: "pricing plans KES",
     defaultIsVisible: true,
+    defaultImagePlacement: 'right',
+    defaultIsImageVisible: true,
   },
   {
     id: 'testimonials', 
     defaultTitle: 'Client Success Stories',
     defaultText: "Hear from businesses that have transformed their productivity and growth with Tiny Tasks.",
-    imagePlacement: 'left', // Changed to alternate
     imageDescriptionForHint: "happy clients",
     defaultIsVisible: true,
+    defaultImagePlacement: 'left',
+    defaultIsImageVisible: true,
   },
   {
     id: 'blog-intro',
     defaultTitle: "Insights & Productivity Tips",
     defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday. Discover trends, tools, and strategies to optimize your operations.",
-    imagePlacement: 'right', // Changed to alternate
     imageDescriptionForHint: "blog ideas desk",
     defaultIsVisible: true,
+    defaultImagePlacement: 'right',
+    defaultIsImageVisible: true,
   },
   {
     id: 'cta', 
     defaultTitle: "Ready to Delegate, Grow, and Thrive?",
     defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!",
-    imagePlacement: 'left', // Changed to alternate for the text, contact form will be on the right
     imageDescriptionForHint: "business collaboration handshake",
     defaultIsVisible: true,
+    defaultImagePlacement: 'left',
+    defaultIsImageVisible: true,
   },
 ];
 
@@ -178,11 +191,11 @@ export default async function HomePage() {
   const visibleBrandLogos = brandLogos.filter(logo => logo.isVisible !== false);
 
 
-  const getSectionContent = (sectionId: string, field: 'title' | 'text' | 'imageUrl' | 'isVisible') => {
+  const getSectionContent = (sectionId: string, field: 'title' | 'text' | 'imageUrl' | 'isVisible' | 'imagePlacement' | 'isImageVisible') => {
     const cmsData = fetchedSectionData[sectionId];
     const staticConfig = cmsSectionsConfig.find(s => s.id === sectionId);
 
-    if (!staticConfig) return field === 'isVisible' ? true : (field === 'imageUrl' ? null : ''); 
+    if (!staticConfig) return field === 'isVisible' || field === 'isImageVisible' ? true : (field === 'imageUrl' ? null : (field === 'imagePlacement' ? 'right' : '')); 
 
     switch (field) {
       case 'title':
@@ -193,6 +206,10 @@ export default async function HomePage() {
         return cmsData?.imageUrl ?? null;
       case 'isVisible':
         return cmsData?.isVisible === undefined ? staticConfig.defaultIsVisible : cmsData.isVisible;
+      case 'imagePlacement':
+        return cmsData?.imagePlacement ?? staticConfig.defaultImagePlacement;
+      case 'isImageVisible':
+        return cmsData?.isImageVisible === undefined ? staticConfig.defaultIsImageVisible : cmsData.isImageVisible;
       default:
         return '';
     }
@@ -208,6 +225,8 @@ export default async function HomePage() {
     const title = getSectionContent(sectionId, 'title') as string;
     const text = getSectionContent(sectionId, 'text') as string;
     const imageUrl = getSectionContent(sectionId, 'imageUrl') as string | null;
+    const imagePlacement = getSectionContent(sectionId, 'imagePlacement') as 'left' | 'right';
+    const isImageVisible = getSectionContent(sectionId, 'isImageVisible') as boolean;
     
     const imageInfo: AiImageInfo = {
       imageDataURI: imageUrl,
@@ -221,14 +240,13 @@ export default async function HomePage() {
 
     let textClass = ['services-intro', 'tools', 'pricing', 'testimonials', 'blog-intro', 'portfolio-intro', 'brand-marquee-intro'].includes(sectionId) ? 'text-center md:text-left' : '';
     
-    // Special handling for CTA text alignment
     if (sectionId === 'cta') {
         titleClass = 'text-4xl md:text-5xl';
         textClass = 'text-lg';
     }
 
     let sectionSpecificImageContainerClass = '';
-    if (sectionId === 'blog-intro' && staticConfig.imagePlacement === 'right') { // imagePlacement now 'right'
+    if (sectionId === 'blog-intro' && staticConfig.imagePlacement === 'right') { 
         sectionSpecificImageContainerClass = 'max-w-md'; 
     } else if (sectionId === 'blog-intro' && staticConfig.imagePlacement === 'left') {
         sectionSpecificImageContainerClass = 'max-w-md';
@@ -242,7 +260,8 @@ export default async function HomePage() {
         title={title}
         text={text}
         imageInfo={imageInfo}
-        imagePlacement={staticConfig.imagePlacement}
+        imagePlacement={imagePlacement}
+        isImageVisible={isImageVisible}
         className={sectionId === 'hero' ? 'bg-gradient-to-b from-background to-secondary/30' : ''}
         titleClassName={titleClass}
         textClassName={textClass}
@@ -475,6 +494,7 @@ export default async function HomePage() {
                               placeholderHint: cmsSectionsConfig.find(s => s.id === 'cta')?.imageDescriptionForHint
                           }}
                           imagePlacement="right" // This prop on AiImageSection itself dictates its internal image/text order
+                          isImageVisible={getSectionContent('cta', 'isImageVisible') as boolean}
                           className="!p-0" 
                           titleClassName="hidden"
                           textClassName="hidden"
@@ -489,4 +509,3 @@ export default async function HomePage() {
     </div>
   );
 }
-

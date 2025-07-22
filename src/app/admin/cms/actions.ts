@@ -18,6 +18,8 @@ export interface SectionData {
   text: string | null;
   isVisible?: boolean; 
   updatedAt?: string | null;
+  imagePlacement?: 'left' | 'right';
+  isImageVisible?: boolean;
 }
 
 export interface PortfolioItem {
@@ -102,6 +104,8 @@ export async function getSectionDataAction(sectionId: string): Promise<SectionDa
         title: data.title || null,
         text: data.text || null,
         isVisible: data.isVisible === undefined ? true : data.isVisible,
+        imagePlacement: data.imagePlacement || 'right',
+        isImageVisible: data.isImageVisible === undefined ? true : data.isImageVisible,
         updatedAt: convertDbTimestampToISOForCmsActions(data.updatedAt),
       };
     }
@@ -114,7 +118,14 @@ export async function getSectionDataAction(sectionId: string): Promise<SectionDa
 
 export async function updateSectionDataAction(
   sectionId: string,
-  data: { imageUrl?: string | null; title?: string | null; text?: string | null; isVisible?: boolean },
+  data: { 
+    imageUrl?: string | null; 
+    title?: string | null; 
+    text?: string | null; 
+    isVisible?: boolean;
+    imagePlacement?: 'left' | 'right';
+    isImageVisible?: boolean;
+  },
   adminUserId: string
 ): Promise<SectionOperationResult> {
   if (!(await verifyAdmin(adminUserId))) {
@@ -149,6 +160,12 @@ export async function updateSectionDataAction(
   if (data.hasOwnProperty('isVisible')) {
     dataToUpdate.isVisible = data.isVisible;
   }
+  if (data.hasOwnProperty('imagePlacement')) {
+    dataToUpdate.imagePlacement = data.imagePlacement;
+  }
+  if (data.hasOwnProperty('isImageVisible')) {
+    dataToUpdate.isImageVisible = data.isImageVisible;
+  }
   
   try {
     await setDoc(sectionDocRef, dataToUpdate, { merge: true });
@@ -157,6 +174,8 @@ export async function updateSectionDataAction(
     if (data.hasOwnProperty('title')) returnData.title = dataToUpdate.title;
     if (data.hasOwnProperty('text')) returnData.text = dataToUpdate.text;
     if (data.hasOwnProperty('isVisible')) returnData.isVisible = dataToUpdate.isVisible;
+    if (data.hasOwnProperty('imagePlacement')) returnData.imagePlacement = dataToUpdate.imagePlacement;
+    if (data.hasOwnProperty('isImageVisible')) returnData.isImageVisible = dataToUpdate.isImageVisible;
 
     return { success: true, message: `Content for section '${sectionId}' updated successfully.`, sectionData: returnData };
   } catch (error: any) {

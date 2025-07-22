@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building, ShieldAlert } from 'lucide-react';
+import { Eye, Clock, BookOpen, Edit3, Trash2, ImagePlus, Save, XCircle, Images, EyeOff, Briefcase, PlusCircle, Building, ShieldAlert, AlignLeft, AlignRight, ImageOff } from 'lucide-react';
 import { LottieLoader } from '@/components/ui/lottie-loader';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -77,23 +77,29 @@ interface ManagedSection {
   newText: string;
   currentIsVisible: boolean;
   newIsVisible: boolean;
+  currentImagePlacement: 'left' | 'right';
+  newImagePlacement: 'left' | 'right';
+  currentIsImageVisible: boolean;
+  newIsImageVisible: boolean;
   isLoading: boolean;
   placeholderHint?: string;
   defaultIsVisible: boolean;
+  defaultImagePlacement: 'left' | 'right';
+  defaultIsImageVisible: boolean;
 }
 
-const initialStaticSectionsData: Omit<ManagedSection, 'currentImageUrl' | 'newImageUrl' | 'currentTitle' | 'newTitle' | 'currentText' | 'newText' | 'currentIsVisible' | 'newIsVisible' | 'isLoading'>[] = [
-  { id: 'hero', name: 'Hero Section (Homepage)', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant', defaultIsVisible: true },
-  { id: 'onboarding-overview', name: 'Onboarding Overview (Homepage)', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps', defaultIsVisible: true },
-  { id: 'services-intro', name: 'Services Introduction (Homepage)', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services', defaultIsVisible: true },
-  { id: 'tools', name: 'Tools We Master Section (Homepage)', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage', defaultIsVisible: true },
-  { id: 'portfolio-intro', name: 'Portfolio Introduction (Homepage)', description: 'Introductory content for the portfolio section.', defaultTitle: 'Our Recent Work & Case Studies', defaultText: "Explore a selection of projects where Tiny Tasks has made a significant impact, delivering quality and driving growth for our clients.", placeholderHint: 'portfolio showcase design', defaultIsVisible: true },
-  { id: 'brand-marquee-intro', name: 'Brand Marquee Intro (Homepage)', description: "Title/text above the client logo scroll.", defaultTitle: 'Trusted By Leading Businesses', defaultText: "We're proud to have partnered with a diverse range of companies.", placeholderHint: 'brand logos collage', defaultIsVisible: true },
-  { id: 'pricing', name: 'Pricing Section Intro (Homepage)', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES', defaultIsVisible: true },
-  { id: 'testimonials', name: 'Testimonials Intro (Homepage)', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients', defaultIsVisible: true },
-  { id: 'blog-intro', name: 'Blog Introduction (Homepage)', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas', defaultIsVisible: true },
-  { id: 'cta', name: 'Call to Action (Homepage)', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration', defaultIsVisible: true },
-  { id: 'about-us-content', name: 'About Us Page Content', description: 'Main content for the About Us page, including banner.', defaultTitle: 'About Tiny Tasks', defaultText: "Founded with a passion for productivity and a commitment to excellence, Tiny Tasks is dedicated to providing top-tier virtual assistant services. Learn more about our mission, values, and the team that makes it all happen.", placeholderHint: 'team collaboration office', defaultIsVisible: true },
+const initialStaticSectionsData: Omit<ManagedSection, 'currentImageUrl' | 'newImageUrl' | 'currentTitle' | 'newTitle' | 'currentText' | 'newText' | 'currentIsVisible' | 'newIsVisible' | 'currentImagePlacement' | 'newImagePlacement' | 'currentIsImageVisible' | 'newIsImageVisible' | 'isLoading'>[] = [
+  { id: 'hero', name: 'Hero Section (Homepage)', description: 'Main banner and introduction on the homepage.', defaultTitle: 'Your Dedicated Virtual Assistant for Effortless Productivity', defaultText: "Tiny Tasks provides expert virtual assistance to manage your workload, streamline operations, and free up your time for what matters most. Smart, reliable, and tailored to your needs.", placeholderHint: 'professional virtual assistant', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
+  { id: 'onboarding-overview', name: 'Onboarding Overview (Homepage)', description: 'Introduction to the client onboarding process.', defaultTitle: 'Our Simple Onboarding Process', defaultText: "Getting started with Tiny Tasks is seamless. We'll understand your needs, match you with the perfect virtual assistant, and integrate them into your workflow for immediate impact. Our clear steps ensure you're supported from discovery to ongoing success.", placeholderHint: 'onboarding steps', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
+  { id: 'services-intro', name: 'Services Introduction (Homepage)', description: 'Introductory content for the main services area.', defaultTitle: 'Expert VA Support Tailored For You', defaultText: "Our virtual assistants offer a wide array of services. We match you with skilled VAs ready to tackle your specific business needs and challenges.", placeholderHint: 'virtual assistance services', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
+  { id: 'tools', name: 'Tools We Master Section (Homepage)', description: 'Visual and text for the tools showcase.', defaultTitle: 'Our Versatile Toolkit', defaultText: "We leverage the best tools to deliver exceptional virtual assistance, ensuring seamless collaboration and top-notch results for your projects.", placeholderHint: 'business tools collage', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
+  { id: 'portfolio-intro', name: 'Portfolio Introduction (Homepage)', description: 'Introductory content for the portfolio section.', defaultTitle: 'Our Recent Work & Case Studies', defaultText: "Explore a selection of projects where Tiny Tasks has made a significant impact, delivering quality and driving growth for our clients.", placeholderHint: 'portfolio showcase design', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
+  { id: 'brand-marquee-intro', name: 'Brand Marquee Intro (Homepage)', description: "Title/text above the client logo scroll.", defaultTitle: 'Trusted By Leading Businesses', defaultText: "We're proud to have partnered with a diverse range of companies.", placeholderHint: 'brand logos collage', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
+  { id: 'pricing', name: 'Pricing Section Intro (Homepage)', description: 'Contextual content for pricing plans.', defaultTitle: 'Transparent VA Pricing', defaultText: "Our clear pricing plans ensure you find the perfect fit for your business needs.", placeholderHint: 'pricing plans KES', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
+  { id: 'testimonials', name: 'Testimonials Intro (Homepage)', description: 'Background or illustrative content for testimonials.', defaultTitle: 'Client Success Stories', defaultText: "Visually representing client satisfaction through placeholder imagery.", placeholderHint: 'happy clients', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
+  { id: 'blog-intro', name: 'Blog Introduction (Homepage)', description: 'Content for the blog preview section on homepage.', defaultTitle: "Insights & Productivity Tips", defaultText: "Explore our latest articles for expert advice on virtual assistance, business growth, and mastering your workday.", placeholderHint: 'blog ideas', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
+  { id: 'cta', name: 'Call to Action (Homepage)', description: 'Visual and text for the main contact/CTA block.', defaultTitle: "Ready to Delegate, Grow, and Thrive?", defaultText: "Partner with Tiny Tasks and discover the power of expert virtual assistance. Let's discuss your needs and tailor a solution that propels your business forward. Get started today!", placeholderHint: 'business collaboration', defaultIsVisible: true, defaultImagePlacement: 'left', defaultIsImageVisible: true },
+  { id: 'about-us-content', name: 'About Us Page Content', description: 'Main content for the About Us page, including banner.', defaultTitle: 'About Tiny Tasks', defaultText: "Founded with a passion for productivity and a commitment to excellence, Tiny Tasks is dedicated to providing top-tier virtual assistant services. Learn more about our mission, values, and the team that makes it all happen.", placeholderHint: 'team collaboration office', defaultIsVisible: true, defaultImagePlacement: 'right', defaultIsImageVisible: true },
 ];
 
 
@@ -144,6 +150,8 @@ const CmsPage: FC = () => {
       currentTitle: s.defaultTitle, newTitle: s.defaultTitle,
       currentText: s.defaultText, newText: s.defaultText,
       currentIsVisible: s.defaultIsVisible, newIsVisible: s.defaultIsVisible,
+      currentImagePlacement: s.defaultImagePlacement, newImagePlacement: s.defaultImagePlacement,
+      currentIsImageVisible: s.defaultIsImageVisible, newIsImageVisible: s.defaultIsImageVisible,
       isLoading: true 
     }))
   );
@@ -192,6 +200,8 @@ const CmsPage: FC = () => {
         currentTitle: s.defaultTitle, newTitle: s.defaultTitle,
         currentText: s.defaultText, newText: s.defaultText,
         currentIsVisible: s.defaultIsVisible, newIsVisible: s.defaultIsVisible,
+        currentImagePlacement: s.defaultImagePlacement, newImagePlacement: s.defaultImagePlacement,
+        currentIsImageVisible: s.defaultIsImageVisible, newIsImageVisible: s.defaultIsImageVisible,
         isLoading: true,
     }));
     setManagedSections(initialData); 
@@ -199,6 +209,9 @@ const CmsPage: FC = () => {
     const updates = await Promise.all(
       initialStaticSectionsData.map(async (staticSection) => {
         const fetchedData: SectionData | null = await getSectionDataAction(staticSection.id);
+        const imagePlacement = fetchedData?.imagePlacement ?? staticSection.defaultImagePlacement;
+        const isImageVisible = fetchedData?.isImageVisible === undefined ? staticSection.defaultIsImageVisible : fetchedData.isImageVisible;
+        const isVisible = fetchedData?.isVisible === undefined ? staticSection.defaultIsVisible : fetchedData.isVisible;
         return {
           ...staticSection,
           currentImageUrl: fetchedData?.imageUrl ?? null,
@@ -207,8 +220,12 @@ const CmsPage: FC = () => {
           newTitle: fetchedData?.title ?? staticSection.defaultTitle,
           currentText: fetchedData?.text ?? staticSection.defaultText,
           newText: fetchedData?.text ?? staticSection.defaultText,
-          currentIsVisible: fetchedData?.isVisible === undefined ? staticSection.defaultIsVisible : fetchedData.isVisible,
-          newIsVisible: fetchedData?.isVisible === undefined ? staticSection.defaultIsVisible : fetchedData.isVisible,
+          currentIsVisible: isVisible,
+          newIsVisible: isVisible,
+          currentImagePlacement: imagePlacement,
+          newImagePlacement: imagePlacement,
+          currentIsImageVisible: isImageVisible,
+          newIsImageVisible: isImageVisible,
           isLoading: false,
         };
       })
@@ -341,6 +358,13 @@ const CmsPage: FC = () => {
   const handleIsVisibleChange = (sectionId: string, checked: boolean) => {
     setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newIsVisible: checked } : s));
   };
+   const handleImagePlacementChange = (sectionId: string, placement: 'left' | 'right') => {
+    setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newImagePlacement: placement } : s));
+  };
+  const handleIsImageVisibleChange = (sectionId: string, checked: boolean) => {
+    setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, newIsImageVisible: checked } : s));
+  };
+
 
   const handleSaveSectionData = async (sectionId: string) => {
     if (!firebaseUser?.uid) {
@@ -352,7 +376,7 @@ const CmsPage: FC = () => {
 
     setManagedSections(prev => prev.map(s => s.id === sectionId ? { ...s, isLoading: true } : s));
     
-    const dataToUpdate: { imageUrl?: string | null; title?: string | null; text?: string | null; isVisible?: boolean } = {};
+    const dataToUpdate: Partial<SectionData> = {};
     let changed = false;
 
     if (section.newImageUrl !== section.currentImageUrl) {
@@ -371,6 +395,14 @@ const CmsPage: FC = () => {
       dataToUpdate.isVisible = section.newIsVisible;
       changed = true;
     }
+    if (section.newImagePlacement !== section.currentImagePlacement) {
+      dataToUpdate.imagePlacement = section.newImagePlacement;
+      changed = true;
+    }
+    if (section.newIsImageVisible !== section.currentIsImageVisible) {
+      dataToUpdate.isImageVisible = section.newIsImageVisible;
+      changed = true;
+    }
     
     if (!changed) {
         toast({ title: "No Changes", description: "No changes detected to save for this section." });
@@ -384,18 +416,32 @@ const CmsPage: FC = () => {
       toast({ title: "Success", description: result.message });
       setManagedSections(prev => prev.map(s => {
         if (s.id === sectionId) {
-          return { 
-            ...s, 
-            currentImageUrl: result.sectionData!.hasOwnProperty('imageUrl') ? result.sectionData!.imageUrl : s.currentImageUrl,
-            newImageUrl: result.sectionData!.hasOwnProperty('imageUrl') ? (result.sectionData!.imageUrl || '') : s.newImageUrl,
-            currentTitle: result.sectionData!.hasOwnProperty('title') ? result.sectionData!.title : s.currentTitle,
-            newTitle: result.sectionData!.hasOwnProperty('title') ? (result.sectionData!.title || s.defaultTitle) : s.newTitle,
-            currentText: result.sectionData!.hasOwnProperty('text') ? result.sectionData!.text : s.currentText,
-            newText: result.sectionData!.hasOwnProperty('text') ? (result.sectionData!.text || s.defaultText) : s.newText,
-            currentIsVisible: result.sectionData!.hasOwnProperty('isVisible') ? (result.sectionData!.isVisible ?? true) : s.currentIsVisible,
-            newIsVisible: result.sectionData!.hasOwnProperty('isVisible') ? (result.sectionData!.isVisible ?? true) : s.newIsVisible,
-            isLoading: false 
-          };
+          const updatedSection: ManagedSection = { ...s, isLoading: false };
+            if (result.sectionData!.hasOwnProperty('imageUrl')) {
+                updatedSection.currentImageUrl = result.sectionData!.imageUrl;
+                updatedSection.newImageUrl = result.sectionData!.imageUrl || '';
+            }
+            if (result.sectionData!.hasOwnProperty('title')) {
+                updatedSection.currentTitle = result.sectionData!.title;
+                updatedSection.newTitle = result.sectionData!.title || s.defaultTitle;
+            }
+            if (result.sectionData!.hasOwnProperty('text')) {
+                updatedSection.currentText = result.sectionData!.text;
+                updatedSection.newText = result.sectionData!.text || s.defaultText;
+            }
+            if (result.sectionData!.hasOwnProperty('isVisible')) {
+                updatedSection.currentIsVisible = result.sectionData!.isVisible ?? s.defaultIsVisible;
+                updatedSection.newIsVisible = result.sectionData!.isVisible ?? s.defaultIsVisible;
+            }
+            if (result.sectionData!.hasOwnProperty('imagePlacement')) {
+                updatedSection.currentImagePlacement = result.sectionData!.imagePlacement ?? s.defaultImagePlacement;
+                updatedSection.newImagePlacement = result.sectionData!.imagePlacement ?? s.defaultImagePlacement;
+            }
+             if (result.sectionData!.hasOwnProperty('isImageVisible')) {
+                updatedSection.currentIsImageVisible = result.sectionData!.isImageVisible ?? s.defaultIsImageVisible;
+                updatedSection.newIsImageVisible = result.sectionData!.isImageVisible ?? s.defaultIsImageVisible;
+            }
+          return updatedSection;
         }
         return s;
       }));
@@ -514,7 +560,7 @@ const CmsPage: FC = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center"><Images className="mr-2 h-6 w-6 text-accent" /> Manage Website Section Content</CardTitle>
                     <CardDescription>
-                      Update images (use direct image links), text, and visibility for key sections.
+                      Update images, text, visibility, and layout for key sections.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -542,6 +588,39 @@ const CmsPage: FC = () => {
                         </CardHeader>
                         <CardContent className="p-0 grid md:grid-cols-2 gap-6">
                           <div className="space-y-3">
+                             <div className="flex items-center space-x-2">
+                                <Label className="text-sm font-medium">Layout:</Label>
+                                <Button
+                                  variant={section.newImagePlacement === 'left' ? 'secondary' : 'outline'}
+                                  size="sm"
+                                  onClick={() => handleImagePlacementChange(section.id, 'left')}
+                                  disabled={section.isLoading}
+                                >
+                                  <AlignLeft className="mr-1 h-4 w-4" /> Image Left
+                                </Button>
+                                <Button
+                                  variant={section.newImagePlacement === 'right' ? 'secondary' : 'outline'}
+                                  size="sm"
+                                  onClick={() => handleImagePlacementChange(section.id, 'right')}
+                                  disabled={section.isLoading}
+                                >
+                                  Image Right <AlignRight className="ml-1 h-4 w-4" />
+                                </Button>
+                              </div>
+
+                              <div className="flex items-center space-x-2">
+                                <Label className="text-sm font-medium">Image:</Label>
+                                 <Switch
+                                    id={`isImageVisible-${section.id}`}
+                                    checked={section.newIsImageVisible}
+                                    onCheckedChange={(checked) => handleIsImageVisibleChange(section.id, checked)}
+                                    disabled={section.isLoading || !firebaseUser}
+                                />
+                                <Label htmlFor={`isImageVisible-${section.id}`} className="text-sm">
+                                    {section.newIsImageVisible ? <ImagePlus className="h-4 w-4 inline mr-1 text-green-600"/> : <ImageOff className="h-4 w-4 inline mr-1"/>}
+                                    {section.newIsImageVisible ? "Visible" : "Hidden"}
+                                </Label>
+                              </div>
                             <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
                               {section.currentImageUrl ? (
                                 <Image 
@@ -624,7 +703,10 @@ const CmsPage: FC = () => {
                                 (section.newImageUrl === section.currentImageUrl && 
                                  section.newTitle === section.currentTitle &&
                                  section.newText === section.currentText &&
-                                 section.newIsVisible === section.currentIsVisible)
+                                 section.newIsVisible === section.currentIsVisible &&
+                                 section.newImagePlacement === section.currentImagePlacement &&
+                                 section.newIsImageVisible === section.currentIsImageVisible
+                                 )
                             }
                           >
                             {section.isLoading && <LottieLoader className="mr-1" size={16}/>}
@@ -1118,4 +1200,3 @@ const BrandLogoForm: FC<BrandLogoFormProps> = ({ logoItem, adminUserId, onSave, 
 
 
 export default CmsPage;
-    
