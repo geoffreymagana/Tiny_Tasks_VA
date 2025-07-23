@@ -1275,7 +1275,6 @@ const PortfolioItemForm: FC<PortfolioItemFormProps> = ({ item, adminUserId, onSa
             >
                 <UploadCloud className="mr-2 h-4 w-4"/> Upload Image
             </CldUploadButton>
-            {/* The hidden input is no longer necessary as RHF handles state */}
         </div>
         <div><Label htmlFor="imageHint">Image AI Hint (1-2 keywords)</Label><Input id="imageHint" {...form.register('imageHint')} disabled={isSubmitting} placeholder="e.g. modern design"/></div>
         <div><Label htmlFor="order">Display Order</Label><Input id="order" type="number" {...form.register('order', { valueAsNumber: true })} disabled={isSubmitting} /></div>
@@ -1481,8 +1480,8 @@ const TestimonialForm: FC<TestimonialFormProps> = ({ item, adminUserId, onSave, 
             <CldUploadButton
                 className={cn(buttonVariants({ variant: "outline" }), "w-full")}
                 options={{ folder: 'tiny-tasks-testimonials', tags: ['testimonial-avatar'] }}
-                onSuccess={handleUploadSuccess}
                 uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                onSuccess={handleUploadSuccess}
                 disabled={isSubmitting}
             >
                 <UploadCloud className="mr-2 h-4 w-4"/> Upload Avatar
@@ -1521,3 +1520,5 @@ const TestimonialForm: FC<TestimonialFormProps> = ({ item, adminUserId, onSave, 
 export default CmsPage;
 
 
+
+    
